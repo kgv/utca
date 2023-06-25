@@ -1,0 +1,25 @@
+# Euonymus Euonymus Bungeanus
+
+[[euonymus.euonymus.bungeanus]]
+key = "C"
+name = "Palmitic"
+type = "S"
+value = { sn123 = 28.1, sn2 = 0.0, sn13 = 40.0 }
+
+[[euonymus.euonymus.bungeanus]]
+key = "A"
+name = "Stearic"
+type = "S"
+value = { sn123 = 1.5, sn2 = 0.0, sn13 = 2.4 }
+
+[[euonymus.euonymus.bungeanus]]
+key = "D"
+name = "Hexadecenoic"
+type = "U"
+value = { sn123 = 10.2, sn2 = 0.2, sn13 = 14.0 }
+
+[[euonymus.euonymus.bungeanus]]
+key = "B"
+name = "Octadecenoic"
+type = "U"
+value = { sn123 = 17.2, sn2 = 11.2, sn13 = 21.0 }

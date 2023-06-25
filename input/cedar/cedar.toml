@@ -1,0 +1,103 @@
+# Pinaceae Cedrus
+
+[[pinaceae.cedrus]]
+key = "Do"
+name = "Dodecanoic acid"
+type = "U"
+value = { dag = 0.007, mag = 0.032, tag = 0.015 }
+
+[[pinaceae.cedrus]]
+key = "Te"
+name = "Methyl tetradecanoate"
+type = "U"
+value = { dag = 0.028, mag = 0.079, tag = 0.071 }
+
+[[pinaceae.cedrus]]
+key = "He"
+name = "Hexadecanoic acid"
+type = "U"
+value = { dag = 2.794, mag = 1.058, tag = 5.375 }
+
+[[pinaceae.cedrus]]
+key = "H7"
+name = "7-Hexadecenoic acid"
+type = "U"
+value = { dag = 0.024, mag = 0.119, tag = 0.015 }
+
+[[pinaceae.cedrus]]
+key = "H9"
+name = "9-Hexadecenoic acid"
+type = "U"
+value = { dag = 0.030, mag = 0.108, tag = 0.029 }
+
+[[pinaceae.cedrus]]
+key = "St"
+name = "Methyl stearate"
+type = "U"
+value = { dag = 1.809, mag = 0.381, tag = 2.744 }
+
+[[pinaceae.cedrus]]
+key = "O9"
+name = "9-Octadecenoic acid"
+type = "U"
+value = { dag = 23.545, mag = 29.110, tag = 22.070 }
+
+[[pinaceae.cedrus]]
+key = "O5"
+name = "Methyl 5,9-octadecadienoate"
+type = "U"
+value = { dag = 1.924, mag = 0.325, tag = 1.564 }
+
+[[pinaceae.cedrus]]
+key = "O12"
+name = "9,12-Octadecadienoic acid"
+type = "U"
+value = { dag = 44.575, mag = 65.713, tag = 42.935 }
+
+[[pinaceae.cedrus]]
+key = "O"
+name = "Methyl 5,9,12-octadecatrienoate"
+type = "U"
+value = { dag = 22.391, mag = 2.015, tag = 22.228 }
+
+[[pinaceae.cedrus]]
+key = "E"
+name = "Eicosanoic acid, methyl ester"
+type = "U"
+value = { dag = 0.291, mag = 0.016, tag = 0.287 }
+
+[[pinaceae.cedrus]]
+key = "O15"
+name = "9,12,15-Octadecatrienoic acid"
+type = "U"
+value = { dag = 0.119, mag = 0.076, tag = 0.188 }
+
+[[pinaceae.cedrus]]
+key = "E11"
+name = "11-Eicosenoic acid"
+type = "U"
+value = { dag = 0.789, mag = 0.183, tag = 0.956 }
+
+[[pinaceae.cedrus]]
+key = "E8"
+name = "8,11-Eicosadienoic acid"
+type = "U"
+value = { dag = 0.140, mag = 0.038, tag = 0.066 }
+
+[[pinaceae.cedrus]]
+key = "E14"
+name = "11,14-Eicosadienoic acid"
+type = "U"
+value = { dag = 0.397, mag = 0.239, tag = 0.456 }
+
+[[pinaceae.cedrus]]
+key = "E5"
+name = "Methyl 5,11,14-eicosatrienoate"
+type = "U"
+value = { dag = 1.047, mag = 0.352, tag = 0.743 }
+
+[[pinaceae.cedrus]]
+key = "E7"
+name = "Methyl 7,11,14-eicosatrienoate"
+type = "U"
+value = { dag = 0.091, mag = 0.052, tag = 0.164 }
