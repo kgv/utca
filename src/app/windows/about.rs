@@ -1,7 +1,4 @@
-use egui::{
-    text::LayoutJob, Align, Color32, Context, Id, Label, Layout, Sense, TextFormat, Window,
-};
-use egui_extras::{Size, Strip, StripBuilder};
+use egui::{Context, Id, Label, Sense, Window};
 
 /// About
 #[derive(Debug, Default)]

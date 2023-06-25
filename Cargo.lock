@@ -894,7 +894,8 @@ dependencies = [
 [[package]]
 name = "egui-notify"
 version = "0.7.0"
-source = "git+https://github.com/ItsEthra/egui-notify#3b010130251cbaa80e4769be78c84359f118fcfc"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "893533ea1a372ba3036a27784db4d9c8d8466d8ff61e1c2fb0031d4f8e8dde72"
 dependencies = [
  "egui",
 ]
@@ -2978,7 +2979,7 @@ dependencies = [
 
 [[package]]
 name = "utca"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",

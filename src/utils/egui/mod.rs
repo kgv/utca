@@ -1,18 +1,12 @@
 pub(crate) use self::{
-    app::AppExt,
-    color::color,
     content::Content,
     display::Trait as Display,
     response::{InnerResponseExt, ResponseExt},
     table::{Separate, TableRowExt},
 };
 
-use egui::{Response, Sense, Ui, Vec2, Widget};
+use egui::{Response, Ui};
 use std::ops::BitOr;
-
-// pub trait OptionalWidget<T> {
-//     fn optional_widget<F: FnMut() -> Widget>(&mut self, f: F) -> Response;
-// }
 
 pub trait SelectableValueFromIter<T> {
     fn selectable_value_from_iter(

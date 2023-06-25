@@ -6,14 +6,14 @@ use crate::{
         settings::{Order, Sort},
         MAX_PRECISION,
     },
-    utils::{egui::Separate, higher_order_functions::second},
+    utils::egui::Separate,
 };
 use egui::{ComboBox, Direction, Id, Layout, RichText, Slider, Ui};
 use egui_extras::{Column, TableBuilder};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, convert::identity, default::default, mem::take};
+use std::{collections::HashSet, default::default, mem::take};
 
 macro filter_combobox($ui:ident, $context:ident, $state:ident, $id:ident) {
     let id_source = stringify!($id).trim_start_matches("sn");
@@ -51,7 +51,7 @@ pub(super) struct Composition<'a> {
 }
 
 impl<'a> Composition<'a> {
-    pub(super) fn new(ui: &'a mut Ui, context: &'a mut Context) {
+    pub(super) fn view(ui: &'a mut Ui, context: &'a mut Context) {
         let state = State::load(ui);
         let composed = ui.memory_mut(|memory| {
             memory.caches.cache::<Composed>().get(Key {
@@ -256,7 +256,7 @@ impl Composition<'_> {
                     });
                     row.col(|ui| {
                         let mut sum: f64 = composed.values().sum();
-                        let mut filtered: f64 = context.composed.iter().map(second(identity)).sum();
+                        let mut filtered: f64 = context.composed.values().sum();
                         if state.percent {
                             sum *= 100.0;
                             filtered *= 100.0;

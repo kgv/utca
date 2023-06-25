@@ -16,7 +16,7 @@ pub(super) struct Input<'a> {
 }
 
 impl<'a> Input<'a> {
-    pub(super) fn new(ui: &'a mut Ui, context: &'a mut Context) {
+    pub(super) fn view(ui: &'a mut Ui, context: &'a mut Context) {
         let state = State::load(ui);
         Self { ui, context, state }.ui()
     }

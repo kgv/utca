@@ -1,13 +1,9 @@
 use super::{InnerResponseExt, ResponseExt};
 use crate::utils::BoundExt;
 use eframe::emath::Numeric;
-use egui::{Align, Color32, DragValue, Layout, Response, Separator, Ui, Widget, WidgetText};
-use egui_extras::TableBody;
+use egui::{DragValue, Response, Ui, Widget};
 use serde::{Deserialize, Serialize};
-use std::{
-    default::default,
-    ops::{Bound, RangeInclusive},
-};
+use std::ops::{Bound, RangeInclusive};
 
 /// Extension methods for [`Ui`]
 pub trait UiExt {
@@ -27,12 +23,6 @@ pub trait UiExt {
     ) -> Response;
 
     fn drag_percent<T: Numeric>(&mut self, value: &mut T) -> Response;
-
-    // fn option_value<T: Default>(
-    //     &mut self,
-    //     option: &mut Option<T>,
-    //     text: impl Into<WidgetText>,
-    // ) -> Response;
 }
 
 impl UiExt for Ui {
@@ -116,18 +106,4 @@ impl UiExt for Ui {
             .suffix('%')
             .ui(self)
     }
-
-    // fn option_value<T: Default>(
-    //     &mut self,
-    //     option: &mut Option<T>,
-    //     text: impl Into<WidgetText>,
-    // ) -> Response {
-    //     let mut checked = option.is_some();
-    //     let mut response = self.checkbox(&mut checked, text);
-    //     if response.changed() {
-    //         *option = option.map_or(Some(default()), |_| None);
-    //         response.mark_changed();
-    //     }
-    //     response
-    // }
 }

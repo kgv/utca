@@ -4,11 +4,7 @@ use self::{
 };
 use crate::{
     app::context::Unnormalized,
-    ether::ether,
-    parsers::{
-        toml::{FattyAcid, Parsed as TomlParsed},
-        whitespace::Parsed,
-    },
+    parsers::{toml::Parsed as TomlParsed, whitespace::Parsed},
     utils::egui::{Content, Display as _},
 };
 use anyhow::Result;
@@ -21,7 +17,7 @@ use egui::{
 use egui_dock::{DockArea, NodeIndex, Style};
 use egui_notify::Toasts;
 use serde::{Deserialize, Serialize};
-use std::{default::default, fmt::Write, future::Future, str, time::Duration};
+use std::{default::default, fmt::Write, str, time::Duration};
 use tracing::{debug, error, info};
 
 /// IEEE 754-2008
@@ -29,58 +25,11 @@ const MAX_PRECISION: usize = 16;
 
 // const DESCRIPTION: &str = "Positional-species and positional-type composition of TAG from mature fruit arils of the Euonymus section species, mol % of total TAG";
 
-#[cfg(target_arch = "wasm32")]
-fn execute<F: Future<Output = ()> + 'static>(f: F) {
-    wasm_bindgen_futures::spawn_local(f);
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn execute<F: Future<Output = ()> + 'static>(f: F) {}
-
 fn style(ctx: &Context) {
     let mut style = (*ctx.style()).clone();
     style.visuals.collapsing_header_frame = true;
     ctx.set_style(style);
 }
-
-// #[cfg(target_arch = "wasm32")]
-// fn import() {
-//     let window = web_sys::window().expect("Window not found");
-//     let document = window.document().expect("Document not found");
-//     let overlay = document.create_element("div").unwrap();
-//     overlay.set_id("rfd-overlay");
-//     let card = {
-//         let card = document.create_element("div").unwrap();
-//         card.set_id("rfd-card");
-//         overlay.append_child(&card).unwrap();
-//         card
-//     };
-//     let input = {
-//         let input_el = document.create_element("input").unwrap();
-//         let input: HtmlInputElement = wasm_bindgen::JsCast::dyn_into(input_el).unwrap();
-//         input.set_id("rfd-input");
-//         input.set_type("file");
-//         let mut accept: Vec<String> = Vec::new();
-//         for filter in opt.filters.iter() {
-//             accept.append(&mut filter.extensions.to_vec());
-//         }
-//         accept.iter_mut().for_each(|ext| ext.insert_str(0, "."));
-//         input.set_accept(&accept.join(","));
-//         card.append_child(&input).unwrap();
-//         input
-//     };
-//     let button = {
-//         let btn_el = document.create_element("button").unwrap();
-//         let btn: HtmlButtonElement = wasm_bindgen::JsCast::dyn_into(btn_el).unwrap();
-//         btn.set_id("rfd-button");
-//         btn.set_inner_text("Ok");
-//         card.append_child(&btn).unwrap();
-//         btn
-//     };
-//     let style = document.create_element("style").unwrap();
-//     style.set_inner_html(include_str!("./wasm/style.css"));
-//     overlay.append_child(&style).unwrap();
-// }
 
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
@@ -413,7 +362,6 @@ impl App {
                 };
                 use crate::app::context::Context;
 
-                let length = parsed.fatty_acids.len();
                 let (labels, (formulas, (tag123, (dag1223, mag2)))): (
                     Vec<_>,
                     (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))),
@@ -525,7 +473,7 @@ impl eframe::App for App {
 
     /// Called each time the UI needs repainting, which may be many times per
     /// second.
-    fn update(&mut self, ctx: &Context, frame: &mut Frame) {
+    fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
         self.pre_update(ctx);
         self.panels(ctx);
         self.windows(ctx);

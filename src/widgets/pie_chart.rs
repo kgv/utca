@@ -3,20 +3,14 @@
 //! https://math.stackexchange.com/questions/700211/finding-the-points-of-a-circle-by-using-one-set-of-coordinates-and-an-angle
 
 use egui::{
-    plot::{Legend, Plot, PlotPoint, PlotPoints, Polygon, Text},
+    plot::{Plot, PlotPoint, PlotPoints, Polygon, Text},
     Align2, RichText, Ui,
 };
-use std::f64::{consts::TAU, EPSILON};
-use tracing::error;
+use std::{default::default, f64::consts::TAU};
 
 const FULL_CIRCLE_VERTICES: f64 = 240.0;
 
 const RADIUS: f64 = 1.0;
-
-pub struct PieChart1<T: AsRef<str>> {
-    name: T,
-    sectors: Vec<Sector>,
-}
 
 /// A pie chart
 pub struct PieChart {
@@ -25,36 +19,14 @@ pub struct PieChart {
 }
 
 impl PieChart {
-    pub fn temp<T: AsRef<str>, U: AsRef<str>>(name: T, data: &[(U, f64)]) -> Self {
-        let sum: f64 = data.iter().map(|(_, value)| value).sum();
-        let slices: Vec<_> = data.iter().map(|(key, value)| (value / sum, key)).collect();
-        let step = TAU / FULL_CIRCLE_VERTICES;
-        let mut offset = 0.0;
-        let sectors = slices
-            .iter()
-            .map(|(key, value)| {
-                let vertices = (FULL_CIRCLE_VERTICES * key).round() as usize;
-                let start = TAU * offset;
-                let end = TAU * (offset + key);
-                let sector = Sector::new(value, start, end, vertices, step);
-                offset += key;
-                sector
-            })
-            .collect();
+    pub fn new<T: ToString>(name: T, sectors: Vec<Sector>) -> Self {
         Self {
-            name: name.as_ref().to_string(),
+            name: name.to_string(),
             sectors,
         }
     }
 
-    pub fn new<T: AsRef<str>>(name: T, sectors: Vec<Sector>) -> Self {
-        Self {
-            name: name.as_ref().to_string(),
-            sectors,
-        }
-    }
-
-    pub fn normalized<T: AsRef<str>, U: AsRef<str>>(
+    pub fn normalized<T: ToString, U: AsRef<str>>(
         name: T,
         iter: impl Iterator<Item = (U, f64)>,
     ) -> Self {
@@ -62,7 +34,7 @@ impl PieChart {
         Self::new(name, sectors)
     }
 
-    pub fn unnormalized<T: AsRef<str>, U: AsRef<str>>(
+    pub fn unnormalized<T: ToString, U: AsRef<str>>(
         name: T,
         iter: impl Iterator<Item = (U, f64)> + Clone,
     ) -> Self {
@@ -71,19 +43,17 @@ impl PieChart {
     }
 
     pub fn show(&mut self, ui: &mut Ui) {
-        let sectors = self.sectors.clone();
-
         Plot::new(&self.name)
-            .label_formatter(|_: &str, _: &PlotPoint| String::default())
-            .show_background(false)
-            .legend(Legend::default())
-            .show_axes([false; 2])
-            .clamp_grid(true)
             .allow_boxed_zoom(false)
             .allow_drag(false)
-            .allow_zoom(false)
             .allow_scroll(false)
+            .allow_zoom(true)
+            .clamp_grid(true)
             .data_aspect(1.0)
+            .label_formatter(|_, _| default())
+            .legend(default())
+            .show_axes([false; 2])
+            .show_background(false)
             // .set_margin_fraction([0.7; 2].into()) // this won't prevent the plot from moving
             // `include_*` will lock it into place
             .include_x(-2.0)
@@ -91,35 +61,29 @@ impl PieChart {
             .include_y(-2.0)
             .include_y(2.0)
             .show(ui, |plot_ui| {
-                for sector in sectors.into_iter() {
+                for sector in &self.sectors {
                     let highlight = plot_ui
                         .pointer_coordinate()
-                        .map(|point| sector.contains(&point))
-                        .unwrap_or_default();
-                    if highlight {
-                        error!(?sector);
-                    }
-
-                    let Sector { name, points, .. } = sector;
-
+                        .is_some_and(|point| sector.contains(&point));
                     plot_ui.polygon(
-                        Polygon::new(PlotPoints::new(points))
-                            .name(&name)
+                        Polygon::new(PlotPoints::new(sector.points.clone()))
+                            .name(&sector.name)
                             .highlight(highlight),
                     );
-
-                    // if highlight {
-                    //     let p = plot_ui.pointer_coordinate().unwrap();
-
-                    //     // TODO proper zoom
-                    //     let text = RichText::new(&name).size(15.0).heading();
-                    //     plot_ui.text(Text::new(p, text).name(&name).anchor(Align2::LEFT_BOTTOM));
-                    // }
+                    if highlight {
+                        let position = plot_ui.pointer_coordinate().unwrap();
+                        plot_ui.text(
+                            Text::new(position, RichText::new(&sector.name).size(15.0).heading())
+                                .name(&sector.name)
+                                .anchor(Align2::LEFT_BOTTOM),
+                        );
+                    }
                 }
             });
     }
 }
 
+/// Sector
 #[derive(Clone, Debug)]
 pub struct Sector {
     name: String,
@@ -149,12 +113,12 @@ impl Sector {
     }
 
     pub fn contains(&self, &PlotPoint { x, y }: &PlotPoint) -> bool {
-        let r = y.hypot(x);
+        let radius = y.hypot(x);
         let mut theta = x.atan2(y);
         if theta < 0.0 {
             theta += TAU;
         }
-        r < RADIUS && self.start > theta && theta < self.end
+        radius < RADIUS && self.start < theta && theta < self.end
     }
 }
 

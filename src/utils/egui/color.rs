@@ -1,6 +1,7 @@
 use eframe::epaint::Hsva;
 use egui::Color32;
 
+#[allow(unused)]
 pub(crate) fn color(index: usize) -> Color32 {
     // 0.61803398875
     let golden_ratio: f32 = (5.0_f32.sqrt() - 1.0) / 2.0;

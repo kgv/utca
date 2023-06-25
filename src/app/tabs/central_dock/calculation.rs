@@ -22,7 +22,7 @@ pub(super) struct Calculation<'a> {
 }
 
 impl<'a> Calculation<'a> {
-    pub(super) fn new(ui: &'a mut Ui, context: &'a mut Context) {
+    pub(super) fn view(ui: &'a mut Ui, context: &'a mut Context) {
         let state = State::load(ui);
         context.normalized = ui.memory_mut(|memory| {
             memory.caches.cache::<Calculated>().get(Key {

@@ -55,6 +55,6 @@ mod acylglycerol;
 mod app;
 mod ether;
 mod parsers;
-mod species;
+mod taxonomy;
 mod utils;
 mod widgets;

@@ -105,10 +105,10 @@ impl TabViewer for Tabs {
 
     fn ui(&mut self, ui: &mut Ui, tab: &mut Self::Tab) {
         match *tab {
-            Tab::Input => Input::new(ui, &mut self.context),
-            Tab::Output(Output::Calculation) => Calculation::new(ui, &mut self.context),
-            Tab::Output(Output::Composition) => Composition::new(ui, &mut self.context),
-            Tab::Output(Output::Visualization) => Visualization::new(ui, &mut self.context),
+            Tab::Input => Input::view(ui, &mut self.context),
+            Tab::Output(Output::Calculation) => Calculation::view(ui, &mut self.context),
+            Tab::Output(Output::Composition) => Composition::view(ui, &mut self.context),
+            Tab::Output(Output::Visualization) => Visualization::view(ui, &mut self.context),
         }
     }
 }

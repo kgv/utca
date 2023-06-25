@@ -5,12 +5,10 @@ use nom::{
     combinator::{consumed, map, map_res, opt},
     error::{Error, ErrorKind, ParseError},
     multi::separated_list1,
-    number::complete::{double as float, recognize_float},
-    sequence::{delimited, separated_pair, tuple},
+    number::complete::double as float,
+    sequence::{separated_pair, tuple},
     Err, IResult,
 };
-use std::{default::default, str::FromStr};
-use tracing::trace;
 
 /// Parser
 pub struct Parser;
@@ -21,15 +19,6 @@ impl Parser {
     }
 }
 
-// Pi	18:2	42194071.11	208041598.4
-// Pa	16:0	145011164	302116780.1
-// Pn	18:3	599666360.2	2420977752
-// Gd	20:1	25798972.6	85358549.16
-// St	18:0	74037315.87	195624715.7
-// Ol	18:1	595392558.3	2545783364
-// Ar	20:0	7737659.8	31481582.54
-// Li	18:2	1158289211	4819585527
-// Ln	18:3	5070004.063	12823290.14
 pub fn parse(input: &str) -> Result<Vec<Parsed>, Err<Error<&str>>> {
     let (input, parsed) = alt((
         // Quadruple

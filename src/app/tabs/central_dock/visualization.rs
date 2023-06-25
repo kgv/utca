@@ -3,7 +3,7 @@ use crate::{
     widgets::PieChart,
 };
 use egui::{
-    plot::{Bar, BarChart, Legend, Plot},
+    plot::{Bar, BarChart, Plot},
     ComboBox, RichText, Slider, Ui,
 };
 use serde::{Deserialize, Serialize};
@@ -17,7 +17,7 @@ pub(super) struct Visualization<'a> {
 }
 
 impl<'a> Visualization<'a> {
-    pub(super) fn new(ui: &'a mut Ui, context: &'a mut Context) {
+    pub(super) fn view(ui: &'a mut Ui, context: &'a mut Context) {
         let state = State::load(ui);
         Self { ui, context, state }.ui()
     }
@@ -74,7 +74,7 @@ impl Visualization<'_> {
             //     String::new()
             // })
             // .y_axis_formatter(percent_axis_formatter)
-            .legend(Legend::default())
+            .legend(default())
             .show(ui, |ui| {
                 for (i, (key, value)) in context.composed.iter().enumerate() {
                     let name = key.map(|index| &context.labels[index]);
