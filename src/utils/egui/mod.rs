@@ -3,6 +3,7 @@ pub(crate) use self::{
     display::Trait as Display,
     response::{InnerResponseExt, ResponseExt},
     table::{Separate, TableRowExt},
+    ui::UiExt,
 };
 
 use egui::{Response, Ui};

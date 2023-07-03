@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
 
 /// Chart
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(super) enum Chart {
     #[default]
     Bar,
@@ -17,7 +17,7 @@ pub(super) enum From {
 }
 
 /// Normalization
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
 pub(super) enum Normalization {
     #[default]
     Mass,
@@ -35,8 +35,28 @@ impl Display for Normalization {
     }
 }
 
+/// Positional сomposition
+#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+pub(super) enum Positional {
+    /// Positional-species composition (PSC)
+    Species,
+    /// Positional-type composition (PTC)
+    Type,
+}
+
+impl Display for Positional {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::Species if f.alternate() => f.write_str("PSC"),
+            Self::Type if f.alternate() => f.write_str("PTC"),
+            Self::Species => f.write_str("species"),
+            Self::Type => f.write_str("type"),
+        }
+    }
+}
+
 /// Representation
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(super) enum Representation {
     Unnormalized,
     #[default]
@@ -44,7 +64,7 @@ pub(super) enum Representation {
 }
 
 /// Signedness
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
 pub(super) enum Signedness {
     Signed,
     #[default]
@@ -61,7 +81,7 @@ impl Display for Signedness {
 }
 
 /// Sort
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(super) enum Sort {
     Key(Order),
     Value(Order),
@@ -102,7 +122,7 @@ pub(super) enum Source {
 }
 
 /// Order
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(super) enum Order {
     Ascending,
     Descending,
@@ -121,7 +141,7 @@ mod trash {
     use super::*;
 
     /// Sum
-    #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+    #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
     pub(super) enum Sum {
         #[default]
         Percent,

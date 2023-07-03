@@ -3,7 +3,7 @@ use crate::{
     app::{
         computers::composer::{Composed, Key},
         context::Context,
-        settings::{Order, Sort},
+        settings::{Order, Positional, Sort},
         MAX_PRECISION,
     },
     utils::egui::Separate,
@@ -13,7 +13,7 @@ use egui_extras::{Column, TableBuilder};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, default::default, mem::take};
+use std::{borrow::Cow, collections::HashSet, default::default, mem::take};
 
 macro filter_combobox($ui:ident, $context:ident, $state:ident, $id:ident) {
     let id_source = stringify!($id).trim_start_matches("sn");
@@ -58,6 +58,7 @@ impl<'a> Composition<'a> {
                 labels: &context.labels,
                 dags13: &context.normalized.dags13,
                 mags2: &context.normalized.mags2,
+                composition: state.composition,
                 sort: state.sort,
             })
         });
@@ -104,6 +105,31 @@ impl Composition<'_> {
                 ui.horizontal(|ui| {
                     ui.label("Percent:");
                     ui.checkbox(&mut state.percent, "");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Composition:");
+                    let selected_text = match state.composition {
+                        Some(positional) => Cow::Owned(positional.to_string()),
+                        None => Cow::Borrowed("None"),
+                    };
+                    ComboBox::from_id_source("composition")
+                        .width(ui.available_width())
+                        .selected_text(selected_text)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut state.composition, None, "None");
+                            ui.selectable_value(
+                                &mut state.composition,
+                                Some(Positional::Species),
+                                "PSC",
+                            )
+                            .on_hover_text("Positional-species composition");
+                            ui.selectable_value(
+                                &mut state.composition,
+                                Some(Positional::Type),
+                                "PTC",
+                            )
+                            .on_hover_text("Positional-type composition");
+                        });
                 });
             });
             ui.collapsing(RichText::new("🔎 Filter").heading(), |ui| {
@@ -282,6 +308,7 @@ impl Drop for Composition<'_> {
 /// State
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 struct State {
+    composition: Option<Positional>,
     filter: Filter,
     percent: bool,
     precision: usize,
@@ -310,10 +337,11 @@ impl State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            composition: None,
             filter: default(),
-            percent: default(),
+            percent: false,
             precision: 5,
-            resizable: default(),
+            resizable: false,
             sort: Sort::Key(Order::Ascending),
         }
     }

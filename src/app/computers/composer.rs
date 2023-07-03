@@ -1,6 +1,6 @@
 use crate::{
     acylglycerol::Tag,
-    app::settings::{Order, Sort},
+    app::settings::{Order, Positional, Sort},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use indexmap::IndexMap;
@@ -31,12 +31,19 @@ impl ComputerMut<Key<'_>, Value> for Composer {
             .multi_cartesian_product()
             .map(|index| {
                 // TODO: 0.0001 *
-                (
-                    Tag([index[0], index[1], index[2]]),
-                    key.dags13[index[0]] // a13 (1)
-                    * key.mags2[index[1]] // b2
-                    * key.dags13[index[2]], // c13 (3)
-                )
+                match key.composition {
+                    None => (
+                        Tag([index[0], index[1], index[2]]),
+                        key.dags13[index[0]] // a1(3)
+                        * key.mags2[index[1]] // b2
+                        * key.dags13[index[2]], // c(1)3
+                    ),
+                    Some(Positional::Species) => {
+                        // if
+                        todo!()
+                    }
+                    Some(Positional::Type) => todo!(),
+                }
             })
             .collect::<Value>()
             .sort(key.sort)
@@ -49,6 +56,7 @@ pub(in crate::app) struct Key<'a> {
     pub(in crate::app) labels: &'a [String],
     pub(in crate::app) dags13: &'a [f64],
     pub(in crate::app) mags2: &'a [f64],
+    pub(in crate::app) composition: Option<Positional>,
     pub(in crate::app) sort: Sort,
 }
 
@@ -61,6 +69,7 @@ impl Hash for Key<'_> {
         for &mag2 in self.mags2 {
             OrderedFloat(mag2).hash(state);
         }
+        self.composition.hash(state);
         self.sort.hash(state);
     }
 }
