@@ -1,5 +1,8 @@
 use crate::{
-    app::{context::Context, settings::Chart},
+    app::{
+        context::{Context, Entry},
+        settings::Chart,
+    },
     widgets::PieChart,
 };
 use egui::{
@@ -42,6 +45,10 @@ impl Visualization<'_> {
                     });
             });
             ui.horizontal(|ui| {
+                ui.label("Legend:");
+                ui.checkbox(&mut state.legend, "");
+            });
+            ui.horizontal(|ui| {
                 ui.label("Normalized:");
                 ui.checkbox(&mut state.normalized, "");
             });
@@ -65,24 +72,26 @@ impl Visualization<'_> {
 impl Visualization<'_> {
     fn bar_chart(&mut self) {
         let Self { ui, context, state } = self;
-        Plot::new("plot")
-            // .x_axis_formatter(|x, _range: &RangeInclusive<f64>| {
-            //     if !x.is_approx_zero() && x.is_approx_integer() {
-            //         // let species = self.configured.species[x as usize];
-            //         // return format!("{species}");
-            //     }
-            //     String::new()
-            // })
-            // .y_axis_formatter(percent_axis_formatter)
-            .legend(default())
-            .show(ui, |ui| {
-                for (i, (key, value)) in context.composed.iter().enumerate() {
-                    let name = key.map(|index| &context.labels[index]);
-                    let bar = Bar::new(1.0 + i as f64, *value).name(name);
-                    let chart = BarChart::new(vec![bar]).width(state.width).name(name);
-                    ui.bar_chart(chart);
-                }
-            });
+        let mut plot = Plot::new("plot");
+        // .x_axis_formatter(|x, _range: &RangeInclusive<f64>| {
+        //     if !x.is_approx_zero() && x.is_approx_integer() {
+        //         // let species = self.configured.species[x as usize];
+        //         // return format!("{species}");
+        //     }
+        //     String::new()
+        // })
+        // .y_axis_formatter(percent_axis_formatter)
+        if state.legend {
+            plot = plot.legend(default());
+        }
+        plot.show(ui, |ui| {
+            for (i, Entry { tags, value }) in context.composed.iter().enumerate() {
+                let name = &tags.first().unwrap().map(|index| &context.labels[index]);
+                let bar = Bar::new(1.0 + i as f64, *value).name(name);
+                let chart = BarChart::new(vec![bar]).width(state.width).name(name);
+                ui.bar_chart(chart);
+            }
+        });
     }
 
     fn pie_chart(&mut self) {
@@ -93,10 +102,14 @@ impl Visualization<'_> {
 
         PieChart::unnormalized(
             "Visualization",
-            context
-                .composed
-                .iter()
-                .map(|(key, value)| (key.map(|index| &context.labels[index]).to_string(), *value)),
+            context.composed.iter().map(|Entry { tags, value }| {
+                let name = tags
+                    .first()
+                    .unwrap()
+                    .map(|index| &context.labels[index])
+                    .to_string();
+                (name, *value)
+            }),
         )
         .show(ui);
     }
@@ -112,6 +125,7 @@ impl Drop for Visualization<'_> {
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 struct State {
     chart: Chart,
+    legend: bool,
     normalized: bool,
     width: f64,
 }
@@ -136,7 +150,8 @@ impl Default for State {
     fn default() -> Self {
         Self {
             chart: default(),
-            normalized: default(),
+            legend: true,
+            normalized: false,
             width: 0.65,
         }
     }

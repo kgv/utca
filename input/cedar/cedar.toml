@@ -1,5 +1,7 @@
 # Pinaceae Cedrus
 
+taxonomy = "Pinaceae Cedrus"
+
 [[pinaceae.cedrus]]
 key = "Do"
 name = "Dodecanoic acid"

@@ -13,6 +13,22 @@ pub(crate) macro ether {
     }
 }
 
+pub trait Ether {
+    fn bounds(&self) -> usize;
+
+    fn saturation(&self) -> bool {
+        self.bounds() == 0
+    }
+}
+
+impl Ether for Counter {
+    fn bounds(&self) -> usize {
+        let c = self.get(&C).expect("expected some `C` atoms in ether");
+        let h = self.get(&H).expect("expected some `H` atoms in ether");
+        c.get() - h.get() / 2
+    }
+}
+
 pub fn from_ether(c: usize, bounds: usize) -> Option<Counter> {
     let c = c + 1;
     Some(Counter::new(maplit::btreemap! {

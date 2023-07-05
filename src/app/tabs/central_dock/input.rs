@@ -66,7 +66,6 @@ impl Input<'_> {
             .auto_shrink([false; 2])
             .resizable(state.resizable)
             .striped(true)
-            .vscroll(false)
             .header(height, |mut row| {
                 row.col(|ui| {
                     ui.heading("FA").on_hover_text("Fatty acid");
@@ -94,8 +93,6 @@ impl Input<'_> {
                         });
                         row.col(|ui| {
                             let formula = &mut context.formulas[index];
-                            // let (c, bounds) = ether!(formula);
-                            // let selected_text = format!("{c}:{bounds}");
                             let selected_text = ether!(formula)
                                 .map_or_else(default, |(c, bounds)| format!("{c}:{bounds}"));
                             ComboBox::from_id_source(index)

@@ -1,4 +1,4 @@
-use egui::{Context, Id, Label, Sense, Window};
+use egui::{Context, Id, Label, RichText, Sense, Window};
 
 /// About
 #[derive(Debug, Default)]
@@ -25,8 +25,8 @@ impl About {
             // );
             // ctx.frame_nr()
 
-            let version = env!("CARGO_PKG_VERSION");
             ui.vertical_centered(|ui| {
+                let version = env!("CARGO_PKG_VERSION");
                 ui.label(&format!("UTCA {version}"));
                 ui.label("Ultimate TAG Calculation Application");
                 ui.label("© 2023");
@@ -43,9 +43,17 @@ impl About {
                     ui.data_mut(|data| data.remove::<usize>(id));
                 }
                 ui.separator();
-                ui.hyperlink_to("web", "https://ippras.github.io/utca/");
-                ui.hyperlink_to("github", "https://github.com/ippras/utca");
-                ui.hyperlink_to("issues", "https://github.com/ippras/utca/issues");
+                ui.collapsing(RichText::new("Links").heading(), |ui| {
+                    ui.hyperlink_to("web", "https://ippras.github.io/utca/");
+                    ui.hyperlink_to("github", "https://github.com/ippras/utca");
+                    ui.hyperlink_to("issues", "https://github.com/ippras/utca/issues");
+                });
+                ui.collapsing(RichText::new("Dedications").heading(), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Giorgi Kazakov:");
+                        ui.label("Моим родителям, Тане и Володе, посвящается. Люблю вас на 1 больше, чем вы любите меня.");
+                    });
+                });
             });
         });
     }

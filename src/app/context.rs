@@ -1,10 +1,13 @@
 use crate::acylglycerol::Tag;
 use indexmap::IndexMap;
+use itertools::izip;
 use molecule::Counter;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeSet,
     default::default,
+    fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
 };
 
@@ -15,7 +18,7 @@ pub(super) struct Context {
     pub(super) formulas: Vec<Counter>,
     pub(super) unnormalized: Unnormalized,
     pub(super) normalized: Normalized,
-    pub(super) composed: IndexMap<Tag<usize>, f64>,
+    pub(super) composed: Composed,
 }
 
 impl Context {
@@ -75,4 +78,25 @@ pub(super) struct Normalized {
     pub(super) dags1223: Vec<f64>,
     pub(super) mags2: Vec<f64>,
     pub(super) dags13: Vec<f64>,
+}
+
+impl Display for Normalized {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        writeln!(f, "1,2,3-TAGs 1,2/2,3-DAGs 2-MAGs 1,3-DAGs")?;
+        for (tag123, dag1223, mag2, dag13) in
+            izip!(&self.tags123, &self.dags1223, &self.mags2, &self.dags13)
+        {
+            writeln!(f, "{tag123} {dag1223} {mag2} {dag13}")?;
+        }
+        Ok(())
+    }
+}
+
+/// Composed
+pub(super) type Composed = Vec<Entry>;
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub(super) struct Entry {
+    pub(super) tags: BTreeSet<Tag<usize>>,
+    pub(super) value: f64,
 }

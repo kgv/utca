@@ -10,6 +10,10 @@
 //! [Determination of the Positional-Species Composition of Plant Reserve
 //! Triacylglycerols by Partial Chemical
 //! Deacylation](https://sci-hub.ru/10.1023/A:1016732708350)
+//!
+//! TODO:
+//!
+//! - Сделать PieChart как BarChart + legend
 
 #![feature(decl_macro)]
 #![feature(default_free_fn)]

@@ -1,9 +1,10 @@
 use self::{
     calculation::Calculation, composition::Composition, input::Input, visualization::Visualization,
 };
-use crate::app::context::Context;
+use crate::app::context::{Context, Entry};
 use egui::{Ui, WidgetText};
 use egui_dock::{TabViewer, Tree};
+use itertools::{izip, Itertools};
 use serde::{Deserialize, Serialize};
 use std::{
     default::default,
@@ -74,7 +75,19 @@ impl TabViewer for Tabs {
             Tab::Input => {
                 if ui.button("Copy").clicked() {
                     ui.output_mut(|output| {
-                        output.copied_text = format!("{:?}", self.context.unnormalized);
+                        let mut formated = String::new();
+                        for (label, formula, tag123, dag1223, mag2) in izip!(
+                            &self.context.labels,
+                            &self.context.formulas,
+                            &self.context.unnormalized.tags123,
+                            &self.context.unnormalized.dags1223,
+                            &self.context.unnormalized.mags2
+                        ) {
+                            formated.push_str(&format!(
+                                "{label} {formula} {tag123} {dag1223} {mag2}\n"
+                            ));
+                        }
+                        output.copied_text = formated;
                     });
                     ui.close_menu();
                 }
@@ -82,7 +95,7 @@ impl TabViewer for Tabs {
             Tab::Output(Output::Calculation) => {
                 if ui.button("Copy").clicked() {
                     ui.output_mut(|output| {
-                        output.copied_text = format!("{:?}", self.context.normalized);
+                        output.copied_text = self.context.normalized.to_string();
                     });
                     ui.close_menu();
                 }
@@ -90,7 +103,19 @@ impl TabViewer for Tabs {
             Tab::Output(Output::Composition) => {
                 if ui.button("Copy").clicked() {
                     ui.output_mut(|output| {
-                        output.copied_text = format!("{:?}", self.context.composed);
+                        let formated =
+                            self.context.composed.iter().format_with("\n", |entry, f| {
+                                f(&format_args!(
+                                    "{}: {}",
+                                    entry
+                                        .tags
+                                        .iter()
+                                        .map(|tag| tag.map(|index| &self.context.labels[index]))
+                                        .format(" "),
+                                    entry.value
+                                ))
+                            });
+                        output.copied_text = formated.to_string();
                     });
                     ui.close_menu();
                 }

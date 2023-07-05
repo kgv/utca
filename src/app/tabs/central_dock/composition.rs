@@ -1,16 +1,15 @@
 use crate::{
-    acylglycerol::Tag,
     app::{
         computers::composer::{Composed, Key},
-        context::Context,
+        context::{Context, Entry},
         settings::{Order, Positional, Sort},
         MAX_PRECISION,
     },
+    ether::Ether,
     utils::egui::Separate,
 };
-use egui::{ComboBox, Direction, Id, Layout, RichText, Slider, Ui};
+use egui::{Align, ComboBox, Direction, Id, Layout, RichText, Slider, Ui};
 use egui_extras::{Column, TableBuilder};
-use indexmap::IndexMap;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashSet, default::default, mem::take};
@@ -46,7 +45,7 @@ const COLUMNS: usize = 2;
 pub(super) struct Composition<'a> {
     ui: &'a mut Ui,
     context: &'a mut Context,
-    composed: IndexMap<Tag<usize>, f64>,
+    composed: Vec<Entry>,
     state: State,
 }
 
@@ -55,22 +54,28 @@ impl<'a> Composition<'a> {
         let state = State::load(ui);
         let composed = ui.memory_mut(|memory| {
             memory.caches.cache::<Composed>().get(Key {
-                labels: &context.labels,
-                dags13: &context.normalized.dags13,
                 mags2: &context.normalized.mags2,
+                dags13: &context.normalized.dags13,
+                labels: &context.labels,
+                saturations: &context
+                    .formulas
+                    .iter()
+                    .map(|formula| formula.saturation())
+                    .collect(),
                 composition: state.composition,
                 sort: state.sort,
             })
         });
         context.composed = composed
             .iter()
-            .filter(|(tag, &part)| {
-                !state.filter.sn13.contains(&tag[0])
-                    && !state.filter.sn2.contains(&tag[1])
-                    && !state.filter.sn13.contains(&tag[2])
-                    && part >= state.filter.part
+            .filter(|entry| {
+                entry.tags.iter().all(|tag| {
+                    !state.filter.sn13.contains(&tag[0])
+                        && !state.filter.sn2.contains(&tag[1])
+                        && !state.filter.sn13.contains(&tag[2])
+                }) && entry.value >= state.filter.part
             })
-            .map(|(tag, part)| (*tag, *part))
+            .cloned()
             .collect();
         Self {
             ui,
@@ -109,11 +114,10 @@ impl Composition<'_> {
                 ui.horizontal(|ui| {
                     ui.label("Composition:");
                     let selected_text = match state.composition {
-                        Some(positional) => Cow::Owned(positional.to_string()),
+                        Some(positional) => Cow::Owned(format!("{positional:#}")),
                         None => Cow::Borrowed("None"),
                     };
                     ComboBox::from_id_source("composition")
-                        .width(ui.available_width())
                         .selected_text(selected_text)
                         .show_ui(ui, |ui| {
                             ui.selectable_value(&mut state.composition, None, "None");
@@ -255,18 +259,54 @@ impl Composition<'_> {
                 });
             })
             .body(|mut body| {
-                for (tag, &(mut part)) in &context.composed {
+                for Entry {
+                    tags,
+                    value: mut part,
+                } in &context.composed
+                {
                     body.row(height, |mut row| {
                         row.col(|ui| {
-                            let tag = tag.map(|index| &context.labels[index]);
-                            ui.label(format!("{tag}"));
+                            ui.with_layout(
+                                Layout::left_to_right(Align::Center)
+                                    .with_main_align(Align::RIGHT)
+                                    .with_main_justify(true),
+                                |ui| {
+                                    ui.label(
+                                        tags.first()
+                                            .unwrap()
+                                            .map(|index| match state.composition {
+                                                Some(Positional::Type) => {
+                                                    if context.formulas[index].saturation() {
+                                                        "S"
+                                                    } else {
+                                                        "U"
+                                                    }
+                                                }
+                                                _ => &context.labels[index],
+                                            })
+                                            .to_string(),
+                                    )
+                                    .on_hover_text(
+                                        tags.into_iter()
+                                            .map(|tag| tag.map(|index| &context.labels[index]))
+                                            .join(", "),
+                                    );
+                                },
+                            );
                         });
                         row.col(|ui| {
-                            if state.percent {
-                                part *= 100.0;
-                            }
-                            ui.label(format!("{part:.*}", state.precision))
-                                .on_hover_text(part.to_string());
+                            ui.with_layout(
+                                Layout::left_to_right(Align::Center)
+                                    .with_main_align(Align::RIGHT)
+                                    .with_main_justify(true),
+                                |ui| {
+                                    if state.percent {
+                                        part *= 100.0;
+                                    }
+                                    ui.label(format!("{part:.*}", state.precision))
+                                        .on_hover_text(part.to_string());
+                                },
+                            );
                         });
                     });
                 }
@@ -281,8 +321,9 @@ impl Composition<'_> {
                             .on_hover_text(format!("{count} - {unfiltered} = {filtered}"));
                     });
                     row.col(|ui| {
-                        let mut sum: f64 = composed.values().sum();
-                        let mut filtered: f64 = context.composed.values().sum();
+                        let mut sum: f64 = composed.iter().map(|entry| entry.value).sum();
+                        let mut filtered: f64 =
+                            context.composed.iter().map(|entry| entry.value).sum();
                         if state.percent {
                             sum *= 100.0;
                             filtered *= 100.0;
