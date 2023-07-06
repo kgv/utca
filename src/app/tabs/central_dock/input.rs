@@ -3,10 +3,13 @@ use crate::{
     ether::ether,
     utils::egui::{Separate, TableRowExt},
 };
-use egui::{Align, ComboBox, Direction, DragValue, Layout, RichText, Slider, Ui};
+use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine as _};
+use egui::{Align, ComboBox, Direction, DragValue, Hyperlink, Layout, RichText, Slider, Ui};
 use egui_extras::{Column, TableBuilder};
+use itertools::izip;
 use serde::{Deserialize, Serialize};
 use std::default::default;
+use toml_edit::{table, value, ArrayOfTables, Document, Item, Table};
 
 /// Input tab
 pub(super) struct Input<'a> {
@@ -46,9 +49,37 @@ impl Input<'_> {
                 if ui[0].button(RichText::new("📂 Import").heading()).clicked() {
                     //
                 }
-                if ui[1].button(RichText::new("📁 Export").heading()).clicked() {
-                    //
-                }
+                ui[1].menu_button(RichText::new("📁 Export").heading(), |ui| {
+                    let mut document = Document::new();
+                    document["taxonomy"] = value("");
+                    let mut fatty_acids = ArrayOfTables::new();
+                    for (label, formula, tag123, dag1223, mag2) in izip!(
+                        &self.context.labels,
+                        &self.context.formulas,
+                        &self.context.unnormalized.tags123,
+                        &self.context.unnormalized.dags1223,
+                        &self.context.unnormalized.mags2
+                    ) {
+                        let mut fatty_acid = Table::new();
+                        fatty_acid["label"] = value(label);
+                        fatty_acid["formula"] = value(formula.to_string());
+                        fatty_acid["values"] = {
+                            let mut values = table();
+                            values["tag"] = value(*tag123);
+                            values["dag"] = value(*dag1223);
+                            values["mag"] = value(*mag2);
+                            values
+                        };
+                        fatty_acids.push(fatty_acid);
+                    }
+                    document["fatty_acid"] = Item::ArrayOfTables(fatty_acids);
+                    println!("{document:}");
+                    let encoded = STANDARD_NO_PAD.encode(document.to_string());
+                    ui.hyperlink_to(
+                        "📁 Export",
+                        format!("data:application/toml;base64,{encoded}"),
+                    );
+                })
             });
         });
     }
