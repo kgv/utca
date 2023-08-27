@@ -30,7 +30,7 @@ impl Display for Normalization {
         match self {
             Self::Mass => f.write_str("Mass"),
             Self::Molar => f.write_str("Molar"),
-            Self::Pchelkin => f.write_str("Pchelkin?"),
+            Self::Pchelkin => f.write_str("Pchelkin???"),
         }
     }
 }

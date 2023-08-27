@@ -1,12 +1,10 @@
 use crate::acylglycerol::Tag;
-use indexmap::IndexMap;
 use itertools::izip;
 use molecule::Counter;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeSet,
-    default::default,
     fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
 };
@@ -23,11 +21,11 @@ pub(super) struct Context {
 
 impl Context {
     pub(super) fn push_default(&mut self) {
-        self.labels.push(default());
-        self.formulas.push(default());
-        self.unnormalized.tags123.push(default());
-        self.unnormalized.dags1223.push(default());
-        self.unnormalized.mags2.push(default());
+        self.labels.push(Default::default());
+        self.formulas.push(Default::default());
+        self.unnormalized.tags123.push(Default::default());
+        self.unnormalized.dags1223.push(Default::default());
+        self.unnormalized.mags2.push(Default::default());
     }
 
     pub(super) fn remove(&mut self, index: usize) {

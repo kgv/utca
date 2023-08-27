@@ -6,13 +6,13 @@ use crate::{
         MAX_PRECISION,
     },
     ether::Ether,
-    utils::egui::Separate,
 };
 use egui::{Align, ComboBox, Direction, Id, Layout, RichText, Slider, Ui};
+use egui_ext::TableBodyExt;
 use egui_extras::{Column, TableBuilder};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashSet, default::default, mem::take};
+use std::{borrow::Cow, collections::HashSet, mem::take};
 
 macro filter_combobox($ui:ident, $context:ident, $state:ident, $id:ident) {
     let id_source = stringify!($id).trim_start_matches("sn");
@@ -149,8 +149,8 @@ impl Composition<'_> {
             });
             ui.collapsing(RichText::new("🔤 Sort").heading(), |ui| {
                 let selected_text = match state.sort {
-                    Sort::Key(order) => (format!("{order:?}"), default()),
-                    Sort::Value(order) => (default(), format!("{order:?}")),
+                    Sort::Key(order) => (format!("{order:?}"), Default::default()),
+                    Sort::Value(order) => (Default::default(), format!("{order:?}")),
                 };
                 ui.horizontal(|ui| {
                     ui.label("Key:");
@@ -379,7 +379,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             composition: None,
-            filter: default(),
+            filter: Default::default(),
             percent: false,
             precision: 5,
             resizable: false,

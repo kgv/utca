@@ -1,7 +1,7 @@
 use error::{Error, Result};
 use molecule::Counter;
 use serde::{Deserialize, Serialize};
-use std::{default::default, str::FromStr};
+use std::str::FromStr;
 use toml_edit::{Document, Item, Table, TableLike};
 
 /// Parsed
@@ -29,7 +29,7 @@ impl FromStr for Parsed {
             .ok_or(Error::TaxonomyNotFound)?;
         let fatty_acids = document["fatty_acid"]
             .as_array_of_tables()
-            .map_or(Ok(default()), |array_of_tables| {
+            .map_or(Ok(Default::default()), |array_of_tables| {
                 array_of_tables.into_iter().map(fatty_acid).collect()
             })?;
         Ok(Self {
@@ -47,11 +47,11 @@ fn fatty_acid(table: &Table) -> Result<FattyAcid> {
     let formula = table
         .get("formula")
         .and_then(Item::as_str)
-        .map_or(Ok(default()), str::parse)?;
+        .map_or(Ok(Default::default()), str::parse)?;
     let values = table
         .get("values")
         .and_then(Item::as_table_like)
-        .map_or(Ok(default()), values)?;
+        .map_or(Ok(Default::default()), values)?;
     Ok(FattyAcid {
         label: label.to_owned(),
         formula,

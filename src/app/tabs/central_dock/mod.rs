@@ -6,10 +6,7 @@ use egui::{Ui, WidgetText};
 use egui_dock::{TabViewer, Tree};
 use itertools::{izip, Itertools};
 use serde::{Deserialize, Serialize};
-use std::{
-    default::default,
-    fmt::{self, Display, Formatter},
-};
+use std::fmt::{self, Display, Formatter};
 
 /// Central dock
 #[derive(Debug, Deserialize, Serialize)]
@@ -22,7 +19,7 @@ impl Default for CentralDock {
     fn default() -> Self {
         Self {
             tree: Tree::new(vec![Tab::Input]),
-            tabs: default(),
+            tabs: Default::default(),
         }
     }
 }

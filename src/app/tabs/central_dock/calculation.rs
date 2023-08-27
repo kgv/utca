@@ -1,16 +1,13 @@
-use crate::{
-    app::{
-        computers::calculator::{Calculated, Key},
-        context::Context,
-        settings::{From, Normalization, Signedness, Source, Sources},
-        MAX_PRECISION,
-    },
-    utils::egui::Separate,
+use crate::app::{
+    computers::calculator::{Calculated, Key},
+    context::Context,
+    settings::{From, Normalization, Signedness, Source, Sources},
+    MAX_PRECISION,
 };
 use egui::{Align, ComboBox, Direction, Layout, RichText, Slider, Ui};
+use egui_ext::TableBodyExt;
 use egui_extras::{Column, TableBuilder};
 use serde::{Deserialize, Serialize};
-use std::default::default;
 
 const COLUMNS: usize = 4;
 
@@ -286,12 +283,12 @@ impl State {
 impl Default for State {
     fn default() -> Self {
         Self {
-            normalization: default(),
+            normalization: Default::default(),
             percent: true,
             precision: 6,
-            resizable: default(),
-            signedness: default(),
-            sources: default(),
+            resizable: Default::default(),
+            signedness: Default::default(),
+            sources: Default::default(),
         }
     }
 }

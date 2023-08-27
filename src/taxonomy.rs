@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{
-    default::default,
-    fmt::{self, Formatter},
-};
+use std::fmt::{self, Formatter};
 
 /// Species
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -14,7 +11,9 @@ impl Taxonomy {
     }
 
     pub fn species(&self) -> &str {
-        self.0.last().map_or_else(default, |species| &**species)
+        self.0
+            .last()
+            .map_or_else(Default::default, |species| &**species)
     }
 
     pub fn display<'a>(&'a self, separator: &'a str) -> Display {

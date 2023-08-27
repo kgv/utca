@@ -16,11 +16,9 @@
 //! - Сделать PieChart как BarChart + legend
 
 #![feature(decl_macro)]
-#![feature(default_free_fn)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use app::App;
-use std::default::default;
 
 // Stereospecific numbering: [1,2,3-TAGs; 1,2/2,3-DAGs; 2-MAGs; 1,3-DAGs].
 // ℹ🔎🔍🔧📝⚙🛠⬇🔃🔄 📋🖹🗐🗑
@@ -30,8 +28,11 @@ use std::default::default;
 fn main() -> eframe::Result<()> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
-
-    eframe::run_native("UTCA", default(), Box::new(|cc| Box::new(App::new(cc))))
+    eframe::run_native(
+        "UTCA",
+        Default::default(),
+        Box::new(|context| Box::new(App::new(context))),
+    )
 }
 
 // When compiling to web using trunk
@@ -39,16 +40,14 @@ fn main() -> eframe::Result<()> {
 fn main() {
     // Make sure panics are logged using `console.error`.
     console_error_panic_hook::set_once();
-
     // Redirect tracing to console.log and friends:
     tracing_wasm::set_as_global_default();
-
     wasm_bindgen_futures::spawn_local(async {
         eframe::WebRunner::new()
             .start(
                 "the_canvas_id",
-                default(),
-                Box::new(|cc| Box::new(App::new(cc))),
+                Default::default(),
+                Box::new(|context| Box::new(App::new(context))),
             )
             .await
             .expect("failed to start eframe");

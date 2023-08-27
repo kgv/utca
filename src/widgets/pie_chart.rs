@@ -6,7 +6,7 @@ use egui::{
     plot::{Plot, PlotPoint, PlotPoints, Polygon, Text},
     Align2, RichText, Ui,
 };
-use std::{default::default, f64::consts::TAU};
+use std::f64::consts::TAU;
 
 const FULL_CIRCLE_VERTICES: f64 = 240.0;
 
@@ -50,8 +50,8 @@ impl PieChart {
             .allow_zoom(true)
             .clamp_grid(true)
             .data_aspect(1.0)
-            .label_formatter(|_, _| default())
-            .legend(default())
+            .label_formatter(|_, _| Default::default())
+            .legend(Default::default())
             .show_axes([false; 2])
             .show_background(false)
             // .set_margin_fraction([0.7; 2].into()) // this won't prevent the plot from moving

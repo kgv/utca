@@ -1,5 +1,6 @@
-use crate::utils::{egui::Display, higher_order_functions::with_index};
+use crate::utils::higher_order_functions::with_index;
 use egui::{text::LayoutJob, Direction, DroppedFile, Label, Layout, RichText, TextStyle, Ui, Vec2};
+use egui_ext::DroppedFileExt;
 use egui_extras::{Column, Size, StripBuilder, TableBuilder};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;

@@ -10,7 +10,6 @@ use egui::{
     ComboBox, RichText, Slider, Ui,
 };
 use serde::{Deserialize, Serialize};
-use std::default::default;
 
 /// Visualization tab
 pub(super) struct Visualization<'a> {
@@ -82,7 +81,7 @@ impl Visualization<'_> {
         // })
         // .y_axis_formatter(percent_axis_formatter)
         if state.legend {
-            plot = plot.legend(default());
+            plot = plot.legend(Default::default());
         }
         plot.show(ui, |ui| {
             for (i, Entry { tags, value }) in context.composed.iter().enumerate() {
@@ -149,7 +148,7 @@ impl State {
 impl Default for State {
     fn default() -> Self {
         Self {
-            chart: default(),
+            chart: Default::default(),
             legend: true,
             normalized: false,
             width: 0.65,

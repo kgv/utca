@@ -5,7 +5,6 @@ use self::{
 use crate::{
     app::context::Unnormalized,
     parsers::{toml::Parsed as TomlParsed, whitespace::Parsed},
-    utils::egui::{Content, Display as _},
 };
 use anyhow::Result;
 use eframe::{get_value, set_value, CreationContext, Frame, Storage, APP_KEY};
@@ -15,9 +14,10 @@ use egui::{
     TopBottomPanel,
 };
 use egui_dock::{DockArea, NodeIndex, Style};
+use egui_ext::{DroppedFileExt, HoveredFileExt};
 use egui_notify::Toasts;
 use serde::{Deserialize, Serialize};
-use std::{default::default, fmt::Write, str, time::Duration};
+use std::{fmt::Write, str, time::Duration};
 use tracing::{debug, error, info};
 
 /// IEEE 754-2008
@@ -82,7 +82,7 @@ impl App {
                 {
                     *self = Self {
                         settings: self.settings,
-                        ..default()
+                        ..Default::default()
                     };
                 }
                 ui.separator();
@@ -91,7 +91,7 @@ impl App {
                     .on_hover_text("Reset gui")
                     .clicked()
                 {
-                    ui.ctx().memory_mut(|memory| *memory = default());
+                    ui.ctx().memory_mut(|memory| *memory = Default::default());
                     style(ui.ctx());
                 }
                 ui.separator();
@@ -389,7 +389,7 @@ impl App {
                         dags1223: dag1223,
                         mags2: mag2,
                     },
-                    ..default()
+                    ..Default::default()
                 };
                 // ctx.data_mut(|data| {
                 //     data.insert_temp(Id::new("parsed"), parsed);

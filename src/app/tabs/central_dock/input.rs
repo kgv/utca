@@ -1,14 +1,13 @@
 use crate::{
     app::{context::Context, MAX_PRECISION},
     ether::ether,
-    utils::egui::{Separate, TableRowExt},
 };
 use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine as _};
 use egui::{Align, ComboBox, Direction, DragValue, Hyperlink, Layout, RichText, Slider, Ui};
+use egui_ext::{TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
 use itertools::izip;
 use serde::{Deserialize, Serialize};
-use std::default::default;
 use toml_edit::{table, value, ArrayOfTables, Document, Item, Table};
 
 /// Input tab
@@ -125,7 +124,9 @@ impl Input<'_> {
                         row.col(|ui| {
                             let formula = &mut context.formulas[index];
                             let selected_text = ether!(formula)
-                                .map_or_else(default, |(c, bounds)| format!("{c}:{bounds}"));
+                                .map_or_else(Default::default, |(c, bounds)| {
+                                    format!("{c}:{bounds}")
+                                });
                             ComboBox::from_id_source(index)
                                 .selected_text(selected_text)
                                 .show_ui(ui, |ui| {
@@ -281,7 +282,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             precision: 3,
-            resizable: default(),
+            resizable: Default::default(),
         }
     }
 }

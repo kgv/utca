@@ -3,10 +3,7 @@ pub(in crate::app) use self::{files::Files, settings::Settings};
 use egui::{Ui, WidgetText};
 use egui_dock::{NodeIndex, TabViewer, Tree};
 use serde::{Deserialize, Serialize};
-use std::{
-    default::default,
-    fmt::{self, Display, Formatter},
-};
+use std::fmt::{self, Display, Formatter};
 
 /// Left dock
 #[derive(Debug, Deserialize, Serialize)]
@@ -21,7 +18,7 @@ impl Default for LeftDock {
         tree.split_below(NodeIndex::root(), 0.5, vec![Tab::Files]);
         Self {
             tree,
-            tabs: default(),
+            tabs: Default::default(),
         }
     }
 }
