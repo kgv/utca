@@ -1,17 +1,19 @@
 use crate::{
     acylglycerol::Tag,
-    app::{
-        context::Entry,
-        settings::{Order, Positional, Sort},
-    },
+    app::context::settings::composition::{Order, Positional, Sort},
+    ether::Ether,
 };
-use egui::util::cache::{ComputerMut, FrameCache};
+use egui::{
+    epaint::util::FloatOrd,
+    util::cache::{ComputerMut, FrameCache},
+};
 use indexmap::IndexMap;
 use itertools::Itertools;
 use maplit::btreeset;
-use ordered_float::OrderedFloat;
+use molecule::Counter;
 use std::{
     cmp::{max, min, Reverse},
+    collections::BTreeSet,
     hash::{Hash, Hasher},
     iter::repeat,
 };
@@ -40,39 +42,47 @@ impl ComputerMut<Key<'_>, Value> for Composer {
         let product = repeat(0..key.labels.len())
             .take(3)
             .multi_cartesian_product();
-        let composed: Vec<_> = match key.composition {
+        let composed: IndexMap<_, _> = match key.composition {
             None => product
-                .map(|indices| Entry {
-                    tags: btreeset! { Tag([indices[0], indices[1], indices[2]]) },
-                    value: value(&indices),
+                .map(|indices| {
+                    (
+                        btreeset! { Tag([indices[0], indices[1], indices[2]]) },
+                        value(&indices),
+                    )
                 })
                 .collect(),
             Some(Positional::Species) => product
-                .fold(IndexMap::<_, Entry>::new(), |mut map, indices| {
-                    let key = Tag([
-                        min(indices[0], indices[2]),
-                        indices[1],
-                        max(indices[0], indices[2]),
-                    ]);
-                    let entry = map.entry(key).or_default();
-                    entry.tags.insert(Tag([indices[0], indices[1], indices[2]]));
-                    entry.value += value(&indices);
-                    map
-                })
+                .fold(
+                    IndexMap::<_, (BTreeSet<_>, _)>::new(),
+                    |mut map, indices| {
+                        let key = Tag([
+                            min(indices[0], indices[2]),
+                            indices[1],
+                            max(indices[0], indices[2]),
+                        ]);
+                        let entry = map.entry(key).or_default();
+                        entry.0.insert(Tag([indices[0], indices[1], indices[2]]));
+                        entry.1 += value(&indices);
+                        map
+                    },
+                )
                 .into_values()
                 .collect(),
             Some(Positional::Type) => product
-                .fold(IndexMap::<_, Entry>::new(), |mut map, indices| {
-                    let key = Tag([
-                        key.saturations[indices[0]],
-                        key.saturations[indices[1]],
-                        key.saturations[indices[2]],
-                    ]);
-                    let entry = map.entry(key).or_default();
-                    entry.tags.insert(Tag([indices[0], indices[1], indices[2]]));
-                    entry.value += value(&indices);
-                    map
-                })
+                .fold(
+                    IndexMap::<_, (BTreeSet<_>, _)>::new(),
+                    |mut map, indices| {
+                        let key = Tag([
+                            key.formulas[indices[0]].saturation(),
+                            key.formulas[indices[1]].saturation(),
+                            key.formulas[indices[2]].saturation(),
+                        ]);
+                        let entry = map.entry(key).or_default();
+                        entry.0.insert(Tag([indices[0], indices[1], indices[2]]));
+                        entry.1 += value(&indices);
+                        map
+                    },
+                )
                 .into_values()
                 .collect(),
         };
@@ -83,10 +93,10 @@ impl ComputerMut<Key<'_>, Value> for Composer {
 /// Key
 #[derive(Clone, Copy, Debug)]
 pub(in crate::app) struct Key<'a> {
+    pub(in crate::app) labels: &'a [String],
+    pub(in crate::app) formulas: &'a [Counter],
     pub(in crate::app) mags2: &'a [f64],
     pub(in crate::app) dags13: &'a [f64],
-    pub(in crate::app) labels: &'a [String],
-    pub(in crate::app) saturations: &'a Vec<bool>,
     pub(in crate::app) composition: Option<Positional>,
     pub(in crate::app) sort: Sort,
 }
@@ -94,11 +104,11 @@ pub(in crate::app) struct Key<'a> {
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.labels.hash(state);
-        for &dag13 in self.dags13 {
-            OrderedFloat(dag13).hash(state);
-        }
         for &mag2 in self.mags2 {
-            OrderedFloat(mag2).hash(state);
+            mag2.ord().hash(state);
+        }
+        for &dag13 in self.dags13 {
+            dag13.ord().hash(state);
         }
         self.composition.hash(state);
         self.sort.hash(state);
@@ -106,7 +116,7 @@ impl Hash for Key<'_> {
 }
 
 /// Value
-type Value = Vec<Entry>;
+type Value = IndexMap<BTreeSet<Tag<usize>>, f64>;
 
 /// Sort by
 trait SortBy {
@@ -119,12 +129,12 @@ impl SortBy for Value {
             Sort::Key(order) => match order {
                 // Order::Ascending => self.sort_by_key(|entry| &entry.tags),
                 // Order::Descending => self.sort_by_key(|entry| &Reverse(entry.tags)),
-                Order::Ascending => self.sort_by(|left, right| left.tags.cmp(&right.tags)),
-                Order::Descending => self.sort_by(|left, right| right.tags.cmp(&left.tags)),
+                Order::Ascending => self.sort_by(|left, _, right, _| left.cmp(&right)),
+                Order::Descending => self.sort_by(|left, _, right, _| right.cmp(&left)),
             },
             Sort::Value(order) => match order {
-                Order::Ascending => self.sort_by_key(|entry| OrderedFloat(entry.value)),
-                Order::Descending => self.sort_by_key(|entry| Reverse(OrderedFloat(entry.value))),
+                Order::Ascending => self.sort_by_cached_key(|_, value| value.ord()),
+                Order::Descending => self.sort_by_cached_key(|_, value| Reverse(value.ord())),
             },
         }
         self

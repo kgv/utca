@@ -1,13 +1,19 @@
 use crate::{
-    app::{
-        context::{Normalized, Unnormalized},
-        settings::{From, Normalization, Signedness, Source, Sources},
+    app::context::{
+        settings::calculation::{From, Normalization, Signedness, Source, Sources},
+        state::Normalized,
     },
     utils::Normalize,
 };
-use egui::util::cache::{ComputerMut, FrameCache};
-use ordered_float::OrderedFloat;
-use std::hash::{Hash, Hasher};
+use egui::{
+    epaint::util::FloatOrd,
+    util::cache::{ComputerMut, FrameCache},
+};
+use molecule::Counter;
+use std::{
+    cell::LazyCell,
+    hash::{Hash, Hasher},
+};
 use tracing::trace;
 
 // fn signed(f: fn(&f64, &f64) -> f64) -> impl Fn(&f64, &f64) -> f64 {
@@ -36,22 +42,23 @@ pub(in crate::app) struct Calculator;
 /// - 2: stereospecific numbering (1,2,3-TAGs; 1,2/2,3-DAGs; 2-MAGs; 1,3-DAGs).
 impl ComputerMut<Key<'_>, Value> for Calculator {
     fn compute(&mut self, key: Key) -> Value {
+        let weights = LazyCell::new(|| key.formulas.iter().map(|formula| formula.weight()));
         // Experimental
         let experimental = |unnormalized: &[f64]| {
             match key.normalization {
-                // ∑(s)
+                // s / ∑(s)
                 Normalization::Mass => unnormalized.iter().copied().normalize(),
-                // ∑(s * m)
+                // (s * m) / ∑(s * m)
                 Normalization::Molar => unnormalized
                     .iter()
-                    .zip(key.weights)
+                    .zip(weights.clone())
                     .map(|(unnormalized, mass)| unnormalized * mass)
                     .normalize(),
                 // s / ∑(s * m / 10.0)
                 Normalization::Pchelkin => {
                     let sum = unnormalized
                         .iter()
-                        .zip(key.weights)
+                        .zip(weights.clone())
                         .fold(0.0, |sum, (unnormalized, mass)| {
                             sum + unnormalized * mass / 10.0
                         });
@@ -68,9 +75,9 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
             Signedness::Unsigned => value.max(0.0),
         };
 
-        let tags123 = experimental(&key.unnormalized.tags123);
-        let mut dags1223 = experimental(&key.unnormalized.dags1223);
-        let mut mags2 = experimental(&key.unnormalized.mags2);
+        let tags123 = experimental(&key.tags123);
+        let mut dags1223 = experimental(&key.dags1223);
+        let mut mags2 = experimental(&key.mags2);
         trace!(?tags123, ?dags1223, ?mags2);
         if let Source::Calculation = key.sources.dag1223 {
             dags1223 = tags123
@@ -112,8 +119,10 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
 /// Key
 #[derive(Clone, Copy, Debug)]
 pub(in crate::app) struct Key<'a> {
-    pub(in crate::app) unnormalized: &'a Unnormalized,
-    pub(in crate::app) weights: &'a Vec<f64>,
+    pub(in crate::app) formulas: &'a [Counter],
+    pub(in crate::app) tags123: &'a [f64],
+    pub(in crate::app) dags1223: &'a [f64],
+    pub(in crate::app) mags2: &'a [f64],
     pub(in crate::app) normalization: Normalization,
     pub(in crate::app) signedness: Signedness,
     pub(in crate::app) sources: Sources,
@@ -121,9 +130,17 @@ pub(in crate::app) struct Key<'a> {
 
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.unnormalized.hash(state);
-        for &weight in self.weights {
-            OrderedFloat(weight).hash(state);
+        for formula in self.formulas {
+            formula.hash(state);
+        }
+        for &tag123 in self.tags123 {
+            tag123.ord().hash(state);
+        }
+        for &dag1223 in self.dags1223 {
+            dag1223.ord().hash(state);
+        }
+        for &mag2 in self.mags2 {
+            mag2.ord().hash(state);
         }
         self.normalization.hash(state);
         self.signedness.hash(state);

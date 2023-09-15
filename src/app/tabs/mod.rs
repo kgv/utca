@@ -1,4 +1,7 @@
-pub(super) use self::{central_dock::CentralDock, left_dock::LeftDock};
+pub(super) use self::{
+    central::{Dock as CentralDock, Tab as CentralTab, Tabs as CentralTabs},
+    left::{Dock as LeftDock, Tab as LeftTab, Tabs as LeftTabs},
+};
 
-pub(super) mod central_dock;
-pub(super) mod left_dock;
+pub(super) mod central;
+pub(super) mod left;

@@ -1,107 +1,133 @@
-use error::{Error, Result};
 use molecule::Counter;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
-use toml_edit::{Document, Item, Table, TableLike};
+use std::{mem::take, str::FromStr};
+use toml_edit::{
+    de::{from_str, Error},
+    ser::{self, to_document},
+    value,
+    visit_mut::{visit_inline_table_mut, visit_item_mut, visit_value_mut, VisitMut},
+    InlineTable, Item, Key, Value,
+};
+
+pub fn to_string<T: Serialize + ?Sized>(value: &T) -> Result<String, ser::Error> {
+    let mut document = to_document(value)?;
+    Visitor.visit_document_mut(&mut document);
+    Ok(document.to_string())
+}
 
 /// Parsed
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct Parsed {
-    pub taxonomy: String,
+    pub name: String,
     pub fatty_acids: Vec<FattyAcid>,
-}
-
-/// Fatty acid
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub struct FattyAcid {
-    pub label: String,
-    pub formula: Counter,
-    pub values: [f64; 3],
 }
 
 impl FromStr for Parsed {
     type Err = Error;
 
     fn from_str(value: &str) -> Result<Self> {
-        let document = value.parse::<Document>()?;
-        let taxonomy = document["taxonomy"]
-            .as_str()
-            .ok_or(Error::TaxonomyNotFound)?;
-        let fatty_acids = document["fatty_acid"]
-            .as_array_of_tables()
-            .map_or(Ok(Default::default()), |array_of_tables| {
-                array_of_tables.into_iter().map(fatty_acid).collect()
-            })?;
-        Ok(Self {
-            taxonomy: taxonomy.to_owned(),
-            fatty_acids,
-        })
+        from_str(value)
     }
 }
 
-fn fatty_acid(table: &Table) -> Result<FattyAcid> {
-    let label = table
-        .get("label")
-        .and_then(Item::as_str)
-        .unwrap_or_default();
-    let formula = table
-        .get("formula")
-        .and_then(Item::as_str)
-        .map_or(Ok(Default::default()), str::parse)?;
-    let values = table
-        .get("values")
-        .and_then(Item::as_table_like)
-        .map_or(Ok(Default::default()), values)?;
-    Ok(FattyAcid {
-        label: label.to_owned(),
-        formula,
-        values,
-    })
+/// Fatty acid
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct FattyAcid {
+    pub label: String,
+    #[serde(with = "formula")]
+    pub formula: Counter,
+    pub data: Data,
 }
 
-fn values(table: &dyn TableLike) -> Result<[f64; 3]> {
-    let tag = table
-        .get("tag")
-        .ok_or(Error::TagNotFound)?
-        .as_float()
-        .ok_or(Error::CastAsFloat)?;
-    let dag = table
-        .get("dag")
-        .and_then(Item::as_float)
-        .ok_or(Error::CastAsFloat)?;
-    let mag = table
-        .get("mag")
-        .and_then(Item::as_float)
-        .ok_or(Error::CastAsFloat)?;
-    Ok([tag, dag, mag])
+impl FattyAcid {
+    pub fn new(label: String, formula: Counter, tag123: f64, dag1223: f64, mag2: f64) -> Self {
+        Self {
+            label,
+            formula,
+            data: Data {
+                tag123,
+                dag1223,
+                mag2,
+            },
+        }
+    }
 }
 
-mod error {
-    use thiserror::Error;
+/// Data
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct Data {
+    pub tag123: f64,
+    pub dag1223: f64,
+    pub mag2: f64,
+}
 
-    /// Result
-    pub type Result<T, E = Error> = core::result::Result<T, E>;
+/// Visitor
+struct Visitor;
 
-    /// Error
-    #[derive(Debug, Error, Clone, PartialEq, Eq)]
-    pub enum Error {
-        #[error("failed to cast item as float")]
-        CastAsFloat,
-        #[error(transparent)]
-        Molecule(#[from] molecule::Error),
-        #[error("tag not found")]
-        TagNotFound,
-        #[error("taxonomy not found")]
-        TaxonomyNotFound,
-        #[error(transparent)]
-        Toml(#[from] toml_edit::TomlError),
+impl VisitMut for Visitor {
+    fn visit_item_mut(&mut self, node: &mut Item) {
+        let mut item = take(node);
+        item = match item.into_table() {
+            Ok(mut table) => {
+                table.sort_values_by(|left, _, right, _| {
+                    const KEYS: [&str; 3] = ["mag2", "dag1223", "tag123"];
+
+                    let key = |target: &Key| KEYS.iter().position(|&source| source == target.get());
+                    key(left).cmp(&key(right))
+                });
+                value(table.into_inline_table())
+            }
+            Err(item) => item,
+        };
+        item = match item.into_array_of_tables() {
+            Ok(array_of_tables) => Item::ArrayOfTables(array_of_tables),
+            Err(item) => item,
+        };
+        *node = item;
+        visit_item_mut(self, node);
+    }
+
+    fn visit_inline_table_mut(&mut self, node: &mut InlineTable) {
+        node.decor_mut().clear();
+
+        visit_inline_table_mut(self, node);
+    }
+
+    fn visit_value_mut(&mut self, node: &mut Value) {
+        node.decor_mut().clear();
+
+        visit_value_mut(self, node);
+    }
+}
+
+/// Result
+type Result<T, E = Error> = std::result::Result<T, E>;
+
+mod formula {
+    use molecule::Counter;
+    use serde::{de::Error, Deserialize, Deserializer, Serializer};
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Counter, D::Error> {
+        Ok(String::deserialize(deserializer)?
+            .parse()
+            .map_err(Error::custom)?)
+    }
+
+    pub(super) fn serialize<S: Serializer>(
+        counter: &Counter,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&counter.to_string())
     }
 }
 
 #[test]
 fn test() -> Result<()> {
-    let toml = include_str!("../../input/toml/temp.toml");
-    let parsed = toml.parse::<Parsed>()?;
+    // let config = include_str!("../../configs/pinaceae/cedrus/config.toml");
+    let config = include_str!("../../configs/test/temp.toml");
+    let parsed = config.parse::<Parsed>()?;
     println!("{parsed:?}");
     Ok(())
 }

@@ -4,7 +4,7 @@
 
 use egui::{
     plot::{Plot, PlotPoint, PlotPoints, Polygon, Text},
-    Align2, RichText, Ui,
+    Align2, Response, RichText, Ui,
 };
 use std::f64::consts::TAU;
 
@@ -42,7 +42,7 @@ impl PieChart {
         Self::normalized(name, iter.map(|(key, value)| (key, value / sum)))
     }
 
-    pub fn show(&mut self, ui: &mut Ui) {
+    pub fn show(&mut self, ui: &mut Ui) -> Response {
         Plot::new(&self.name)
             .allow_boxed_zoom(false)
             .allow_drag(false)
@@ -79,7 +79,8 @@ impl PieChart {
                         );
                     }
                 }
-            });
+            })
+            .response
     }
 }
 

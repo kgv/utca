@@ -1,47 +1,46 @@
-# Pinaceae Cedrus
 taxonomy = "Pinaceae Cedrus"
 
-[[fatty_acid]]
-formula = "H34C19O2"
+[[fatty_acids]]
 label = "Pi"
-values = { tag = 42194071.111, dag = 208041598.375, mag = 6057859.048 }
-
-[[fatty_acid]]
-formula = "H34C17O2"
-label = "Pa"
-values = { tag = 145011164.005, dag = 302116780.058, mag = 19739896.657 }
-
-[[fatty_acid]]
-formula = "H32C19O2"
-label = "Pn"
-values = { tag = 599666360.160, dag = 2420977752.198, mag = 37615085.468 }
-
-[[fatty_acid]]
-formula = "H40C21O2"
-label = "Gd"
-values = { tag = 25798972.603, dag = 85358549.162, mag = 3409238.721 }
-
-[[fatty_acid]]
-formula = "H38C19O2"
-label = "St"
-values = { tag = 74037315.870, dag = 195624715.683, mag = 7112473.957 }
-
-[[fatty_acid]]
-formula = "H36C19O2"
-label = "Ol"
-values = { tag = 595392558.250, dag = 2545783364.126, mag = 543320871.488 }
-
-[[fatty_acid]]
-formula = "H42C21O2"
-label = "Ar"
-values = { tag = 7737659.800, dag = 31481582.538, mag = 303620.577 }
-
-[[fatty_acid]]
 formula = "H34C19O2"
-label = "Li"
-values = { tag = 1158289211.401, dag = 4819585526.736, mag = 1226498927.113 }
+data = { mag2 = 6057859.048, dag1223 = 208041598.375, tag123 = 42194071.111 }
 
-[[fatty_acid]]
+[[fatty_acids]]
+label = "Pa"
+formula = "H34C17O2"
+data = { mag2 = 19739896.657, dag1223 = 302116780.058, tag123 = 145011164.005 }
+
+[[fatty_acids]]
+label = "Pn"
 formula = "H32C19O2"
+data = { mag2 = 37615085.468, dag1223 = 2420977752.198, tag123 = 599666360.16 }
+
+[[fatty_acids]]
+label = "Gd"
+formula = "H40C21O2"
+data = { mag2 = 3409238.721, dag1223 = 85358549.162, tag123 = 25798972.603 }
+
+[[fatty_acids]]
+label = "St"
+formula = "H38C19O2"
+data = { mag2 = 7112473.957, dag1223 = 195624715.683, tag123 = 74037315.87 }
+
+[[fatty_acids]]
+label = "Ol"
+formula = "H36C19O2"
+data = { mag2 = 543320871.488, dag1223 = 2545783364.126, tag123 = 595392558.25 }
+
+[[fatty_acids]]
+label = "Ar"
+formula = "H42C21O2"
+data = { mag2 = 303620.577, dag1223 = 31481582.538, tag123 = 7737659.8 }
+
+[[fatty_acids]]
+label = "Li"
+formula = "H34C19O2"
+data = { mag2 = 1226498927.113, dag1223 = 4819585526.736, tag123 = 1158289211.401 }
+
+[[fatty_acids]]
 label = "Ln"
-values = { tag = 5070004.063, dag = 12823290.138, mag = 1426035.096 }
+formula = "H32C19O2"
+data = { mag2 = 1426035.096, dag1223 = 12823290.138, tag123 = 5070004.063 }

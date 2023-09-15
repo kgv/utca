@@ -1,92 +1,19 @@
-use crate::{
-    app::{context::Context, MAX_PRECISION},
-    ether::ether,
-};
-use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine as _};
-use egui::{Align, ComboBox, Direction, DragValue, Hyperlink, Layout, RichText, Slider, Ui};
+use crate::{app::context::Context, ether::ether};
+use egui::{Align, ComboBox, Direction, DragValue, Layout, RichText, Ui};
 use egui_ext::{TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
-use itertools::izip;
-use serde::{Deserialize, Serialize};
-use toml_edit::{table, value, ArrayOfTables, Document, Item, Table};
 
-/// Input tab
-pub(super) struct Input<'a> {
-    ui: &'a mut Ui,
-    context: &'a mut Context,
-    state: State,
-}
+/// Central configuration tab
+pub(super) struct Configuration;
 
-impl<'a> Input<'a> {
-    pub(super) fn view(ui: &'a mut Ui, context: &'a mut Context) {
-        let state = State::load(ui);
-        Self { ui, context, state }.ui()
-    }
-}
-
-impl Input<'_> {
-    fn ui(&mut self) {
-        self.control();
-        self.content();
-    }
-
-    fn control(&mut self) {
-        let Self { ui, state, .. } = self;
-        ui.collapsing(RichText::new("Control").heading(), |ui| {
-            ui.horizontal(|ui| {
-                ui.toggle_value(&mut state.resizable, "↔ Resizable")
-                    .on_hover_text("Resize table columns");
-            });
-            ui.collapsing(RichText::new("🛠 Control").heading(), |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Precision:");
-                    ui.add(Slider::new(&mut state.precision, 0..=MAX_PRECISION));
-                });
-            });
-            ui.separator();
-            ui.columns(2, |ui| {
-                if ui[0].button(RichText::new("📂 Import").heading()).clicked() {
-                    //
-                }
-                ui[1].menu_button(RichText::new("📁 Export").heading(), |ui| {
-                    let mut document = Document::new();
-                    document["taxonomy"] = value("");
-                    let mut fatty_acids = ArrayOfTables::new();
-                    for (label, formula, tag123, dag1223, mag2) in izip!(
-                        &self.context.labels,
-                        &self.context.formulas,
-                        &self.context.unnormalized.tags123,
-                        &self.context.unnormalized.dags1223,
-                        &self.context.unnormalized.mags2
-                    ) {
-                        let mut fatty_acid = Table::new();
-                        fatty_acid["label"] = value(label);
-                        fatty_acid["formula"] = value(formula.to_string());
-                        fatty_acid["values"] = {
-                            let mut values = table();
-                            values["tag"] = value(*tag123);
-                            values["dag"] = value(*dag1223);
-                            values["mag"] = value(*mag2);
-                            values
-                        };
-                        fatty_acids.push(fatty_acid);
-                    }
-                    document["fatty_acid"] = Item::ArrayOfTables(fatty_acids);
-                    println!("{document:}");
-                    let encoded = STANDARD_NO_PAD.encode(document.to_string());
-                    ui.hyperlink_to(
-                        "📁 Export",
-                        format!("data:application/toml;base64,{encoded}"),
-                    );
-                })
-            });
-        });
-    }
-
-    fn content(&mut self) {
-        let Self { ui, context, state } = self;
+impl Configuration {
+    pub(super) fn view(ui: &mut Ui, context: &mut Context) {
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
+        ui.horizontal(|ui| {
+            ui.label("Name:");
+            ui.text_edit_singleline(&mut context.state.meta.name);
+        });
         TableBuilder::new(ui)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
             .column(Column::exact(width))
@@ -94,7 +21,7 @@ impl Input<'_> {
             .columns(Column::auto(), 3)
             .column(Column::exact(width))
             .auto_shrink([false; 2])
-            .resizable(state.resizable)
+            .resizable(context.settings.configuration.resizable)
             .striped(true)
             .header(height, |mut row| {
                 row.col(|ui| {
@@ -115,14 +42,14 @@ impl Input<'_> {
             })
             .body(|mut body| {
                 let mut index = 0;
-                while index < context.labels.len() {
+                while index < context.state.meta.labels.len() {
                     let mut keep = true;
                     body.row(height, |mut row| {
                         row.col(|ui| {
-                            ui.text_edit_singleline(&mut context.labels[index]);
+                            ui.text_edit_singleline(&mut context.state.meta.labels[index]);
                         });
                         row.col(|ui| {
-                            let formula = &mut context.formulas[index];
+                            let formula = &mut context.state.meta.formulas[index];
                             let selected_text = ether!(formula)
                                 .map_or_else(Default::default, |(c, bounds)| {
                                     format!("{c}:{bounds}")
@@ -181,7 +108,7 @@ impl Input<'_> {
                                 .response
                                 .on_hover_text(format!("{formula} ({})", formula.weight()));
                         });
-                        for unnormalized in context.unnormalized.iter_mut() {
+                        for unnormalized in context.state.data.unnormalized.iter_mut() {
                             row.col(|ui| {
                                 ui.with_layout(
                                     Layout::left_to_right(Align::Center)
@@ -192,7 +119,10 @@ impl Input<'_> {
                                             DragValue::new(&mut unnormalized[index])
                                                 .clamp_range(0.0..=f64::MAX)
                                                 .custom_formatter(|n, _| {
-                                                    format!("{n:.*}", state.precision)
+                                                    format!(
+                                                        "{n:.*}",
+                                                        context.settings.configuration.precision
+                                                    )
                                                 }),
                                         );
                                     },
@@ -208,7 +138,7 @@ impl Input<'_> {
                         });
                     });
                     if !keep {
-                        context.remove(index);
+                        context.state.del(index);
                         continue;
                     }
                     index += 1;
@@ -218,7 +148,7 @@ impl Input<'_> {
                 body.row(height, |mut row| {
                     row.cols(2, |_| {});
                     // ∑
-                    for unnormalized in context.unnormalized.iter() {
+                    for unnormalized in context.state.data.unnormalized.iter() {
                         row.col(|ui| {
                             ui.with_layout(
                                 Layout::left_to_right(Align::Center)
@@ -226,8 +156,11 @@ impl Input<'_> {
                                     .with_main_justify(true),
                                 |ui| {
                                     let sum: f64 = unnormalized.iter().sum();
-                                    ui.label(format!("{sum:.*}", state.precision))
-                                        .on_hover_text(sum.to_string());
+                                    ui.label(format!(
+                                        "{sum:.*}",
+                                        context.settings.configuration.precision
+                                    ))
+                                    .on_hover_text(sum.to_string());
                                 },
                             );
                         });
@@ -239,50 +172,10 @@ impl Input<'_> {
                             .on_hover_text("Add row")
                             .clicked()
                         {
-                            context.push_default();
+                            context.state.add();
                         }
                     });
                 });
-            })
-    }
-}
-
-impl Drop for Input<'_> {
-    fn drop(&mut self) {
-        self.state.save(self.ui);
-    }
-}
-
-/// State
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-struct State {
-    precision: usize,
-    resizable: bool,
-}
-
-impl State {
-    fn load(ui: &Ui) -> Self {
-        ui.data_mut(|data| {
-            data.get_persisted(ui.id().with("state"))
-                .unwrap_or_default()
-        })
-    }
-
-    fn save(self, ui: &Ui) {
-        let id = ui.id().with("state");
-        ui.data_mut(|data| {
-            if Some(self) != data.get_persisted(id) {
-                data.insert_persisted(id, self);
-            }
-        });
-    }
-}
-
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            precision: 3,
-            resizable: Default::default(),
-        }
+            });
     }
 }
