@@ -58,8 +58,7 @@ fn main() {
 
 mod acylglycerol;
 mod app;
-mod ether;
+mod cu;
 mod parsers;
-mod taxonomy;
 mod utils;
 mod widgets;

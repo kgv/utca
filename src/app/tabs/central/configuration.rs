@@ -1,4 +1,4 @@
-use crate::{app::context::Context, ether::ether};
+use crate::{app::context::Context, cu::ether};
 use egui::{Align, ComboBox, Direction, DragValue, Layout, RichText, Ui};
 use egui_ext::{TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};

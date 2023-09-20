@@ -3,7 +3,7 @@ use crate::{
         computers::composer::{Composed, Key},
         context::{settings::composition::Positional, Context},
     },
-    ether::Ether,
+    cu::Saturation,
 };
 use egui::{Align, Direction, Layout, Ui};
 use egui_ext::TableBodyExt;

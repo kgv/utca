@@ -13,9 +13,9 @@ use crate::{
 use anyhow::Result;
 use eframe::{get_value, set_value, CreationContext, Frame, Storage, APP_KEY};
 use egui::{
-    global_dark_light_mode_switch, vec2, warn_if_debug_build, Align, Align2, Button, CentralPanel,
-    Color32, ComboBox, Event, FontId, Id, Label, LayerId, Layout, Order, RichText, Sense,
-    SidePanel, TextStyle, TopBottomPanel, Vec2, Visuals,
+    global_dark_light_mode_switch, warn_if_debug_build, Align, Align2, Button, CentralPanel,
+    Color32, ComboBox, Event, Id, LayerId, Layout, Order, RichText, SidePanel, TextStyle,
+    TopBottomPanel, Visuals,
 };
 use egui_dock::{DockArea, Style};
 use egui_ext::{DroppedFileExt, HoveredFileExt, WithVisuals};

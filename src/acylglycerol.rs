@@ -3,28 +3,28 @@ use std::{
     fmt::{self, Display, Formatter},
     hash::Hash,
     ops::Deref,
-    slice::from_ref,
+    // slice::from_ref,
 };
 
-/// Acylglycerol
-#[derive(Clone, Copy, Debug)]
-pub enum Acylglycerol<T> {
-    Mono(Mag<T>),
-    Di(Dag<T>),
-    Tri(Tag<T>),
-}
+// /// Acylglycerol
+// #[derive(Clone, Copy, Debug)]
+// pub enum Acylglycerol<T> {
+//     Mono(Mag<T>),
+//     Di(Dag<T>),
+//     Tri(Tag<T>),
+// }
 
-impl<T> Deref for Acylglycerol<T> {
-    type Target = [T];
+// impl<T> Deref for Acylglycerol<T> {
+//     type Target = [T];
 
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Mono(mag) => from_ref(&mag.0),
-            Self::Di(dag) => &dag.0,
-            Self::Tri(tag) => &tag.0,
-        }
-    }
-}
+//     fn deref(&self) -> &Self::Target {
+//         match self {
+//             Self::Mono(mag) => from_ref(&mag.0),
+//             Self::Di(dag) => &dag.0,
+//             Self::Tri(tag) => &tag.0,
+//         }
+//     }
+// }
 
 /// Monoacylglycerol
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
