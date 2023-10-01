@@ -886,6 +886,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ecolor"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfdf4e52dbbb615cfd30cf5a5265335c217b5fd8d669593cea74a517d9c605af"
+
+[[package]]
 name = "eframe"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -894,7 +900,7 @@ dependencies = [
  "bytemuck",
  "cocoa",
  "directories-next",
- "egui",
+ "egui 0.22.0",
  "egui-wgpu",
  "egui-winit",
  "egui_glow",
@@ -927,7 +933,7 @@ checksum = "a3aef8ec3ae1b772f340170c65bf27d5b8c28f543a0116c844d2ac08d01123e7"
 dependencies = [
  "accesskit",
  "ahash 0.8.3",
- "epaint",
+ "epaint 0.22.0",
  "log",
  "nohash-hasher",
  "ron",
@@ -935,12 +941,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "egui-notify"
-version = "0.9.0"
+name = "egui"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d57ed9c398e24c1b9faf2c52cdc305dd29cb1d9dfa12a0166d254582bc47727a"
+checksum = "8bd69fed5fcf4fbb8225b24e80ea6193b61e17a625db105ef0c4d71dde6eb8b7"
 dependencies = [
- "egui",
+ "ahash 0.8.3",
+ "epaint 0.23.0",
+ "nohash-hasher",
+]
+
+[[package]]
+name = "egui-notify"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc3b10f21c7bb2afaecb8d98677cdb233a8b1f336b9b95abd610a33aeced04fc"
+dependencies = [
+ "egui 0.23.0",
 ]
 
 [[package]]
@@ -950,7 +967,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33caaedd8283779c787298af23d8754a7e88421ff32e89ad0040c855fc0b0224"
 dependencies = [
  "bytemuck",
- "epaint",
+ "epaint 0.22.0",
  "log",
  "thiserror",
  "type-map",
@@ -966,7 +983,7 @@ checksum = "4a49155fd4a0a4fb21224407a91de0030847972ef90fc64edb63621caea61cb2"
 dependencies = [
  "accesskit_winit",
  "arboard",
- "egui",
+ "egui 0.22.0",
  "instant",
  "log",
  "raw-window-handle",
@@ -982,7 +999,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b200c2863e8799d27ea4c933cfef6aceb0f3c32b50768554a22963b2fa0af70"
 dependencies = [
- "egui",
+ "egui 0.22.0",
  "web-time",
 ]
 
@@ -993,7 +1010,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ec07302c1a474f37fe6ef2c6672427880025edc37ac33955e6ea4a11bc6972a"
 dependencies = [
  "duplicate",
- "egui",
+ "egui 0.22.0",
  "paste",
  "serde",
 ]
@@ -1004,7 +1021,7 @@ version = "0.0.3"
 source = "git+https://github.com/kgv/egui_ext#6023b0654789bfd9a3a2c8a2c672cc76c3596c8b"
 dependencies = [
  "eframe",
- "egui",
+ "egui 0.22.0",
  "egui_extras",
  "thiserror",
 ]
@@ -1015,7 +1032,7 @@ version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9278f4337b526f0d57e5375e5a7340a311fa6ee8f9fcc75721ac50af13face02"
 dependencies = [
- "egui",
+ "egui 0.22.0",
  "serde",
 ]
 
@@ -1026,7 +1043,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f8c2752cdf1b0ef5fcda59a898cacabad974d4f5880e92a420b2c917022da64"
 dependencies = [
  "bytemuck",
- "egui",
+ "egui 0.22.0",
  "glow",
  "log",
  "memoffset 0.6.5",
@@ -1049,6 +1066,12 @@ dependencies = [
  "bytemuck",
  "serde",
 ]
+
+[[package]]
+name = "emath"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ef2b29de53074e575c18b694167ccbe6e5191f7b25fe65175a0d905a32eeec0"
 
 [[package]]
 name = "enumflags2"
@@ -1092,12 +1115,26 @@ dependencies = [
  "ahash 0.8.3",
  "atomic_refcell",
  "bytemuck",
- "ecolor",
- "emath",
+ "ecolor 0.22.0",
+ "emath 0.22.0",
  "log",
  "nohash-hasher",
  "parking_lot",
  "serde",
+]
+
+[[package]]
+name = "epaint"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58067b840d009143934d91d8dcb8ded054d8301d7c11a517ace0a99bb1e1595e"
+dependencies = [
+ "ab_glyph",
+ "ahash 0.8.3",
+ "ecolor 0.23.0",
+ "emath 0.23.0",
+ "nohash-hasher",
+ "parking_lot",
 ]
 
 [[package]]
@@ -3132,7 +3169,7 @@ dependencies = [
  "base64",
  "console_error_panic_hook",
  "eframe",
- "egui",
+ "egui 0.22.0",
  "egui-notify",
  "egui_dnd",
  "egui_dock",
