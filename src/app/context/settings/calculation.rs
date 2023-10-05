@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
 
 /// Calculation settings
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) struct Settings {
     pub(in crate::app) normalization: Normalization,
     pub(in crate::app) percent: bool,
@@ -17,7 +17,7 @@ impl Default for Settings {
         Self {
             normalization: Default::default(),
             percent: true,
-            precision: 6,
+            precision: 1,
             resizable: Default::default(),
             signedness: Default::default(),
             sources: Default::default(),

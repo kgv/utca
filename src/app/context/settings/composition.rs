@@ -1,73 +1,90 @@
+use egui::epaint::util::FloatOrd;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashSet,
+    collections::BTreeSet,
     fmt::{self, Display, Formatter},
+    hash::{Hash, Hasher},
 };
 
 /// Composition settings
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) struct Settings {
-    pub(in crate::app) composition: Option<Positional>,
     pub(in crate::app) filter: Filter,
     pub(in crate::app) percent: bool,
     pub(in crate::app) precision: usize,
     pub(in crate::app) resizable: bool,
+    pub(in crate::app) ecn: bool,
+    pub(in crate::app) mass: bool,
+    pub(in crate::app) positional: Option<Positional>,
     pub(in crate::app) sort: Sort,
+    pub(in crate::app) order: Order,
+    pub(in crate::app) mirror: bool,
+}
+
+impl Settings {
+    pub(in crate::app) fn is_positional_type(&self) -> bool {
+        self.positional != Some(Positional::Species)
+    }
+
+    pub(in crate::app) fn is_positional_species(&self) -> bool {
+        self.positional != Some(Positional::Type)
+    }
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            composition: None,
             filter: Default::default(),
+            mirror: false,
             percent: true,
-            precision: 5,
+            precision: 1,
             resizable: false,
-            sort: Sort::Key(Order::Ascending),
+            ecn: false,
+            mass: false,
+            positional: None,
+            sort: Sort::Value,
+            order: Order::Descending,
         }
     }
 }
 
-/// Positional сomposition
+/// Positional composition
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Positional {
-    /// Positional-species composition (PSC)
-    Species,
     /// Positional-type composition (PTC)
     Type,
-}
-
-impl Display for Positional {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::Species if f.alternate() => f.write_str("PSC"),
-            Self::Type if f.alternate() => f.write_str("PTC"),
-            Self::Species => f.write_str("species"),
-            Self::Type => f.write_str("type"),
-        }
-    }
+    /// Positional-species composition (PSC)
+    Species,
 }
 
 /// Filter
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(in crate::app) struct Filter {
-    pub(in crate::app) part: f64,
-    pub(in crate::app) sn13: HashSet<usize>,
-    pub(in crate::app) sn2: HashSet<usize>,
+    pub(in crate::app) value: f64,
+    pub(in crate::app) sn13: BTreeSet<usize>,
+    pub(in crate::app) sn2: BTreeSet<usize>,
+}
+
+impl Hash for Filter {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.value.ord().hash(state);
+        self.sn13.hash(state);
+        self.sn13.hash(state);
+    }
 }
 
 /// Sort
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Sort {
-    Key(Order),
-    Value(Order),
+    Key,
+    Value,
 }
 
 impl Display for Sort {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::Key(order) => write!(f, "Sort by key {order}"),
-            Self::Value(order) => write!(f, "Sort by value {order}"),
+            Self::Key => f.write_str("Key"),
+            Self::Value => f.write_str("Value"),
         }
     }
 }
@@ -82,8 +99,8 @@ pub(in crate::app) enum Order {
 impl Display for Order {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::Ascending => f.write_str("ascending"),
-            Self::Descending => f.write_str("descending"),
+            Self::Ascending => f.write_str("Ascending"),
+            Self::Descending => f.write_str("Descending"),
         }
     }
 }

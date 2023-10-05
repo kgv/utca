@@ -2,7 +2,7 @@ use self::{files::Files, settings::Settings};
 use super::CentralTab;
 use crate::app::Context;
 use egui::{Ui, WidgetText};
-use egui_dock::{NodeIndex, TabViewer, Tree};
+use egui_dock::{DockState, NodeIndex, TabViewer};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
@@ -10,23 +10,33 @@ use std::{
 };
 
 /// Left dock
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(in crate::app) struct Dock {
-    pub(in crate::app) tree: Tree<Tab>,
+    pub(in crate::app) state: DockState<Tab>,
 }
 
 impl Dock {
     pub(in crate::app) fn toggle(&mut self, tab: Tab) {
-        match self.tree.find_tab(&tab) {
+        match self.state.find_tab(&tab) {
             Some(index) => {
-                self.tree.remove_tab(index);
+                self.state.remove_tab(index);
             }
-            None if self.tree.is_empty() => {
-                self.tree.push_to_first_leaf(tab);
+            None if self.state.main_surface().num_tabs() == 0 => {
+                self.state.push_to_first_leaf(tab);
             }
             None => {
-                self.tree.split_below(NodeIndex::root(), 0.5, vec![tab]);
+                self.state
+                    .main_surface_mut()
+                    .split_below(NodeIndex::root(), 0.5, vec![tab]);
             }
+        }
+    }
+}
+
+impl Default for Dock {
+    fn default() -> Self {
+        Self {
+            state: DockState::new(Vec::new()),
         }
     }
 }
@@ -43,16 +53,16 @@ impl Dock {
 // }
 
 impl Deref for Dock {
-    type Target = Tree<Tab>;
+    type Target = DockState<Tab>;
 
     fn deref(&self) -> &Self::Target {
-        &self.tree
+        &self.state
     }
 }
 
 impl DerefMut for Dock {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        todo!()
+        &mut self.state
     }
 }
 
@@ -76,7 +86,7 @@ impl Display for Tab {
 #[derive(Debug)]
 pub(in crate::app) struct Tabs<'a> {
     pub(in crate::app) context: &'a mut Context,
-    pub(in crate::app) tree: &'a Tree<CentralTab>,
+    pub(in crate::app) state: &'a DockState<CentralTab>,
 }
 
 impl TabViewer for Tabs<'_> {
@@ -89,7 +99,7 @@ impl TabViewer for Tabs<'_> {
     fn ui(&mut self, ui: &mut Ui, tab: &mut Self::Tab) {
         match *tab {
             Tab::Files => Files::view(ui, self.context),
-            Tab::Settings => Settings::new(self.context, self.tree).view(ui),
+            Tab::Settings => Settings::new(self.context, self.state).view(ui),
         }
     }
 }

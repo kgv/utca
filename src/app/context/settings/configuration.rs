@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 /// Configuration settings
 pub(in crate::app) struct Settings {
     pub(in crate::app) precision: usize,
@@ -10,7 +10,7 @@ pub(in crate::app) struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            precision: 3,
+            precision: Default::default(),
             resizable: Default::default(),
         }
     }

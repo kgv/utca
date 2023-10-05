@@ -16,5 +16,7 @@ Ultimate TAG Calculation Application
 
 `rustup target add wasm32-unknown-unknown`
 
+`ECN=CN-2DB`
+
 [byrdwell.com](https://byrdwell.com/Triacylglycerols/TAGbyMass1.htm)
 [Atomic Weights and Isotopic Compositions for All Elements](https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl)

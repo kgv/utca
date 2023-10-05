@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::{
+    array::IntoIter,
     fmt::{self, Display, Formatter},
     hash::Hash,
-    ops::Deref,
-    // slice::from_ref,
+    ops::{Add, Deref},
+    slice::Iter,
 };
 
 // /// Acylglycerol
@@ -46,9 +47,23 @@ impl<T> Tag<T> {
     }
 }
 
+impl<T: Add<Output = T> + Copy> Tag<T> {
+    pub fn sum(self) -> T {
+        self[0] + self[1] + self[2]
+    }
+}
+
 impl<T: Display> Display for Tag<T> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}{}{}", self.0[0], self.0[1], self.0[2])
+        Display::fmt(&self.0[0], f)?;
+        if f.alternate() {
+            f.write_str("/")?;
+        }
+        Display::fmt(&self.0[1], f)?;
+        if f.alternate() {
+            f.write_str("/")?;
+        }
+        Display::fmt(&self.0[2], f)
     }
 }
 
@@ -57,6 +72,26 @@ impl<T> Deref for Tag<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<T> IntoIterator for Tag<T> {
+    type Item = T;
+
+    type IntoIter = IntoIter<T, 3>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Tag<T> {
+    type Item = &'a T;
+
+    type IntoIter = Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 

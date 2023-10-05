@@ -3,7 +3,10 @@ use self::{
     windows::About,
 };
 use crate::{
-    app::context::Context,
+    app::{
+        computers::calculator::{Calculated, Key},
+        context::Context,
+    },
     parsers::{
         toml::{to_string, Parsed as TomlParsed},
         whitespace::Parsed,
@@ -13,9 +16,9 @@ use crate::{
 use anyhow::Result;
 use eframe::{get_value, set_value, CreationContext, Frame, Storage, APP_KEY};
 use egui::{
-    global_dark_light_mode_switch, warn_if_debug_build, Align, Align2, Button, CentralPanel,
-    Color32, ComboBox, Event, Id, LayerId, Layout, Order, RichText, SidePanel, TextStyle,
-    TopBottomPanel, Visuals,
+    global_dark_light_mode_switch, menu::bar, warn_if_debug_build, Align, Align2, Button,
+    CentralPanel, Color32, ComboBox, Event, Id, LayerId, Layout, Order, RichText, SidePanel,
+    TextStyle, TopBottomPanel, Visuals,
 };
 use egui_dock::{DockArea, Style};
 use egui_ext::{DroppedFileExt, HoveredFileExt, WithVisuals};
@@ -104,7 +107,6 @@ impl App {
             .show(ctx, |ui| {
                 DockArea::new(&mut self.docks.central)
                     .id(Id::new("central_dock"))
-                    .scroll_area_in_tabs(false)
                     .style(Style::from_egui(&ctx.style()))
                     .show_inside(
                         ui,
@@ -120,21 +122,24 @@ impl App {
         SidePanel::left("left_panel")
             .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(0.0))
             .resizable(true)
-            .show_animated(ctx, !self.docks.left.tree.is_empty(), |ui| {
-                let mut style = Style::from_egui(&ctx.style());
-                style.tabs.fill_tab_bar = true;
-                DockArea::new(&mut self.docks.left.tree)
-                    .id(Id::new("left_dock"))
-                    .scroll_area_in_tabs(false)
-                    .style(style)
-                    .show_inside(
-                        ui,
-                        &mut LeftTabs {
-                            context: &mut self.context,
-                            tree: &self.docks.central,
-                        },
-                    );
-            });
+            .show_animated(
+                ctx,
+                self.docks.left.state.main_surface().num_tabs() != 0,
+                |ui| {
+                    let mut style = Style::from_egui(&ctx.style());
+                    style.tab_bar.fill_tab_bar = true;
+                    DockArea::new(&mut self.docks.left.state)
+                        .id(Id::new("left_dock"))
+                        .style(style)
+                        .show_inside(
+                            ui,
+                            &mut LeftTabs {
+                                context: &mut self.context,
+                                state: &self.docks.central,
+                            },
+                        );
+                },
+            );
 
         // SidePanel::left("left_panel")
         //     .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(0.0))
@@ -200,7 +205,7 @@ impl App {
     // Top panel
     fn top_panel(&mut self, ctx: &egui::Context) {
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
+            bar(ui, |ui| {
                 ui.visuals_mut().button_frame = false;
 
                 ui.group(|ui| {
@@ -288,7 +293,7 @@ impl App {
                 ui.separator();
                 ui.group(|ui| {
                     // Settings
-                    let checked = self.docks.left.tree.find_tab(&LeftTab::Settings).is_some();
+                    let checked = self.docks.left.state.find_tab(&LeftTab::Settings).is_some();
                     if ui
                         .selectable_label(checked, RichText::new("⚙"))
                         .on_hover_text("Settings")
@@ -297,7 +302,7 @@ impl App {
                         self.docks.left.toggle(LeftTab::Settings);
                     }
                     // Files
-                    let checked = self.docks.left.tree.find_tab(&LeftTab::Files).is_some();
+                    let checked = self.docks.left.state.find_tab(&LeftTab::Files).is_some();
                     let text = if checked { "📂" } else { "📁" };
                     if ui
                         .selectable_label(checked, RichText::new(text))
@@ -457,6 +462,11 @@ impl App {
                 };
                 trace!(?parsed);
                 self.context.state = parsed.into();
+                self.context.state.data.normalized = ctx.memory_mut(|memory| {
+                    memory.caches.cache::<Calculated>().get(Key {
+                        context: &self.context,
+                    })
+                });
             }
         }
     }

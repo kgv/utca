@@ -2,10 +2,8 @@
 //! https://math.stackexchange.com/questions/700237/coordinates-of-sector-of-circle
 //! https://math.stackexchange.com/questions/700211/finding-the-points-of-a-circle-by-using-one-set-of-coordinates-and-an-angle
 
-use egui::{
-    plot::{Plot, PlotPoint, PlotPoints, Polygon, Text},
-    Align2, Response, RichText, Ui,
-};
+use egui::{Align2, Response, RichText, Ui};
+use egui_plot::{Plot, PlotPoint, PlotPoints, Polygon, Text};
 use std::f64::consts::TAU;
 
 const FULL_CIRCLE_VERTICES: f64 = 240.0;

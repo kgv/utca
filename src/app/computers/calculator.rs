@@ -1,19 +1,13 @@
 use crate::{
     app::context::{
-        settings::calculation::{From, Normalization, Signedness, Source, Sources},
+        settings::calculation::{From, Normalization, Signedness, Source},
         state::Normalized,
+        Context,
     },
     utils::Normalize,
 };
-use egui::{
-    epaint::util::FloatOrd,
-    util::cache::{ComputerMut, FrameCache},
-};
-use molecule::Counter;
-use std::{
-    cell::LazyCell,
-    hash::{Hash, Hasher},
-};
+use egui::util::cache::{ComputerMut, FrameCache};
+use std::cell::LazyCell;
 use tracing::trace;
 
 // fn signed(f: fn(&f64, &f64) -> f64) -> impl Fn(&f64, &f64) -> f64 {
@@ -42,10 +36,17 @@ pub(in crate::app) struct Calculator;
 /// - 2: stereospecific numbering (1,2,3-TAGs; 1,2/2,3-DAGs; 2-MAGs; 1,3-DAGs).
 impl ComputerMut<Key<'_>, Value> for Calculator {
     fn compute(&mut self, key: Key) -> Value {
-        let weights = LazyCell::new(|| key.formulas.iter().map(|formula| formula.weight()));
+        let tags123 = &key.context.state.data.unnormalized.tags123;
+        let dags1223 = &key.context.state.data.unnormalized.dags1223;
+        let mags2 = &key.context.state.data.unnormalized.mags2;
+        let formulas = &key.context.state.meta.formulas;
+        let weights = LazyCell::new(|| formulas.iter().map(|formula| formula.weight()));
+        let normalization = key.context.settings.calculation.normalization;
+        let signedness = key.context.settings.calculation.signedness;
+        let sources = key.context.settings.calculation.sources;
         // Experimental
         let experimental = |unnormalized: &[f64]| {
-            match key.normalization {
+            match normalization {
                 // s / ∑(s)
                 Normalization::Mass => unnormalized.iter().copied().normalize(),
                 // (s * m) / ∑(s * m)
@@ -70,23 +71,23 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
             }
         };
         // Cast
-        let cast = |value: f64| match key.signedness {
+        let cast = |value: f64| match signedness {
             Signedness::Signed => value,
             Signedness::Unsigned => value.max(0.0),
         };
 
-        let tags123 = experimental(&key.tags123);
-        let mut dags1223 = experimental(&key.dags1223);
-        let mut mags2 = experimental(&key.mags2);
+        let tags123 = experimental(&tags123);
+        let mut dags1223 = experimental(&dags1223);
+        let mut mags2 = experimental(&mags2);
         trace!(?tags123, ?dags1223, ?mags2);
-        if let Source::Calculation = key.sources.dag1223 {
+        if let Source::Calculation = sources.dag1223 {
             dags1223 = tags123
                 .iter()
                 .zip(&mags2)
                 .map(|(tag123, mag2)| cast((3.0 * tag123 + mag2) / 4.0))
                 .normalize();
         }
-        if let Source::Calculation = key.sources.mags2 {
+        if let Source::Calculation = sources.mags2 {
             mags2 = tags123
                 .iter()
                 .zip(&dags1223)
@@ -94,7 +95,7 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
                 .normalize();
         }
         trace!(?dags1223, ?mags2);
-        let dags13 = match key.sources.dag13 {
+        let dags13 = match sources.dag13 {
             From::Dag1223 => tags123
                 .iter()
                 .zip(&dags1223)
@@ -117,35 +118,12 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
 }
 
 /// Key
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(in crate::app) struct Key<'a> {
-    pub(in crate::app) formulas: &'a [Counter],
-    pub(in crate::app) tags123: &'a [f64],
-    pub(in crate::app) dags1223: &'a [f64],
-    pub(in crate::app) mags2: &'a [f64],
-    pub(in crate::app) normalization: Normalization,
-    pub(in crate::app) signedness: Signedness,
-    pub(in crate::app) sources: Sources,
-}
-
-impl Hash for Key<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        for formula in self.formulas {
-            formula.hash(state);
-        }
-        for &tag123 in self.tags123 {
-            tag123.ord().hash(state);
-        }
-        for &dag1223 in self.dags1223 {
-            dag1223.ord().hash(state);
-        }
-        for &mag2 in self.mags2 {
-            mag2.ord().hash(state);
-        }
-        self.normalization.hash(state);
-        self.signedness.hash(state);
-        self.sources.hash(state);
-    }
+    pub(in crate::app) context: &'a Context,
+    // pub(in crate::app) normalization: Normalization,
+    // pub(in crate::app) signedness: Signedness,
+    // pub(in crate::app) sources: Sources,
 }
 
 /// Value

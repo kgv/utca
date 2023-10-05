@@ -7,7 +7,6 @@ use crate::app::{
 };
 use egui::{ComboBox, Id, RichText, Slider, Ui};
 use itertools::Itertools;
-use std::borrow::Cow;
 
 macro filter_combobox($ui:ident, $context:expr, $id:ident) {
     let id_source = stringify!($id).trim_start_matches("sn");
@@ -26,6 +25,17 @@ macro filter_combobox($ui:ident, $context:expr, $id:ident) {
                         $context.settings.composition.filter.$id.remove(&index);
                     }
                 }
+            }
+        })
+        .response
+        .context_menu(|ui| {
+            if ui.button("Check all").clicked() {
+                $context.settings.composition.filter.$id.clear();
+                ui.close_menu();
+            } else if ui.button("Uncheck all").clicked() {
+                $context.settings.composition.filter.$id =
+                    (0..$context.state.meta.labels.len()).collect();
+                ui.close_menu();
             }
         });
     if changed {
@@ -70,32 +80,75 @@ impl Composition<'_> {
             ui.separator();
             ui.horizontal(|ui| {
                 ui.label("Composition:");
-                let selected_text = match self.context.settings.composition.composition {
-                    Some(positional) => Cow::Owned(format!("{positional:#}")),
-                    None => Cow::Borrowed("None"),
+                let mut ptc = self.context.settings.composition.is_positional_type();
+                ptc ^= ui
+                    .selectable_label(ptc, "PTC")
+                    .on_hover_text("Positional-type composition")
+                    .clicked();
+                let mut psc = self.context.settings.composition.is_positional_species();
+                psc ^= ui
+                    .selectable_label(psc, "PSC")
+                    .on_hover_text("Positional-species composition")
+                    .clicked();
+                self.context.settings.composition.positional = if ptc && psc {
+                    None
+                } else if ptc {
+                    Some(Positional::Type)
+                } else if psc {
+                    Some(Positional::Species)
+                } else {
+                    self.context.settings.composition.positional.map(
+                        |positional| match positional {
+                            Positional::Type => Positional::Species,
+                            Positional::Species => Positional::Type,
+                        },
+                    )
                 };
-                ComboBox::from_id_source("composition")
-                    .selected_text(selected_text)
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            &mut self.context.settings.composition.composition,
-                            None,
-                            "None",
-                        );
-                        ui.selectable_value(
-                            &mut self.context.settings.composition.composition,
-                            Some(Positional::Species),
-                            "PSC",
-                        )
-                        .on_hover_text("Positional-species composition");
-                        ui.selectable_value(
-                            &mut self.context.settings.composition.composition,
-                            Some(Positional::Type),
-                            "PTC",
-                        )
-                        .on_hover_text("Positional-type composition");
-                    });
+                ui.checkbox(&mut self.context.settings.composition.mirror, "Mirror");
             });
+            ui.horizontal(|ui| {
+                ui.label("Columns:");
+                ui.checkbox(&mut self.context.settings.composition.ecn, "Ecn")
+                    .on_hover_text("ECN (equivalent carbon number) column");
+                ui.checkbox(&mut self.context.settings.composition.mass, "Mass")
+                    .on_hover_text("Mass column");
+            });
+            // ui.horizontal(|ui| {
+            //     ui.label("Composition:");
+            //     let text = match self.context.settings.composition.positional {
+            //         None => "PTSC",
+            //         Some(Positional::Type) => "PTC",
+            //         Some(Positional::Species) => "PSC",
+            //     };
+            //     ComboBox::from_id_source("composition")
+            //         .selected_text(text)
+            //         .show_ui(ui, |ui| {
+            //             ui.selectable_value(
+            //                 &mut self.context.settings.composition.positional,
+            //                 None,
+            //                 "PTSC",
+            //             )
+            //             .on_hover_text("Positional-type-species composition");
+            //             ui.selectable_value(
+            //                 &mut self.context.settings.composition.positional,
+            //                 Some(Positional::Type),
+            //                 "PTC",
+            //             )
+            //             .on_hover_text("Positional-type composition");
+            //             ui.selectable_value(
+            //                 &mut self.context.settings.composition.positional,
+            //                 Some(Positional::Species),
+            //                 "PSC",
+            //             )
+            //             .on_hover_text("Positional-species composition");
+            //         })
+            //         .response
+            //         .on_hover_text(format!(
+            //             "{:#}",
+            //             self.context.settings.calculation.normalization
+            //         ));
+            //     ui.checkbox(&mut self.context.settings.composition.mirror, "Mirror");
+            // });
             ui.collapsing(RichText::new("🔎 Filter").heading(), |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Key:");
@@ -106,15 +159,17 @@ impl Composition<'_> {
                     ui.label("Value:");
                     ui.add(
                         Slider::new(
-                            &mut self.context.settings.composition.filter.part,
+                            &mut self.context.settings.composition.filter.value,
                             0.0..=1.0,
                         )
                         .logarithmic(true)
                         .custom_formatter(|mut value, _| {
+                            let mut precision = 7;
                             if self.context.settings.composition.percent {
                                 value *= 100.0;
+                                precision = 5;
                             }
-                            format!("{value:.6}")
+                            format!("{value:.precision$}")
                         })
                         .custom_parser(|value| {
                             let mut parsed = value.parse::<f64>().ok()?;
@@ -127,88 +182,40 @@ impl Composition<'_> {
                 });
             });
             ui.collapsing(RichText::new("🔤 Sort").heading(), |ui| {
-                let selected_text = match self.context.settings.composition.sort {
-                    Sort::Key(order) => (format!("{order:?}"), Default::default()),
-                    Sort::Value(order) => (Default::default(), format!("{order:?}")),
-                };
                 ui.horizontal(|ui| {
-                    ui.label("Key:");
-                    ComboBox::from_id_source("key")
-                        .selected_text(selected_text.0)
+                    ui.label("By:");
+                    ComboBox::from_id_source("by")
+                        .selected_text(self.context.settings.composition.sort.to_string())
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
                                 &mut self.context.settings.composition.sort,
-                                Sort::Key(Order::Ascending),
+                                Sort::Key,
+                                "Tag",
+                            )
+                            .on_hover_text("Sort by triacylglycerol");
+                            ui.selectable_value(
+                                &mut self.context.settings.composition.sort,
+                                Sort::Value,
+                                "Value",
+                            )
+                            .on_hover_text("Sort by value");
+                        });
+                    ui.label("Order:");
+                    ComboBox::from_id_source("order")
+                        .selected_text(self.context.settings.composition.order.to_string())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut self.context.settings.composition.order,
+                                Order::Ascending,
                                 "⬊ Ascending",
                             );
                             ui.selectable_value(
-                                &mut self.context.settings.composition.sort,
-                                Sort::Key(Order::Descending),
+                                &mut self.context.settings.composition.order,
+                                Order::Descending,
                                 "⬈ Descending",
                             );
                         });
                 });
-                ui.horizontal(|ui| {
-                    ui.label("Value:");
-                    ComboBox::from_id_source("value")
-                        .selected_text(selected_text.1)
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut self.context.settings.composition.sort,
-                                Sort::Value(Order::Ascending),
-                                "⬊ Ascending",
-                            );
-                            ui.selectable_value(
-                                &mut self.context.settings.composition.sort,
-                                Sort::Value(Order::Descending),
-                                "⬈ Descending",
-                            );
-                        });
-                });
-                // let mut keep = false;
-                // ComboBox::from_id_source("sort")
-                //     .width(ui.available_width())
-                //     .selected_text(self.sort.to_string())
-                //     .show_ui(ui, |ui| {
-                //         keep |= ui
-                //             .collapsing("By key", |ui| {
-                //                 ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                //                     ui.selectable_value(
-                //                         &mut self.sort,
-                //                         Sort::Key(Order::Ascending),
-                //                         "⬊ Ascending",
-                //                     );
-                //                     ui.selectable_value(
-                //                         &mut self.sort,
-                //                         Sort::Key(Order::Descending),
-                //                         "⬈ Descending",
-                //                     );
-                //                 });
-                //             })
-                //             .header_response
-                //             .changed();
-                //         keep |= ui
-                //             .collapsing("By value", |ui| {
-                //                 ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                //                     ui.selectable_value(
-                //                         &mut self.sort,
-                //                         Sort::Value(Order::Ascending),
-                //                         "⬊ Ascending",
-                //                     );
-                //                     ui.selectable_value(
-                //                         &mut self.sort,
-                //                         Sort::Value(Order::Descending),
-                //                         "⬈ Descending",
-                //                     );
-                //                 });
-                //             })
-                //             .header_response
-                //             .changed();
-                //     });
-                // if keep {
-                //     let popup_id = ui.make_persistent_id(Id::new("sort")).with("popup");
-                //     ui.memory_mut(|memory| memory.open_popup(popup_id));
-                // }
             });
         });
     }

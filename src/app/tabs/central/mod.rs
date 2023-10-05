@@ -4,8 +4,7 @@ use self::{
 };
 use crate::app::context::Context;
 use egui::{Ui, WidgetText};
-use egui_dock::{TabViewer, Tree};
-use itertools::{izip, Itertools};
+use egui_dock::{DockState, TabViewer};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
@@ -15,28 +14,28 @@ use std::{
 /// Central dock
 #[derive(Debug, Deserialize, Serialize)]
 pub(in crate::app) struct Dock {
-    tree: Tree<Tab>,
+    state: DockState<Tab>,
 }
 
 impl Default for Dock {
     fn default() -> Self {
         Self {
-            tree: Tree::new(vec![Tab::Configuration]),
+            state: DockState::new(vec![Tab::Configuration]),
         }
     }
 }
 
 impl Deref for Dock {
-    type Target = Tree<Tab>;
+    type Target = DockState<Tab>;
 
     fn deref(&self) -> &Self::Target {
-        &self.tree
+        &self.state
     }
 }
 
 impl DerefMut for Dock {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.tree
+        &mut self.state
     }
 }
 
@@ -69,82 +68,8 @@ pub(in crate::app) struct Tabs<'a> {
 impl TabViewer for Tabs<'_> {
     type Tab = Tab;
 
-    fn context_menu(&mut self, ui: &mut Ui, tab: &mut Self::Tab) {
-        match *tab {
-            Tab::Configuration => {
-                if ui.button("Copy").clicked() {
-                    ui.output_mut(|output| {
-                        output.copied_text = izip!(
-                            self.context.state.meta.zip(),
-                            self.context.state.data.unnormalized.zip(),
-                        )
-                        .format_with("\n", |((label, formula), (tag123, dag1223, mag2)), f| {
-                            let precision = self.context.settings.configuration.precision;
-                            f(&format_args!("{label} {formula} {tag123:.precision$} {dag1223:.precision$} {mag2:.precision$}"))
-                        })
-                        .to_string();
-                    });
-                    ui.close_menu();
-                }
-            }
-            Tab::Calculation => {
-                if ui.button("Copy").clicked() {
-                    ui.output_mut(|output| {
-                        output.copied_text = izip!(
-                            self.context.state.meta.zip(),
-                            self.context.state.data.normalized.zip()
-                        )
-                        .format_with(
-                            "\n",
-                            |(
-                                (label, formula),
-                                (&(mut tag123), &(mut dag1223), &(mut mag2), &(mut dag13)),
-                            ),
-                             f| {
-                                if self.context.settings.calculation.percent {
-                                    tag123 *= 100.0;
-                                    dag1223 *= 100.0;
-                                    mag2 *= 100.0;
-                                    dag13 *= 100.0;
-                                }
-                                let precision = self.context.settings.calculation.precision;
-                                f(&format_args!("{label} {formula} {tag123:.precision$} {dag1223:.precision$} {mag2:.precision$} {dag13:.precision$}"))
-                            },
-                        )
-                        .to_string()
-                    });
-                    ui.close_menu();
-                }
-            }
-            Tab::Composition => {
-                if ui.button("Copy").clicked() {
-                    ui.output_mut(|output| {
-                        output.copied_text = self
-                            .context
-                            .state
-                            .data
-                            .composed
-                            .iter()
-                            .format_with("\n", |(tags, &(mut value)), f| {
-                                if self.context.settings.composition.percent {
-                                    value *= 100.0;
-                                }
-                                let precision = self.context.settings.composition.precision;
-                                f(&format_args!(
-                                    "{}: {value:.precision$}",
-                                    tags.iter()
-                                        .map(|tag| tag
-                                            .map(|index| &self.context.state.meta.labels[index]))
-                                        .format(" ")
-                                ))
-                            })
-                            .to_string();
-                    });
-                    ui.close_menu();
-                }
-            }
-            _ => {}
-        }
+    fn scroll_bars(&self, _: &Self::Tab) -> [bool; 2] {
+        [true, false]
     }
 
     fn title(&mut self, tab: &mut Self::Tab) -> WidgetText {

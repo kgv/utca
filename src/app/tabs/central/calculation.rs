@@ -16,17 +16,8 @@ pub(super) struct Calculation;
 
 impl Calculation {
     pub(super) fn view(ui: &mut Ui, context: &mut Context) {
-        context.state.data.normalized = ui.memory_mut(|memory| {
-            memory.caches.cache::<Calculated>().get(Key {
-                formulas: &context.state.meta.formulas,
-                tags123: &context.state.data.unnormalized.tags123,
-                dags1223: &context.state.data.unnormalized.dags1223,
-                mags2: &context.state.data.unnormalized.mags2,
-                normalization: context.settings.calculation.normalization,
-                signedness: context.settings.calculation.signedness,
-                sources: context.settings.calculation.sources,
-            })
-        });
+        context.state.data.normalized =
+            ui.memory_mut(|memory| memory.caches.cache::<Calculated>().get(Key { context }));
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
         TableBuilder::new(ui)

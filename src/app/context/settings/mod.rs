@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Settings
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Hash, Serialize)]
 pub(in crate::app) struct Settings {
     pub(in crate::app) configuration: configuration::Settings,
     pub(in crate::app) calculation: calculation::Settings,

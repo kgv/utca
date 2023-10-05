@@ -5,25 +5,28 @@ use self::{
 use super::CentralTab;
 use crate::app::context::Context;
 use egui::Ui;
-use egui_dock::Tree;
+use egui_dock::DockState;
 use itertools::Itertools;
 
 /// Settings
 #[derive(Debug)]
 pub(super) struct Settings<'a> {
     pub(super) context: &'a mut Context,
-    pub(super) tree: &'a Tree<CentralTab>,
+    pub(super) state: &'a DockState<CentralTab>,
 }
 
 impl<'a> Settings<'a> {
-    pub(super) fn new(context: &'a mut Context, tree: &'a Tree<CentralTab>) -> Self {
-        Self { context, tree }
+    pub(super) fn new(context: &'a mut Context, tree: &'a DockState<CentralTab>) -> Self {
+        Self {
+            context,
+            state: tree,
+        }
     }
 }
 
 impl Settings<'_> {
     pub(super) fn view(self, ui: &mut Ui) {
-        for tab in self.tree.tabs().sorted() {
+        for tab in self.state.main_surface().tabs().sorted() {
             match tab {
                 CentralTab::Configuration => Configuration::new(self.context).view(ui),
                 CentralTab::Calculation => Calculation::new(self.context).view(ui),
