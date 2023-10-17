@@ -110,9 +110,9 @@ mod formula {
     pub(super) fn deserialize<'de, D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Counter, D::Error> {
-        Ok(String::deserialize(deserializer)?
+        String::deserialize(deserializer)?
             .parse()
-            .map_err(Error::custom)?)
+            .map_err(Error::custom)
     }
 
     pub(super) fn serialize<S: Serializer>(

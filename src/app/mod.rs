@@ -3,10 +3,7 @@ use self::{
     windows::About,
 };
 use crate::{
-    app::{
-        computers::calculator::{Calculated, Key},
-        context::Context,
-    },
+    app::context::Context,
     parsers::{
         toml::{to_string, Parsed as TomlParsed},
         whitespace::Parsed,
@@ -265,7 +262,7 @@ impl App {
                             }
                             Ok(content) => {
                                 trace!(?content);
-                                let parsed: TomlParsed = match content.parse() {
+                                let parsed = match content.parse() {
                                     Ok(file) => file,
                                     Err(error) => {
                                         error!(%error);
@@ -273,7 +270,7 @@ impl App {
                                     }
                                 };
                                 trace!(?parsed);
-                                self.context.state = parsed.into();
+                                self.context.init(ctx, parsed);
                             }
                         }
                     }
@@ -449,7 +446,7 @@ impl App {
                     }
                 };
                 trace!(content);
-                let parsed: TomlParsed = match content.parse() {
+                let parsed = match content.parse() {
                     Ok(file) => file,
                     Err(error) => {
                         error!(%error);
@@ -461,12 +458,7 @@ impl App {
                     }
                 };
                 trace!(?parsed);
-                self.context.state = parsed.into();
-                self.context.state.data.normalized = ctx.memory_mut(|memory| {
-                    memory.caches.cache::<Calculated>().get(Key {
-                        context: &self.context,
-                    })
-                });
+                self.context.init(ctx, parsed);
             }
         }
     }
@@ -535,12 +527,12 @@ impl App {
 
     fn export(&self) -> Result<(), impl Debug> {
         let content = to_string(&TomlParsed {
+            name: self.context.state.meta.name.clone(),
             fatty_acids: self.context.state.fatty_acids(),
-            ..Default::default()
         })
         .unwrap();
         self.file_dialog
-            .save(&format!("{}.toml", self.context.state.meta.name), &content)
+            .save(&format!("{}.toml", self.context.state.meta.name), content)
             .unwrap();
         Ok::<_, ()>(())
     }

@@ -1,5 +1,5 @@
 use crate::{app::context::Context, cu::ether};
-use egui::{Align, ComboBox, Direction, DragValue, Layout, RichText, Ui};
+use egui::{Align, ComboBox, Direction, DragValue, Layout, RichText, TextEdit, Ui};
 use egui_ext::{TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
 
@@ -10,9 +10,9 @@ impl Configuration {
     pub(super) fn view(ui: &mut Ui, context: &mut Context) {
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Name:");
-            ui.text_edit_singleline(&mut context.state.meta.name);
+            ui.add(TextEdit::singleline(&mut context.state.meta.name).desired_width(f32::INFINITY));
         });
         TableBuilder::new(ui)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))

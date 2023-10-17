@@ -1,7 +1,4 @@
-use crate::app::{
-    computers::composer::{Composed, Key},
-    context::Context,
-};
+use crate::app::{computers::composer::Composed, context::Context};
 use egui::{Align, Direction, Layout, Ui};
 use egui_ext::{ClickedLabel, TableBodyExt};
 use egui_extras::{Column, TableBuilder};
@@ -16,7 +13,7 @@ pub(super) struct Composition;
 impl Composition {
     pub(super) fn view(ui: &mut Ui, context: &mut Context) {
         context.state.data.composed =
-            ui.memory_mut(|memory| memory.caches.cache::<Composed>().get(Key { context }));
+            ui.memory_mut(|memory| memory.caches.cache::<Composed>().get(context));
         let height = ui.spacing().interact_size.y;
         let ptc = context.settings.composition.is_positional_type();
         let psc = context.settings.composition.is_positional_species();

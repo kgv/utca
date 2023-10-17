@@ -190,9 +190,9 @@ impl Composition<'_> {
                             ui.selectable_value(
                                 &mut self.context.settings.composition.sort,
                                 Sort::Key,
-                                "Tag",
+                                "Key",
                             )
-                            .on_hover_text("Sort by triacylglycerol");
+                            .on_hover_text("Sort by type and species");
                             ui.selectable_value(
                                 &mut self.context.settings.composition.sort,
                                 Sort::Value,

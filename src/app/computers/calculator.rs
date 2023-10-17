@@ -36,14 +36,16 @@ pub(in crate::app) struct Calculator;
 /// - 2: stereospecific numbering (1,2,3-TAGs; 1,2/2,3-DAGs; 2-MAGs; 1,3-DAGs).
 impl ComputerMut<Key<'_>, Value> for Calculator {
     fn compute(&mut self, key: Key) -> Value {
-        let tags123 = &key.context.state.data.unnormalized.tags123;
-        let dags1223 = &key.context.state.data.unnormalized.dags1223;
-        let mags2 = &key.context.state.data.unnormalized.mags2;
-        let formulas = &key.context.state.meta.formulas;
+        let context = key;
+        let tags123 = &context.state.data.unnormalized.tags123;
+        let dags1223 = &context.state.data.unnormalized.dags1223;
+        let mags2 = &context.state.data.unnormalized.mags2;
+        let formulas = &context.state.meta.formulas;
         let weights = LazyCell::new(|| formulas.iter().map(|formula| formula.weight()));
-        let normalization = key.context.settings.calculation.normalization;
-        let signedness = key.context.settings.calculation.signedness;
-        let sources = key.context.settings.calculation.sources;
+        let normalization = context.settings.calculation.normalization;
+        let signedness = context.settings.calculation.signedness;
+        let sources = context.settings.calculation.sources;
+
         // Experimental
         let experimental = |unnormalized: &[f64]| {
             match normalization {
@@ -76,9 +78,9 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
             Signedness::Unsigned => value.max(0.0),
         };
 
-        let tags123 = experimental(&tags123);
-        let mut dags1223 = experimental(&dags1223);
-        let mut mags2 = experimental(&mags2);
+        let tags123 = experimental(tags123);
+        let mut dags1223 = experimental(dags1223);
+        let mut mags2 = experimental(mags2);
         trace!(?tags123, ?dags1223, ?mags2);
         if let Source::Calculation = sources.dag1223 {
             dags1223 = tags123
@@ -118,13 +120,7 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
 }
 
 /// Key
-#[derive(Clone, Copy, Hash, Debug)]
-pub(in crate::app) struct Key<'a> {
-    pub(in crate::app) context: &'a Context,
-    // pub(in crate::app) normalization: Normalization,
-    // pub(in crate::app) signedness: Signedness,
-    // pub(in crate::app) sources: Sources,
-}
+type Key<'a> = &'a Context;
 
 /// Value
 type Value = Normalized;

@@ -1,7 +1,9 @@
 use self::{settings::Settings, state::State};
+use super::computers::{calculator::Calculated, composer::Composed};
 use crate::{
     acylglycerol::Tag,
     cu::{Ecn, Saturable, Saturation},
+    parsers::toml::Parsed as TomlParsed,
 };
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
@@ -14,6 +16,14 @@ pub(super) struct Context {
 }
 
 impl Context {
+    pub(super) fn init(&mut self, ctx: &egui::Context, parsed: TomlParsed) {
+        self.state = parsed.into();
+        self.state.data.normalized =
+            ctx.memory_mut(|memory| memory.caches.cache::<Calculated>().get(&self));
+        self.state.data.composed =
+            ctx.memory_mut(|memory| memory.caches.cache::<Composed>().get(&self));
+    }
+
     pub(super) fn r#type(&self, tag: Tag<usize>) -> Tag<Saturation> {
         Tag([
             if self.settings.composition.mirror {

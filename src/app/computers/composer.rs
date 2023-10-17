@@ -33,14 +33,14 @@ pub(in crate::app) struct Composer;
 // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
 impl ComputerMut<Key<'_>, Value> for Composer {
     fn compute(&mut self, key: Key) -> Value {
-        let Key { context } = key;
-        let dags13 = &key.context.state.data.normalized.dags13;
-        let mags2 = &key.context.state.data.normalized.mags2;
-        let labels = &key.context.state.meta.labels;
-        let mirror = key.context.settings.composition.mirror;
-        if dags13.is_empty() || mags2.is_empty() {
-            return Default::default();
-        }
+        let context = key;
+        let dags13 = &context.state.data.normalized.dags13;
+        let mags2 = &context.state.data.normalized.mags2;
+        let labels = &context.state.meta.labels;
+        let mirror = context.settings.composition.mirror;
+        // if dags13.is_empty() || mags2.is_empty() {
+        //     return Default::default();
+        // }
         let mut unfiltered = IndexMap::new();
         for indices in repeat(0..labels.len()).take(3).multi_cartesian_product() {
             let value = dags13[indices[0]] * mags2[indices[1]] * dags13[indices[2]];
@@ -80,10 +80,7 @@ impl ComputerMut<Key<'_>, Value> for Composer {
 }
 
 /// Key
-#[derive(Clone, Copy, Debug, Hash)]
-pub(in crate::app) struct Key<'a> {
-    pub(in crate::app) context: &'a Context,
-}
+type Key<'a> = &'a Context;
 
 /// Sort by
 trait SortBy {
@@ -92,7 +89,7 @@ trait SortBy {
 
 impl SortBy for IndexMap<Tag<usize>, f64> {
     fn sort(&mut self, key: Key) {
-        let Key { context } = key;
+        let context = key;
         let ptc = context.settings.composition.is_positional_type();
         match context.settings.composition.sort {
             Sort::Key if ptc => match context.settings.composition.order {
