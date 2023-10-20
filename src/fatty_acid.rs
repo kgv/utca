@@ -1,7 +1,7 @@
 use maplit::btreemap;
 use molecule::{
     atom::{isotopes::*, Isotope},
-    counter, Counter, Cu,
+    counter, Counter,
 };
 use std::{
     cell::LazyCell,

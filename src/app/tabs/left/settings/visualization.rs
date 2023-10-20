@@ -1,4 +1,4 @@
-use crate::app::context::Context;
+use crate::app::{context::Context, view::View};
 use egui::{RichText, Slider, Ui};
 
 /// Left visualization tab
@@ -12,8 +12,8 @@ impl<'a> Visualization<'a> {
     }
 }
 
-impl Visualization<'_> {
-    pub(super) fn view(self, ui: &mut Ui) {
+impl View for Visualization<'_> {
+    fn view(self, ui: &mut Ui) {
         ui.collapsing(RichText::new("📊 Visualization").heading(), |ui| {
             // ui.horizontal(|ui| {
             //     ui.label("Chart:");

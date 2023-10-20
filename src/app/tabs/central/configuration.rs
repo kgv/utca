@@ -1,4 +1,7 @@
-use crate::{app::context::Context, fatty_acid::fatty_acid};
+use crate::{
+    app::{context::Context, view::View},
+    fatty_acid::fatty_acid,
+};
 use egui::{Align, ComboBox, Direction, DragValue, Id, Layout, RichText, TextEdit, Ui};
 use egui_ext::{TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
@@ -10,10 +13,19 @@ use molecule::{
 const C: Isotope = Isotope::C(C::Twelve);
 
 /// Central configuration tab
-pub(super) struct Configuration;
+pub(super) struct Configuration<'a> {
+    pub(super) context: &'a mut Context,
+}
 
-impl Configuration {
-    pub(super) fn view(ui: &mut Ui, context: &mut Context) {
+impl<'a> Configuration<'a> {
+    pub(super) fn new(context: &'a mut Context) -> Self {
+        Self { context }
+    }
+}
+
+impl View for Configuration<'_> {
+    fn view(self, ui: &mut Ui) {
+        let Self { context } = self;
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
         let combo_width = ui.spacing().combo_width;

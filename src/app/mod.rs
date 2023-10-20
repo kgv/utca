@@ -570,4 +570,5 @@ struct Docks {
 mod computers;
 mod context;
 mod tabs;
+mod view;
 mod windows;

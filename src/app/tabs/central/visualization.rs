@@ -1,14 +1,23 @@
-use crate::app::context::Context;
+use crate::app::{context::Context, view::View};
 use egui::{epaint::util::FloatOrd, Ui};
 use egui_plot::{Bar, BarChart, Plot};
 use itertools::Itertools;
 use std::{cmp::Reverse, collections::HashMap};
 
 /// Central visualization tab
-pub(super) struct Visualization;
+pub(super) struct Visualization<'a> {
+    pub(super) context: &'a mut Context,
+}
 
-impl Visualization {
-    pub(super) fn view(ui: &mut Ui, context: &mut Context) {
+impl<'a> Visualization<'a> {
+    pub(super) fn new(context: &'a mut Context) -> Self {
+        Self { context }
+    }
+}
+
+impl View for Visualization<'_> {
+    fn view(self, ui: &mut Ui) {
+        let Self { context } = self;
         let mut plot = Plot::new("plot");
         // .x_axis_formatter(|x, _range: &RangeInclusive<f64>| {
         //     if !x.is_approx_zero() && x.is_approx_integer() {

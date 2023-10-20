@@ -1,4 +1,4 @@
-use crate::app::{computers::composer::Composed, context::Context};
+use crate::app::{computers::composer::Composed, context::Context, view::View};
 use egui::{Align, Direction, Layout, Ui};
 use egui_ext::{ClickedLabel, TableBodyExt};
 use egui_extras::{Column, TableBuilder};
@@ -8,10 +8,19 @@ use std::ops::Range;
 const COLUMNS: usize = 5;
 
 /// Central composition tab
-pub(super) struct Composition;
+pub(super) struct Composition<'a> {
+    pub(super) context: &'a mut Context,
+}
 
-impl Composition {
-    pub(super) fn view(ui: &mut Ui, context: &mut Context) {
+impl<'a> Composition<'a> {
+    pub(super) fn new(context: &'a mut Context) -> Self {
+        Self { context }
+    }
+}
+
+impl View for Composition<'_> {
+    fn view(self, ui: &mut Ui) {
+        let Self { context } = self;
         context.state.data.composed =
             ui.memory_mut(|memory| memory.caches.cache::<Composed>().get((&*context).into()));
         let height = ui.spacing().interact_size.y;

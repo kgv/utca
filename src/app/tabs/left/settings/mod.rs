@@ -3,7 +3,7 @@ use self::{
     visualization::Visualization,
 };
 use super::CentralTab;
-use crate::app::context::Context;
+use crate::app::{context::Context, view::View};
 use egui::Ui;
 use egui_dock::DockState;
 use itertools::Itertools;
@@ -24,8 +24,8 @@ impl<'a> Settings<'a> {
     }
 }
 
-impl Settings<'_> {
-    pub(super) fn view(self, ui: &mut Ui) {
+impl View for Settings<'_> {
+    fn view(self, ui: &mut Ui) {
         for tab in self.state.main_surface().tabs().sorted() {
             match tab {
                 CentralTab::Configuration => Configuration::new(self.context).view(ui),

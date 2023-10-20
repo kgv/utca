@@ -2,7 +2,7 @@ use self::{
     calculation::Calculation, composition::Composition, configuration::Configuration,
     visualization::Visualization,
 };
-use crate::app::context::Context;
+use crate::app::{context::Context, view::View};
 use egui::{Ui, WidgetText};
 use egui_dock::{DockState, TabViewer};
 use serde::{Deserialize, Serialize};
@@ -78,10 +78,10 @@ impl TabViewer for Tabs<'_> {
 
     fn ui(&mut self, ui: &mut Ui, tab: &mut Self::Tab) {
         match *tab {
-            Tab::Configuration => Configuration::view(ui, self.context),
-            Tab::Calculation => Calculation::view(ui, self.context),
-            Tab::Composition => Composition::view(ui, self.context),
-            Tab::Visualization => Visualization::view(ui, self.context),
+            Tab::Configuration => Configuration::new(self.context).view(ui),
+            Tab::Calculation => Calculation::new(self.context).view(ui),
+            Tab::Composition => Composition::new(self.context).view(ui),
+            Tab::Visualization => Visualization::new(self.context).view(ui),
         }
     }
 }

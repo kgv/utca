@@ -4,6 +4,7 @@ use crate::app::{
         settings::calculation::{From, Source},
         Context,
     },
+    view::View,
 };
 use egui::{Align, ComboBox, Direction, Layout, RichText, Ui};
 use egui_ext::TableBodyExt;
@@ -12,10 +13,19 @@ use egui_extras::{Column, TableBuilder};
 const COLUMNS: usize = 4;
 
 /// Central calculation tab
-pub(super) struct Calculation;
+pub(super) struct Calculation<'a> {
+    pub(super) context: &'a mut Context,
+}
 
-impl Calculation {
-    pub(super) fn view(ui: &mut Ui, context: &mut Context) {
+impl<'a> Calculation<'a> {
+    pub(super) fn new(context: &'a mut Context) -> Self {
+        Self { context }
+    }
+}
+
+impl View for Calculation<'_> {
+    fn view(self, ui: &mut Ui) {
+        let Self { context } = self;
         context.state.data.normalized =
             ui.memory_mut(|memory| memory.caches.cache::<Calculated>().get((&*context).into()));
         let height = ui.spacing().interact_size.y;

@@ -1,15 +1,26 @@
-use crate::{app::context::Context, utils::higher_order_functions::with_index};
+use crate::{
+    app::{context::Context, view::View},
+    utils::higher_order_functions::with_index,
+};
 use egui::{DroppedFile, TextStyle, Ui};
 use egui_ext::DroppedFileExt;
 use egui_extras::{Size, StripBuilder};
 use serde::{Deserialize, Serialize};
 
 /// Files
-#[derive(Debug, Default, Deserialize, Serialize)]
-pub(super) struct Files;
+#[derive(Debug)]
+pub(super) struct Files<'a> {
+    pub(super) context: &'a mut Context,
+}
 
-impl Files {
-    pub(super) fn view(ui: &mut Ui, context: &mut Context) {
+impl<'a> Files<'a> {
+    pub(super) fn new(context: &'a mut Context) -> Self {
+        Self { context }
+    }
+}
+
+impl View for Files<'_> {
+    fn view(self, _ui: &mut Ui) {
         // self.files.retain(with_index(|index, file: &DroppedFile| {
         //     let height = ui.spacing().interact_size.y;
         //     // let width = ui.spacing().item_spacing.x;

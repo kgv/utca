@@ -1,4 +1,4 @@
-use crate::app::{context::Context, MAX_PRECISION};
+use crate::app::{context::Context, view::View, MAX_PRECISION};
 use egui::{DragValue, RichText, Slider, Ui};
 
 const MAX_C: usize = 99;
@@ -14,8 +14,8 @@ impl<'a> Configuration<'a> {
     }
 }
 
-impl Configuration<'_> {
-    pub(super) fn view(self, ui: &mut Ui) {
+impl View for Configuration<'_> {
+    fn view(self, ui: &mut Ui) {
         ui.collapsing(RichText::new("📝 Configuration").heading(), |ui| {
             ui.horizontal(|ui| {
                 ui.toggle_value(

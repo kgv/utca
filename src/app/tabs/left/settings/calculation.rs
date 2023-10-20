@@ -3,6 +3,7 @@ use crate::app::{
         settings::calculation::{Normalization, Signedness},
         Context,
     },
+    view::View,
     MAX_PRECISION,
 };
 use egui::{ComboBox, RichText, Slider, Ui};
@@ -18,8 +19,8 @@ impl<'a> Calculation<'a> {
     }
 }
 
-impl Calculation<'_> {
-    pub(super) fn view(self, ui: &mut Ui) {
+impl View for Calculation<'_> {
+    fn view(self, ui: &mut Ui) {
         ui.collapsing(RichText::new("🖩 Calculation").heading(), |ui| {
             ui.horizontal(|ui| {
                 ui.toggle_value(

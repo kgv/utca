@@ -1,6 +1,6 @@
 use self::{files::Files, settings::Settings};
 use super::CentralTab;
-use crate::app::Context;
+use crate::app::{view::View, Context};
 use egui::{Ui, WidgetText};
 use egui_dock::{DockState, NodeIndex, TabViewer};
 use serde::{Deserialize, Serialize};
@@ -98,7 +98,7 @@ impl TabViewer for Tabs<'_> {
 
     fn ui(&mut self, ui: &mut Ui, tab: &mut Self::Tab) {
         match *tab {
-            Tab::Files => Files::view(ui, self.context),
+            Tab::Files => Files::new(self.context).view(ui),
             Tab::Settings => Settings::new(self.context, self.state).view(ui),
         }
     }

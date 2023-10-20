@@ -5,6 +5,7 @@ use crate::{
             settings::composition::{Filter, Order, Positional, Sort},
             Context,
         },
+        view::View,
         MAX_PRECISION,
     },
 };
@@ -159,8 +160,8 @@ impl<'a> Composition<'a> {
     }
 }
 
-impl Composition<'_> {
-    pub(super) fn view(self, ui: &mut Ui) {
+impl View for Composition<'_> {
+    fn view(self, ui: &mut Ui) {
         ui.collapsing(RichText::new("⛃ Composition").heading(), |ui| {
             ui.horizontal(|ui| {
                 ui.toggle_value(
