@@ -13,7 +13,7 @@ pub(super) struct Composition;
 impl Composition {
     pub(super) fn view(ui: &mut Ui, context: &mut Context) {
         context.state.data.composed =
-            ui.memory_mut(|memory| memory.caches.cache::<Composed>().get(context));
+            ui.memory_mut(|memory| memory.caches.cache::<Composed>().get((&*context).into()));
         let height = ui.spacing().interact_size.y;
         let ptc = context.settings.composition.is_positional_type();
         let psc = context.settings.composition.is_positional_species();

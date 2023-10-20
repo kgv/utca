@@ -15,6 +15,7 @@ use itertools::Itertools;
 use std::{
     cmp::{max, min, Reverse},
     collections::HashMap,
+    hash::{Hash, Hasher},
     iter::repeat,
 };
 
@@ -33,18 +34,17 @@ pub(in crate::app) struct Composer;
 // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
 impl ComputerMut<Key<'_>, Value> for Composer {
     fn compute(&mut self, key: Key) -> Value {
-        let context = key;
+        let Key { context } = key;
         let dags13 = &context.state.data.normalized.dags13;
         let mags2 = &context.state.data.normalized.mags2;
-        let labels = &context.state.meta.labels;
-        let mirror = context.settings.composition.mirror;
-        // if dags13.is_empty() || mags2.is_empty() {
-        //     return Default::default();
-        // }
+        let filter = &context.settings.composition.filter;
         let mut unfiltered = IndexMap::new();
-        for indices in repeat(0..labels.len()).take(3).multi_cartesian_product() {
+        for indices in repeat(0..context.state.len())
+            .take(3)
+            .multi_cartesian_product()
+        {
             let value = dags13[indices[0]] * mags2[indices[1]] * dags13[indices[2]];
-            if mirror {
+            if context.settings.composition.mirror {
                 let key = Tag([indices[0], indices[1], indices[2]]);
                 unfiltered.insert(key, value);
             } else {
@@ -62,10 +62,16 @@ impl ComputerMut<Key<'_>, Value> for Composer {
         let mut start = 0;
         for (r#type, group) in &unfiltered.iter().group_by(|(&tag, _)| context.r#type(tag)) {
             filtered.extend(group.filter(|(&tag, &value)| {
-                !context.settings.composition.filter.sn13.contains(&tag[0])
-                    && !context.settings.composition.filter.sn2.contains(&tag[1])
-                    && !context.settings.composition.filter.sn13.contains(&tag[2])
-                    && value >= context.settings.composition.filter.value
+                if context.settings.composition.mirror {
+                    !filter.sn1.contains(&tag[0])
+                        && !filter.sn2.contains(&tag[1])
+                        && !filter.sn3.contains(&tag[2])
+                        && value >= filter.value
+                } else {
+                    (!filter.sn1.contains(&tag[0]) || !filter.sn3.contains(&tag[2]))
+                        && !filter.sn2.contains(&tag[1])
+                        && value >= filter.value
+                }
             }));
             let end = filtered.len();
             grouped.insert(r#type, start..end);
@@ -80,7 +86,24 @@ impl ComputerMut<Key<'_>, Value> for Composer {
 }
 
 /// Key
-type Key<'a> = &'a Context;
+#[derive(Clone, Copy, Debug)]
+pub struct Key<'a> {
+    context: &'a Context,
+}
+
+impl Hash for Key<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.context.settings.composition.hash(state);
+        self.context.state.meta.hash(state);
+        self.context.state.data.normalized.hash(state);
+    }
+}
+
+impl<'a> From<&'a Context> for Key<'a> {
+    fn from(value: &'a Context) -> Self {
+        Self { context: value }
+    }
+}
 
 /// Sort by
 trait SortBy {
@@ -89,16 +112,16 @@ trait SortBy {
 
 impl SortBy for IndexMap<Tag<usize>, f64> {
     fn sort(&mut self, key: Key) {
-        let context = key;
+        let Key { context } = key;
         let ptc = context.settings.composition.is_positional_type();
         match context.settings.composition.sort {
-            Sort::Key if ptc => match context.settings.composition.order {
+            Sort::Tag if ptc => match context.settings.composition.order {
                 Order::Ascending => self.sort_by_cached_key(|&tag, _| (context.r#type(tag), tag)),
                 Order::Descending => {
                     self.sort_by_cached_key(|&tag, _| Reverse((context.r#type(tag), tag)))
                 }
             },
-            Sort::Key => match context.settings.composition.order {
+            Sort::Tag => match context.settings.composition.order {
                 Order::Ascending => self.sort_by_cached_key(|&tag, _| tag),
                 Order::Descending => self.sort_by_cached_key(|&tag, _| Reverse(tag)),
             },

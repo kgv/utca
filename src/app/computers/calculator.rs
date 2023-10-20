@@ -7,7 +7,10 @@ use crate::{
     utils::Normalize,
 };
 use egui::util::cache::{ComputerMut, FrameCache};
-use std::cell::LazyCell;
+use std::{
+    cell::LazyCell,
+    hash::{Hash, Hasher},
+};
 use tracing::trace;
 
 // fn signed(f: fn(&f64, &f64) -> f64) -> impl Fn(&f64, &f64) -> f64 {
@@ -36,19 +39,18 @@ pub(in crate::app) struct Calculator;
 /// - 2: stereospecific numbering (1,2,3-TAGs; 1,2/2,3-DAGs; 2-MAGs; 1,3-DAGs).
 impl ComputerMut<Key<'_>, Value> for Calculator {
     fn compute(&mut self, key: Key) -> Value {
-        let context = key;
-        let tags123 = &context.state.data.unnormalized.tags123;
-        let dags1223 = &context.state.data.unnormalized.dags1223;
-        let mags2 = &context.state.data.unnormalized.mags2;
-        let formulas = &context.state.meta.formulas;
-        let weights = LazyCell::new(|| formulas.iter().map(|formula| formula.weight()));
-        let normalization = context.settings.calculation.normalization;
-        let signedness = context.settings.calculation.signedness;
-        let sources = context.settings.calculation.sources;
-
+        let Key { context } = key;
+        let weights = LazyCell::new(|| {
+            context
+                .state
+                .meta
+                .formulas
+                .iter()
+                .map(|formula| formula.weight())
+        });
         // Experimental
         let experimental = |unnormalized: &[f64]| {
-            match normalization {
+            match context.settings.calculation.normalization {
                 // s / ∑(s)
                 Normalization::Mass => unnormalized.iter().copied().normalize(),
                 // (s * m) / ∑(s * m)
@@ -73,23 +75,23 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
             }
         };
         // Cast
-        let cast = |value: f64| match signedness {
+        let cast = |value: f64| match context.settings.calculation.signedness {
             Signedness::Signed => value,
             Signedness::Unsigned => value.max(0.0),
         };
 
-        let tags123 = experimental(tags123);
-        let mut dags1223 = experimental(dags1223);
-        let mut mags2 = experimental(mags2);
+        let tags123 = experimental(&context.state.data.unnormalized.tags123);
+        let mut dags1223 = experimental(&context.state.data.unnormalized.dags1223);
+        let mut mags2 = experimental(&context.state.data.unnormalized.mags2);
         trace!(?tags123, ?dags1223, ?mags2);
-        if let Source::Calculation = sources.dag1223 {
+        if let Source::Calculation = context.settings.calculation.sources.dag1223 {
             dags1223 = tags123
                 .iter()
                 .zip(&mags2)
                 .map(|(tag123, mag2)| cast((3.0 * tag123 + mag2) / 4.0))
                 .normalize();
         }
-        if let Source::Calculation = sources.mags2 {
+        if let Source::Calculation = context.settings.calculation.sources.mags2 {
             mags2 = tags123
                 .iter()
                 .zip(&dags1223)
@@ -97,7 +99,7 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
                 .normalize();
         }
         trace!(?dags1223, ?mags2);
-        let dags13 = match sources.dag13 {
+        let dags13 = match context.settings.calculation.sources.dag13 {
             From::Dag1223 => tags123
                 .iter()
                 .zip(&dags1223)
@@ -120,7 +122,32 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
 }
 
 /// Key
-type Key<'a> = &'a Context;
+#[derive(Clone, Copy, Debug)]
+pub struct Key<'a> {
+    context: &'a Context,
+}
+
+impl Hash for Key<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.context.settings.calculation.hash(state);
+        self.context.state.meta.hash(state);
+        self.context.state.data.unnormalized.hash(state);
+    }
+}
+
+impl<'a> std::convert::From<&'a Context> for Key<'a> {
+    fn from(value: &'a Context) -> Self {
+        Self { context: value }
+    }
+}
+
+// impl<'a, T: Borrow<Context> + 'a> std::convert::From<T> for Key<'a> {
+//     fn from(value: T) -> Self {
+//         Self {
+//             context: value.borrow(),
+//         }
+//     }
+// }
 
 /// Value
 type Value = Normalized;

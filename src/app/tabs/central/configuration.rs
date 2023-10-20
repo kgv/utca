@@ -1,7 +1,13 @@
-use crate::{app::context::Context, cu::ether};
-use egui::{Align, ComboBox, Direction, DragValue, Layout, RichText, TextEdit, Ui};
+use crate::{app::context::Context, fatty_acid::fatty_acid};
+use egui::{Align, ComboBox, Direction, DragValue, Id, Layout, RichText, TextEdit, Ui};
 use egui_ext::{TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
+use molecule::{
+    atom::{isotopes::*, Isotope},
+    Saturable,
+};
+
+const C: Isotope = Isotope::C(C::Twelve);
 
 /// Central configuration tab
 pub(super) struct Configuration;
@@ -10,6 +16,7 @@ impl Configuration {
     pub(super) fn view(ui: &mut Ui, context: &mut Context) {
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
+        let combo_width = ui.spacing().combo_width;
         ui.horizontal_wrapped(|ui| {
             ui.label("Name:");
             ui.add(TextEdit::singleline(&mut context.state.meta.name).desired_width(f32::INFINITY));
@@ -17,7 +24,7 @@ impl Configuration {
         TableBuilder::new(ui)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
             .column(Column::exact(width))
-            .column(Column::exact(2.0 * width))
+            .columns(Column::auto_with_initial_suggestion(combo_width / 2.0), 2)
             .columns(Column::auto(), 3)
             .column(Column::exact(width))
             .auto_shrink([false; 2])
@@ -25,10 +32,13 @@ impl Configuration {
             .striped(true)
             .header(height, |mut row| {
                 row.col(|ui| {
-                    ui.heading("FA").on_hover_text("Fatty acid");
+                    ui.heading("FA").on_hover_text("Fatty acid label");
                 });
                 row.col(|ui| {
-                    ui.heading("Structure");
+                    ui.heading("C").on_hover_text("Fatty acid C count");
+                });
+                row.col(|ui| {
+                    ui.heading("U").on_hover_text("Fatty acid U count");
                 });
                 row.col(|ui| {
                     ui.heading("1,2,3-TAG");
@@ -41,8 +51,8 @@ impl Configuration {
                 });
             })
             .body(|mut body| {
-                let mut index = 0;
-                while index < context.state.meta.labels.len() {
+                // Content
+                for index in 0..context.state.len() {
                     let mut keep = true;
                     body.row(height, |mut row| {
                         row.col(|ui| {
@@ -50,60 +60,42 @@ impl Configuration {
                         });
                         row.col(|ui| {
                             let formula = &mut context.state.meta.formulas[index];
-                            let selected_text = ether!(formula)
-                                .map_or_else(Default::default, |(c, bounds)| {
-                                    format!("{c}:{bounds}")
-                                });
-                            ComboBox::from_id_source(index)
-                                .selected_text(selected_text)
+                            let c = formula.count(C);
+                            ComboBox::from_id_source(Id::new("c").with(index))
+                                .selected_text(c.to_string())
+                                .width(ui.available_width())
                                 .show_ui(ui, |ui| {
-                                    ui.selectable_value(formula, ether!(8, 0), "8:0");
-                                    ui.selectable_value(formula, ether!(10, 0), "10:0");
-                                    ui.selectable_value(formula, ether!(12, 0), "12:0");
-                                    for j in 0..3 {
+                                    for variant in context.settings.configuration.c {
+                                        if ui
+                                            .selectable_label(c == variant, variant.to_string())
+                                            .clicked()
+                                        {
+                                            *formula = fatty_acid!(variant);
+                                            ui.ctx().request_repaint();
+                                        }
+                                    }
+                                })
+                                .response
+                                .on_hover_text(format!("{formula} ({})", formula.weight(),));
+                        });
+                        row.col(|ui| {
+                            let formula = &mut context.state.meta.formulas[index];
+                            let c = formula.count(C);
+                            let u = formula.unsaturated();
+                            ComboBox::from_id_source(Id::new("u").with(index))
+                                .selected_text(u.to_string())
+                                .width(ui.available_width())
+                                .show_ui(ui, |ui| {
+                                    for u in 0..=c
+                                        .saturating_sub(2)
+                                        .min(context.settings.configuration.u)
+                                    {
                                         ui.selectable_value(
                                             formula,
-                                            ether!(14, j),
-                                            format!("14:{j}"),
+                                            fatty_acid!(c, u),
+                                            u.to_string(),
                                         );
                                     }
-                                    for j in 0..5 {
-                                        ui.selectable_value(
-                                            formula,
-                                            ether!(16, j),
-                                            format!("16:{j}"),
-                                        );
-                                    }
-                                    for j in 0..5 {
-                                        ui.selectable_value(
-                                            formula,
-                                            ether!(18, j),
-                                            format!("18:{j}"),
-                                        );
-                                    }
-                                    for j in 0..6 {
-                                        ui.selectable_value(
-                                            formula,
-                                            ether!(20, j),
-                                            format!("20:{j}"),
-                                        );
-                                    }
-                                    for j in 0..7 {
-                                        ui.selectable_value(
-                                            formula,
-                                            ether!(22, j),
-                                            format!("22:{j}"),
-                                        );
-                                    }
-                                    for j in 0..3 {
-                                        ui.selectable_value(
-                                            formula,
-                                            ether!(24, j),
-                                            format!("24:{j}"),
-                                        );
-                                    }
-                                    ui.selectable_value(formula, ether!(28, 0), "28:0");
-                                    ui.selectable_value(formula, ether!(30, 0), "30:0");
                                 })
                                 .response
                                 .on_hover_text(format!("{formula} ({})", formula.weight()));
@@ -139,14 +131,14 @@ impl Configuration {
                     });
                     if !keep {
                         context.state.del(index);
-                        continue;
+                        context.calculate(body.ui_mut().ctx());
+                        break;
                     }
-                    index += 1;
                 }
                 // Footer
                 body.separate(height / 2.0, 6);
                 body.row(height, |mut row| {
-                    row.cols(2, |_| {});
+                    row.cols(3, |_| {});
                     // ∑
                     for unnormalized in context.state.data.unnormalized.iter() {
                         row.col(|ui| {

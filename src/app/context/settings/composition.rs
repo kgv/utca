@@ -61,29 +61,31 @@ pub(in crate::app) enum Positional {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(in crate::app) struct Filter {
     pub(in crate::app) value: f64,
-    pub(in crate::app) sn13: BTreeSet<usize>,
+    pub(in crate::app) sn1: BTreeSet<usize>,
     pub(in crate::app) sn2: BTreeSet<usize>,
+    pub(in crate::app) sn3: BTreeSet<usize>,
 }
 
 impl Hash for Filter {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.value.ord().hash(state);
-        self.sn13.hash(state);
-        self.sn13.hash(state);
+        self.sn1.hash(state);
+        self.sn2.hash(state);
+        self.sn3.hash(state);
     }
 }
 
 /// Sort
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Sort {
-    Key,
+    Tag,
     Value,
 }
 
 impl Display for Sort {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::Key => f.write_str("Key"),
+            Self::Tag => f.write_str("Tag"),
             Self::Value => f.write_str("Value"),
         }
     }

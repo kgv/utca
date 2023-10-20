@@ -96,9 +96,8 @@ impl<'a, T> IntoIterator for &'a Tag<T> {
 }
 
 /// Count
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(super) enum Count {
-    #[default]
     Mono,
     Di,
     Tri,
@@ -110,6 +109,24 @@ impl Display for Count {
             Self::Di => f.write_str("di"),
             Self::Mono => f.write_str("mono"),
             Self::Tri => f.write_str("tri"),
+        }
+    }
+}
+
+/// Stereochemical number
+#[derive(Clone, Copy, Debug, Hash)]
+pub(super) enum Sn {
+    One,
+    Two,
+    Three,
+}
+
+impl Display for Sn {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Self::One => f.write_str("1"),
+            Self::Two => f.write_str("2"),
+            Self::Three => f.write_str("3"),
         }
     }
 }

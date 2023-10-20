@@ -17,7 +17,7 @@ pub(super) struct Calculation;
 impl Calculation {
     pub(super) fn view(ui: &mut Ui, context: &mut Context) {
         context.state.data.normalized =
-            ui.memory_mut(|memory| memory.caches.cache::<Calculated>().get(context));
+            ui.memory_mut(|memory| memory.caches.cache::<Calculated>().get((&*context).into()));
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
         TableBuilder::new(ui)

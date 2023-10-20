@@ -33,6 +33,7 @@ impl Visualization {
             {
                 // let name = &r#type;
                 // let bar = Bar::new(1.0 + i as f64, *value).name(name);
+                // println!("tag: {tag}");
                 let ecn = context.ecn(tag).sum();
                 let name = context.species(tag);
                 let offset = offsets.entry(ecn).or_default();

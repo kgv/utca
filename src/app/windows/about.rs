@@ -44,14 +44,32 @@ impl About {
                 }
                 ui.separator();
                 ui.collapsing(RichText::new("Links").heading(), |ui| {
-                    ui.hyperlink_to("web", "https://ippras.github.io/utca/");
-                    ui.hyperlink_to("github", "https://github.com/ippras/utca");
-                    ui.hyperlink_to("issues", "https://github.com/ippras/utca/issues");
+                    ui.horizontal(|ui| {
+                        ui.label("🌐 web:");
+                        ui.hyperlink_to(
+                            "https://ippras.github.io/utca",
+                            "https://ippras.github.io/utca",
+                        );
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(" github:");
+                        ui.hyperlink_to(
+                            "https://github.com/ippras/utca",
+                            "https://github.com/ippras/utca",
+                        );
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("⚠ issues:");
+                        ui.hyperlink_to(
+                            "https://github.com/ippras/utca/issues",
+                            "https://github.com/ippras/utca/issues",
+                        );
+                    });
                 });
                 ui.collapsing(RichText::new("Dedications").heading(), |ui| {
                     ui.horizontal(|ui| {
                         ui.label("Giorgi Kazakov:");
-                        ui.label("Моим родителям, Тане и Володе, посвящается. Люблю вас на 1 больше, чем вы любите меня.");
+                        ui.label("Моим родителям, Тане и Володе, посвящается.");
                     });
                 });
             });

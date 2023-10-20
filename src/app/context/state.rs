@@ -1,12 +1,8 @@
-use crate::{
-    acylglycerol::Tag,
-    cu::Saturation,
-    parsers::toml::{FattyAcid, Parsed},
-};
+use crate::{acylglycerol::Tag, parsers::toml::FattyAcid};
 use egui::epaint::util::FloatOrd;
 use indexmap::IndexMap;
 use itertools::izip;
-use molecule::Counter;
+use molecule::{Counter, Saturation};
 use serde::{Deserialize, Serialize};
 use std::{
     hash::{Hash, Hasher},
@@ -21,12 +17,29 @@ pub(in crate::app) struct State {
 }
 
 impl State {
+    pub(in crate::app) fn zip(
+        &self,
+    ) -> impl Iterator<Item = (&String, &Counter, &f64, &f64, &f64)> {
+        izip!(self.meta.zip(), self.data.unnormalized.zip()).map(
+            |((label, formula), (tag123, dag1223, mag2))| (label, formula, tag123, dag1223, mag2),
+        )
+    }
+
     pub(in crate::app) fn fatty_acids(&self) -> Vec<FattyAcid> {
-        izip!(self.meta.zip(), self.data.unnormalized.zip())
-            .map(|((label, formula), (&tag123, &dag1223, &mag2))| {
-                FattyAcid::new(label.clone(), formula.clone(), tag123, dag1223, mag2)
+        self.zip()
+            .map(|(label, formula, tag123, dag1223, mag2)| {
+                FattyAcid::new(label.clone(), formula.clone(), *tag123, *dag1223, *mag2)
             })
             .collect()
+    }
+
+    pub(in crate::app) fn len(&self) -> usize {
+        let len = self.meta.labels.len();
+        assert_eq!(len, self.meta.formulas.len());
+        assert_eq!(len, self.data.unnormalized.tags123.len());
+        assert_eq!(len, self.data.unnormalized.dags1223.len());
+        assert_eq!(len, self.data.unnormalized.mags2.len());
+        len
     }
 
     pub(in crate::app) fn add(&mut self) {
@@ -43,45 +56,6 @@ impl State {
         self.data.unnormalized.tags123.remove(index);
         self.data.unnormalized.dags1223.remove(index);
         self.data.unnormalized.mags2.remove(index);
-    }
-}
-
-impl From<Parsed> for State {
-    fn from(value: Parsed) -> Self {
-        let Parsed { name, fatty_acids } = value;
-        let (labels, (formulas, (tags123, (dags1223, mags2)))): (
-            Vec<_>,
-            (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))),
-        ) = fatty_acids
-            .into_iter()
-            .map(|fatty_acid| {
-                (
-                    fatty_acid.label,
-                    (
-                        fatty_acid.formula,
-                        (
-                            fatty_acid.data.tag123,
-                            (fatty_acid.data.dag1223, fatty_acid.data.mag2),
-                        ),
-                    ),
-                )
-            })
-            .unzip();
-        Self {
-            meta: Meta {
-                name,
-                labels,
-                formulas,
-            },
-            data: Data {
-                unnormalized: Unnormalized {
-                    tags123,
-                    dags1223,
-                    mags2,
-                },
-                ..Default::default()
-            },
-        }
     }
 }
 
