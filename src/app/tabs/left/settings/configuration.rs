@@ -1,7 +1,12 @@
-use crate::app::{context::Context, view::View, MAX_PRECISION};
+use crate::app::{
+    context::{
+        settings::configuration::{C, U},
+        Context,
+    },
+    view::View,
+    MAX_PRECISION,
+};
 use egui::{DragValue, RichText, Slider, Ui};
-
-const MAX_C: usize = 99;
 
 /// Left configuration tab
 pub(super) struct Configuration<'a> {
@@ -16,19 +21,17 @@ impl<'a> Configuration<'a> {
 
 impl View for Configuration<'_> {
     fn view(self, ui: &mut Ui) {
+        let Self { context } = self;
         ui.collapsing(RichText::new("📝 Configuration").heading(), |ui| {
             ui.horizontal(|ui| {
-                ui.toggle_value(
-                    &mut self.context.settings.configuration.resizable,
-                    "↔ Resizable",
-                )
-                .on_hover_text("Resize table columns");
+                ui.toggle_value(&mut context.settings.configuration.resizable, "↔ Resizable")
+                    .on_hover_text("Resize table columns");
             });
             ui.separator();
             ui.horizontal(|ui| {
                 ui.label("Precision:");
                 ui.add(Slider::new(
-                    &mut self.context.settings.configuration.precision,
+                    &mut context.settings.configuration.precision,
                     0..=MAX_PRECISION,
                 ));
             });
@@ -36,21 +39,21 @@ impl View for Configuration<'_> {
             ui.horizontal(|ui| {
                 ui.label("C:");
                 ui.add(
-                    DragValue::new(&mut self.context.settings.configuration.c.start)
-                        .clamp_range(0..=self.context.settings.configuration.c.end),
+                    DragValue::new(&mut context.settings.configuration.c.start)
+                        .clamp_range(C::MIN..=context.settings.configuration.c.end),
                 )
-                .on_hover_text("Start");
+                .on_hover_text("Min");
                 ui.add(
-                    DragValue::new(&mut self.context.settings.configuration.c.end)
-                        .clamp_range(self.context.settings.configuration.c.start..=MAX_C),
+                    DragValue::new(&mut context.settings.configuration.c.end)
+                        .clamp_range(context.settings.configuration.c.start..=C::MAX),
                 )
-                .on_hover_text("End");
+                .on_hover_text("Max");
                 ui.label("U:");
                 ui.add(
-                    DragValue::new(&mut self.context.settings.configuration.u)
-                        .clamp_range(0..=self.context.settings.configuration.c.end - 2),
+                    DragValue::new(&mut context.settings.configuration.u)
+                        .clamp_range(0..=U::max(context.settings.configuration.c.end)),
                 )
-                .on_hover_text("End");
+                .on_hover_text("Max");
             });
         });
     }

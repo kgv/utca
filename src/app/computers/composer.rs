@@ -14,7 +14,6 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use std::{
     cmp::{max, min, Reverse},
-    collections::HashMap,
     hash::{Hash, Hasher},
     iter::repeat,
 };
@@ -126,10 +125,10 @@ impl SortBy for IndexMap<Tag<usize>, f64> {
                 Order::Descending => self.sort_by_cached_key(|&tag, _| Reverse(tag)),
             },
             Sort::Value if ptc => {
-                let mut types: HashMap<_, f64> = HashMap::new();
-                for (&tag, &value) in self.iter() {
-                    *types.entry(context.r#type(tag)).or_default() += value;
-                }
+                let types = self
+                    .iter()
+                    .into_grouping_map_by(|(&tag, _)| context.r#type(tag))
+                    .fold(0.0, |sum, _, (_, &value)| sum + value);
                 match context.settings.composition.order {
                     Order::Ascending => self.sort_by_cached_key(|&tag, value| {
                         (types[&context.r#type(tag)].ord(), value.ord())
@@ -142,6 +141,33 @@ impl SortBy for IndexMap<Tag<usize>, f64> {
             Sort::Value => match context.settings.composition.order {
                 Order::Ascending => self.sort_by_cached_key(|_, value| value.ord()),
                 Order::Descending => self.sort_by_cached_key(|_, value| Reverse(value.ord())),
+            },
+            Sort::Ecn if ptc => {
+                let types = self
+                    .keys()
+                    .copied()
+                    .into_grouping_map_by(|&tag| context.r#type(tag))
+                    .minmax_by_key(|_, &tag| context.ecn(tag).sum());
+                match context.settings.composition.order {
+                    Order::Ascending => self.sort_by_cached_key(|&tag, _| {
+                        (
+                            types[&context.r#type(tag)].into_option(),
+                            context.ecn(tag).sum(),
+                        )
+                    }),
+                    Order::Descending => self.sort_by_cached_key(|&tag, _| {
+                        Reverse((
+                            types[&context.r#type(tag)].into_option(),
+                            context.ecn(tag).sum(),
+                        ))
+                    }),
+                }
+            }
+            Sort::Ecn => match context.settings.composition.order {
+                Order::Ascending => self.sort_by_cached_key(|&tag, _| context.ecn(tag).sum()),
+                Order::Descending => {
+                    self.sort_by_cached_key(|&tag, _| Reverse(context.ecn(tag).sum()))
+                }
             },
         }
     }

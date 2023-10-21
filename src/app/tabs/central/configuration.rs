@@ -1,5 +1,8 @@
 use crate::{
-    app::{context::Context, view::View},
+    app::{
+        context::{settings::configuration::U, Context},
+        view::View,
+    },
     fatty_acid::fatty_acid,
 };
 use egui::{Align, ComboBox, Direction, DragValue, Id, Layout, RichText, TextEdit, Ui};
@@ -98,10 +101,7 @@ impl View for Configuration<'_> {
                                 .selected_text(u.to_string())
                                 .width(ui.available_width())
                                 .show_ui(ui, |ui| {
-                                    for u in 0..=c
-                                        .saturating_sub(2)
-                                        .min(context.settings.configuration.u)
-                                    {
+                                    for u in 0..=U::max(c).min(context.settings.configuration.u) {
                                         ui.selectable_value(
                                             formula,
                                             fatty_acid!(c, u),

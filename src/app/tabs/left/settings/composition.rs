@@ -162,95 +162,92 @@ impl<'a> Composition<'a> {
 
 impl View for Composition<'_> {
     fn view(self, ui: &mut Ui) {
+        let Self { context } = self;
         ui.collapsing(RichText::new("⛃ Composition").heading(), |ui| {
             ui.horizontal(|ui| {
-                ui.toggle_value(
-                    &mut self.context.settings.composition.resizable,
-                    "↔ Resizable",
-                )
-                .on_hover_text("Resize table columns")
+                ui.toggle_value(&mut context.settings.composition.resizable, "↔ Resizable")
+                    .on_hover_text("Resize table columns")
             });
             ui.separator();
             ui.horizontal(|ui| {
                 ui.label("Precision:");
                 ui.add(Slider::new(
-                    &mut self.context.settings.composition.precision,
+                    &mut context.settings.composition.precision,
                     0..=MAX_PRECISION,
                 ));
             });
             ui.horizontal(|ui| {
                 ui.label("Percent:");
-                ui.checkbox(&mut self.context.settings.composition.percent, "");
+                ui.checkbox(&mut context.settings.composition.percent, "");
             });
             ui.separator();
             ui.horizontal(|ui| {
                 ui.label("Columns:");
-                let mut ptc = self.context.settings.composition.is_positional_type();
+                let mut ptc = context.settings.composition.is_positional_type();
                 ptc ^= ui
                     .selectable_label(ptc, "PTC")
                     .on_hover_text("Positional-type composition")
                     .clicked();
-                let mut psc = self.context.settings.composition.is_positional_species();
+                let mut psc = context.settings.composition.is_positional_species();
                 psc ^= ui
                     .selectable_label(psc, "PSC")
                     .on_hover_text("Positional-species composition")
                     .clicked();
-                self.context.settings.composition.positional = if ptc && psc {
+                context.settings.composition.positional = if ptc && psc {
                     None
                 } else if ptc {
                     Some(Positional::Type)
                 } else if psc {
                     Some(Positional::Species)
                 } else {
-                    self.context.settings.composition.positional.map(
-                        |positional| match positional {
+                    context
+                        .settings
+                        .composition
+                        .positional
+                        .map(|positional| match positional {
                             Positional::Type => Positional::Species,
                             Positional::Species => Positional::Type,
-                        },
-                    )
+                        })
                 };
                 if ui
-                    .checkbox(&mut self.context.settings.composition.mirror, "Mirror")
+                    .checkbox(&mut context.settings.composition.mirror, "Mirror")
                     .changed()
-                    && !self.context.settings.composition.mirror
+                    && !context.settings.composition.mirror
                 {
-                    self.context.settings.composition.filter.sn1.clear();
-                    self.context.settings.composition.filter.sn3.clear();
+                    context.settings.composition.filter.sn1.clear();
+                    context.settings.composition.filter.sn3.clear();
                 }
-                ui.toggle_value(&mut self.context.settings.composition.ecn, "ECN")
+                ui.toggle_value(&mut context.settings.composition.ecn, "ECN")
                     .on_hover_text("ECN (equivalent carbon number)");
-                ui.toggle_value(&mut self.context.settings.composition.mass, "Mass");
+                ui.toggle_value(&mut context.settings.composition.mass, "Mass");
             });
             ui.collapsing(RichText::new("🔎 Filter").heading(), |ui| {
                 ui.horizontal(|ui| {
                     ui.label("SN:").on_hover_text("Stereochemical number");
-                    ui.filter_combobox(self.context, Sn::One);
-                    ui.filter_combobox(self.context, Sn::Two);
-                    ui.filter_combobox(self.context, Sn::Three);
+                    ui.filter_combobox(context, Sn::One);
+                    ui.filter_combobox(context, Sn::Two);
+                    ui.filter_combobox(context, Sn::Three);
                 });
                 ui.horizontal(|ui| {
                     ui.label("Value:");
                     ui.add(
-                        Slider::new(
-                            &mut self.context.settings.composition.filter.value,
-                            0.0..=1.0,
-                        )
-                        .logarithmic(true)
-                        .custom_formatter(|mut value, _| {
-                            let mut precision = 7;
-                            if self.context.settings.composition.percent {
-                                value *= 100.0;
-                                precision = 5;
-                            }
-                            format!("{value:.precision$}")
-                        })
-                        .custom_parser(|value| {
-                            let mut parsed = value.parse::<f64>().ok()?;
-                            if self.context.settings.composition.percent {
-                                parsed /= 100.0;
-                            }
-                            Some(parsed)
-                        }),
+                        Slider::new(&mut context.settings.composition.filter.value, 0.0..=1.0)
+                            .logarithmic(true)
+                            .custom_formatter(|mut value, _| {
+                                let mut precision = 7;
+                                if context.settings.composition.percent {
+                                    value *= 100.0;
+                                    precision = 5;
+                                }
+                                format!("{value:.precision$}")
+                            })
+                            .custom_parser(|value| {
+                                let mut parsed = value.parse::<f64>().ok()?;
+                                if context.settings.composition.percent {
+                                    parsed /= 100.0;
+                                }
+                                Some(parsed)
+                            }),
                     );
                 });
             });
@@ -258,32 +255,38 @@ impl View for Composition<'_> {
                 ui.horizontal(|ui| {
                     ui.label("By:");
                     ComboBox::from_id_source("by")
-                        .selected_text(self.context.settings.composition.sort.to_string())
+                        .selected_text(context.settings.composition.sort.to_string())
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
-                                &mut self.context.settings.composition.sort,
+                                &mut context.settings.composition.sort,
                                 Sort::Tag,
                                 "Tag",
                             )
                             .on_hover_text("Sort by type and species");
                             ui.selectable_value(
-                                &mut self.context.settings.composition.sort,
+                                &mut context.settings.composition.sort,
                                 Sort::Value,
                                 "Value",
                             )
                             .on_hover_text("Sort by value");
+                            ui.selectable_value(
+                                &mut context.settings.composition.sort,
+                                Sort::Ecn,
+                                "Ecn",
+                            )
+                            .on_hover_text("Sort by ECN (Equivalent Carbon Number)");
                         });
                     ui.label("Order:");
                     ComboBox::from_id_source("order")
-                        .selected_text(self.context.settings.composition.order.to_string())
+                        .selected_text(context.settings.composition.order.to_string())
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
-                                &mut self.context.settings.composition.order,
+                                &mut context.settings.composition.order,
                                 Order::Ascending,
                                 "⬊ Ascending",
                             );
                             ui.selectable_value(
-                                &mut self.context.settings.composition.order,
+                                &mut context.settings.composition.order,
                                 Order::Descending,
                                 "⬈ Descending",
                             );

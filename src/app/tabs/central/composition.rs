@@ -62,7 +62,7 @@ impl View for Composition<'_> {
                                     ui.close_menu();
                                 }
                             })
-                            .on_hover_text("TAG's type");
+                            .on_hover_text("TAG's type list");
                     });
                 }
                 if psc {
@@ -83,7 +83,7 @@ impl View for Composition<'_> {
                                     ui.close_menu();
                                 }
                             })
-                            .on_hover_text("TAG's species");
+                            .on_hover_text("TAG's species list");
                     });
                 }
                 row.col(|ui| {
@@ -151,7 +151,23 @@ impl View for Composition<'_> {
                 });
                 if context.settings.composition.ecn {
                     row.col(|ui| {
-                        ui.heading("ECN").on_hover_text("Equivalent carbon number");
+                        ui.clicked_heading("ECN")
+                            .context_menu(|ui| {
+                                if ui.button("Copy ECNs").clicked() {
+                                    ui.output_mut(|output| {
+                                        output.copied_text = context
+                                            .state
+                                            .data
+                                            .composed
+                                            .filtered
+                                            .keys()
+                                            .map(|&tag| context.ecn(tag).sum())
+                                            .join("\n");
+                                    });
+                                    ui.close_menu();
+                                }
+                            })
+                            .on_hover_text("Equivalent carbon number list");
                     });
                 }
                 if context.settings.composition.mass {

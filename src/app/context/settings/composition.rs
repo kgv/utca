@@ -80,6 +80,7 @@ impl Hash for Filter {
 pub(in crate::app) enum Sort {
     Tag,
     Value,
+    Ecn,
 }
 
 impl Display for Sort {
@@ -87,6 +88,7 @@ impl Display for Sort {
         match self {
             Self::Tag => f.write_str("Tag"),
             Self::Value => f.write_str("Value"),
+            Self::Ecn => f.write_str("Ecn"),
         }
     }
 }

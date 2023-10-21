@@ -14,19 +14,20 @@ impl<'a> Visualization<'a> {
 
 impl View for Visualization<'_> {
     fn view(self, ui: &mut Ui) {
+        let Self { context } = self;
         ui.collapsing(RichText::new("📊 Visualization").heading(), |ui| {
             // ui.horizontal(|ui| {
             //     ui.label("Chart:");
             //     ComboBox::from_id_source("chart")
-            //         .selected_text(format!("{:?}", self.context.settings.visualization.chart))
+            //         .selected_text(format!("{:?}", context.settings.visualization.chart))
             //         .show_ui(ui, |ui| {
             //             ui.selectable_value(
-            //                 &mut self.context.settings.visualization.chart,
+            //                 &mut context.settings.visualization.chart,
             //                 Chart::Bar,
             //                 "Bar",
             //             );
             //             ui.selectable_value(
-            //                 &mut self.context.settings.visualization.chart,
+            //                 &mut context.settings.visualization.chart,
             //                 Chart::Pie,
             //                 "Pie",
             //             );
@@ -34,16 +35,16 @@ impl View for Visualization<'_> {
             // });
             ui.horizontal(|ui| {
                 ui.label("Legend:");
-                ui.checkbox(&mut self.context.settings.visualization.legend, "");
+                ui.checkbox(&mut context.settings.visualization.legend, "");
             });
             ui.horizontal(|ui| {
                 ui.label("Stacked:");
-                ui.checkbox(&mut self.context.settings.visualization.stacked, "");
+                ui.checkbox(&mut context.settings.visualization.stacked, "");
             });
             ui.horizontal(|ui| {
                 ui.label("Width:");
                 ui.add(Slider::new(
-                    &mut self.context.settings.visualization.width,
+                    &mut context.settings.visualization.width,
                     0.0..=1.0,
                 ));
             });

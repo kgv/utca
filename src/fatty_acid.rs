@@ -32,44 +32,54 @@ const H: Isotope = Isotope::H(H::One);
 const C: Isotope = Isotope::C(C::Twelve);
 const O: Isotope = Isotope::O(O::Sixteen);
 
-const SUPERSCRIPTS: LazyCell<BTreeMap<u8, &str>> = LazyCell::new(|| {
-    btreemap! {
-        0 => "⁰",
-        1 => "¹",
-        2 => "²",
-        3 => "³",
-        4 => "⁴",
-        5 => "⁵",
-        6 => "⁶",
-        7 => "⁷",
-        8 => "⁸",
-        9 => "⁹",
-    }
-});
+// const SUPERSCRIPTS: LazyCell<BTreeMap<u8, &str>> = LazyCell::new(|| {
+//     btreemap! {
+//         0 => "⁰",
+//         1 => "¹",
+//         2 => "²",
+//         3 => "³",
+//         4 => "⁴",
+//         5 => "⁵",
+//         6 => "⁶",
+//         7 => "⁷",
+//         8 => "⁸",
+//         9 => "⁹",
+//     }
+// });
 
-const SUBSCRIPTS: LazyCell<BTreeMap<u8, &str>> = LazyCell::new(|| {
-    btreemap! {
-        0 => "₀",
-        1 => "₁",
-        2 => "₂",
-        3 => "₃",
-        4 => "₄",
-        5 => "₅",
-        6 => "₆",
-        7 => "₇",
-        8 => "₈",
-        9 => "₉",
-    }
-});
+// const SUBSCRIPTS: LazyCell<BTreeMap<u8, &str>> = LazyCell::new(|| {
+//     btreemap! {
+//         0 => "₀",
+//         1 => "₁",
+//         2 => "₂",
+//         3 => "₃",
+//         4 => "₄",
+//         5 => "₅",
+//         6 => "₆",
+//         7 => "₇",
+//         8 => "₈",
+//         9 => "₉",
+//     }
+// });
 
 /// Fatty acid structure `H₃C-(R)-CO₂H`
-pub struct Structure<'a>(pub &'a Counter);
+///
+/// [iupac](https://iupac.qmul.ac.uk/lipid/appABC.html#appA)
+pub struct Structure<'a> {
+    counter: &'a Counter,
+    double_bounds: &'a [usize],
+}
 
-impl Display for Structure<'_> {
+/// Fatty acid structure `H₃C-(R)-CO₂H`
+///
+/// [iupac](https://iupac.qmul.ac.uk/lipid/appABC.html#appA)
+pub struct H3CRCO2H<'a>(&'a Counter);
+
+impl Display for H3CRCO2H<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
-            "C{}H{}-COOH",
+            "H₃C-[C{}H{}]-CO₂H",
             self.0.count(C).saturating_sub(1),
             self.0.count(H).saturating_sub(1),
         )?;
@@ -87,6 +97,6 @@ fn test() {
         O => 1,
         H => 1,
     };
-    let ether = Structure(counter);
-    println!("ether: {ether}");
+    let structure = H3CRCO2H(counter);
+    println!("structure: {structure}");
 }

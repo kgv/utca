@@ -21,78 +21,70 @@ impl<'a> Calculation<'a> {
 
 impl View for Calculation<'_> {
     fn view(self, ui: &mut Ui) {
+        let Self { context } = self;
         ui.collapsing(RichText::new("🖩 Calculation").heading(), |ui| {
             ui.horizontal(|ui| {
-                ui.toggle_value(
-                    &mut self.context.settings.calculation.resizable,
-                    "↔ Resizable",
-                )
-                .on_hover_text("Resize table columns")
+                ui.toggle_value(&mut context.settings.calculation.resizable, "↔ Resizable")
+                    .on_hover_text("Resize table columns")
             });
             ui.separator();
             ui.horizontal(|ui| {
                 ui.label("Precision:");
                 ui.add(Slider::new(
-                    &mut self.context.settings.calculation.precision,
+                    &mut context.settings.calculation.precision,
                     0..=MAX_PRECISION,
                 ));
             });
             ui.horizontal(|ui| {
                 ui.label("Percent:");
-                ui.checkbox(&mut self.context.settings.calculation.percent, "");
+                ui.checkbox(&mut context.settings.calculation.percent, "");
             });
             ui.separator();
             ui.horizontal(|ui| {
                 ui.label("Normalization:");
                 ComboBox::from_id_source("normalization")
-                    .selected_text(self.context.settings.calculation.normalization.to_string())
+                    .selected_text(context.settings.calculation.normalization.to_string())
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
-                            &mut self.context.settings.calculation.normalization,
+                            &mut context.settings.calculation.normalization,
                             Normalization::Mass,
                             "Mass",
                         )
                         .on_hover_text("Mass parts");
                         ui.selectable_value(
-                            &mut self.context.settings.calculation.normalization,
+                            &mut context.settings.calculation.normalization,
                             Normalization::Molar,
                             "Molar",
                         )
                         .on_hover_text("Molar parts");
                         ui.selectable_value(
-                            &mut self.context.settings.calculation.normalization,
+                            &mut context.settings.calculation.normalization,
                             Normalization::Pchelkin,
                             "Pchelkin",
                         )
                         .on_hover_text("Molar parts (Pchelkin)");
                     })
                     .response
-                    .on_hover_text(format!(
-                        "{:#}",
-                        self.context.settings.calculation.normalization
-                    ));
+                    .on_hover_text(format!("{:#}", context.settings.calculation.normalization));
             });
             ui.horizontal(|ui| {
                 ui.label("Signedness:");
                 ComboBox::from_id_source("signedness")
-                    .selected_text(self.context.settings.calculation.signedness.to_string())
+                    .selected_text(context.settings.calculation.signedness.to_string())
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
-                            &mut self.context.settings.calculation.signedness,
+                            &mut context.settings.calculation.signedness,
                             Signedness::Signed,
                             "Signed",
                         );
                         ui.selectable_value(
-                            &mut self.context.settings.calculation.signedness,
+                            &mut context.settings.calculation.signedness,
                             Signedness::Unsigned,
                             "Unsigned",
                         );
                     })
                     .response
-                    .on_hover_text(format!(
-                        "{:#}",
-                        self.context.settings.calculation.signedness
-                    ));
+                    .on_hover_text(format!("{:#}", context.settings.calculation.signedness));
             });
         });
     }
