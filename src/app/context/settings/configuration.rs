@@ -47,6 +47,6 @@ pub(in crate::app) struct U;
 
 impl U {
     pub(in crate::app) fn max(c: usize) -> usize {
-        c - 3
+        c.saturating_sub(3)
     }
 }

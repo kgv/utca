@@ -177,6 +177,7 @@ impl View for Configuration<'_> {
                             .clicked()
                         {
                             context.state.add();
+                            context.calculate(ui.ctx());
                         }
                     });
                 });

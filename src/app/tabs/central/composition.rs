@@ -47,7 +47,7 @@ impl View for Composition<'_> {
                     row.col(|ui| {
                         ui.clicked_heading("Type")
                             .context_menu(|ui| {
-                                if ui.button("Copy types").clicked() {
+                                if ui.button("Copy type list").clicked() {
                                     ui.output_mut(|output| {
                                         output.copied_text = context
                                             .state
@@ -62,14 +62,14 @@ impl View for Composition<'_> {
                                     ui.close_menu();
                                 }
                             })
-                            .on_hover_text("TAG's type list");
+                            .on_hover_text("TAG's type");
                     });
                 }
                 if psc {
                     row.col(|ui| {
                         ui.clicked_heading("Species")
                             .context_menu(|ui| {
-                                if ui.button("Copy species").clicked() {
+                                if ui.button("Copy species list").clicked() {
                                     ui.output_mut(|output| {
                                         output.copied_text = context
                                             .state
@@ -83,16 +83,16 @@ impl View for Composition<'_> {
                                     ui.close_menu();
                                 }
                             })
-                            .on_hover_text("TAG's species list");
+                            .on_hover_text("TAG's species");
                     });
                 }
                 row.col(|ui| {
                     ui.clicked_heading("Value").context_menu(|ui| {
                         if ptc {
                             let text = if psc {
-                                "Copy type values"
+                                "Copy type value list"
                             } else {
-                                "Copy values"
+                                "Copy value list"
                             };
                             if ui.button(text).clicked() {
                                 ui.output_mut(|output| {
@@ -121,9 +121,9 @@ impl View for Composition<'_> {
                         }
                         if psc {
                             let text = if ptc {
-                                "Copy species values"
+                                "Copy species value list"
                             } else {
-                                "Copy values"
+                                "Copy value list"
                             };
                             if ui.button(text).clicked() {
                                 ui.output_mut(|output| {
@@ -153,7 +153,7 @@ impl View for Composition<'_> {
                     row.col(|ui| {
                         ui.clicked_heading("ECN")
                             .context_menu(|ui| {
-                                if ui.button("Copy ECNs").clicked() {
+                                if ui.button("Copy ECN list").clicked() {
                                     ui.output_mut(|output| {
                                         output.copied_text = context
                                             .state
@@ -167,7 +167,7 @@ impl View for Composition<'_> {
                                     ui.close_menu();
                                 }
                             })
-                            .on_hover_text("Equivalent carbon number list");
+                            .on_hover_text("Equivalent carbon number");
                     });
                 }
                 if context.settings.composition.mass {
