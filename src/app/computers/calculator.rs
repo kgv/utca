@@ -1,30 +1,14 @@
 use crate::{
     app::context::{
         settings::calculation::{From, Normalization, Signedness, Source},
-        state::Normalized,
+        state::Normalized as Value,
         Context,
     },
     utils::Normalize,
 };
 use egui::util::cache::{ComputerMut, FrameCache};
-use std::{
-    cell::LazyCell,
-    hash::{Hash, Hasher},
-};
+use std::hash::{Hash, Hasher};
 use tracing::trace;
-
-// fn signed(f: fn(&f64, &f64) -> f64) -> impl Fn(&f64, &f64) -> f64 {
-//     f
-// }
-
-// fn unsigned(f: fn(&f64, &f64) -> f64) -> impl Fn(&f64, &f64) -> f64 {
-//     move |a: &f64, b: &f64| f(a, b).max(0.0)
-// }
-
-// Unsign
-// fn unsign(normalized: &mut ArrayBase<impl DataMut<Elem = f64>, impl Dimension>) {
-//     normalized.map_inplace(|normalized| *normalized = normalized.max(0.0));
-// }
 
 /// Calculated
 pub(in crate::app) type Calculated = FrameCache<Value, Calculator>;
@@ -33,21 +17,18 @@ pub(in crate::app) type Calculated = FrameCache<Value, Calculator>;
 #[derive(Default)]
 pub(in crate::app) struct Calculator;
 
-/// Axis:
-/// - 0: unnormalized, normalized;
-/// - 1: fatty acids;
-/// - 2: stereospecific numbering (1,2,3-TAGs; 1,2/2,3-DAGs; 2-MAGs; 1,3-DAGs).
+// stereospecific numbering (1,2,3-TAGs; 1,2/2,3-DAGs; 2-MAGs; 1,3-DAGs).
 impl ComputerMut<Key<'_>, Value> for Calculator {
     fn compute(&mut self, key: Key) -> Value {
         let Key { context } = key;
-        let weights = LazyCell::new(|| {
-            context
-                .state
-                .meta
-                .formulas
-                .iter()
-                .map(|formula| formula.weight())
-        });
+        let masses: Vec<_> = context
+            .state
+            .entry()
+            .meta
+            .formulas
+            .iter()
+            .map(|formula| formula.weight())
+            .collect();
         // Experimental
         let experimental = |unnormalized: &[f64]| {
             match context.settings.calculation.normalization {
@@ -56,14 +37,14 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
                 // (s * m) / ∑(s * m)
                 Normalization::Molar => unnormalized
                     .iter()
-                    .zip(weights.clone())
+                    .zip(&masses)
                     .map(|(unnormalized, mass)| unnormalized * mass)
                     .normalize(),
                 // s / ∑(s * m / 10.0)
                 Normalization::Pchelkin => {
                     let sum = unnormalized
                         .iter()
-                        .zip(weights.clone())
+                        .zip(&masses)
                         .fold(0.0, |sum, (unnormalized, mass)| {
                             sum + unnormalized * mass / 10.0
                         });
@@ -80,18 +61,18 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
             Signedness::Unsigned => value.max(0.0),
         };
 
-        let tags123 = experimental(&context.state.data.unnormalized.tags123);
-        let mut dags1223 = experimental(&context.state.data.unnormalized.dags1223);
-        let mut mags2 = experimental(&context.state.data.unnormalized.mags2);
+        let tags123 = experimental(&context.state.entry().data.unnormalized.tags123);
+        let mut dags1223 = experimental(&context.state.entry().data.unnormalized.dags1223);
+        let mut mags2 = experimental(&context.state.entry().data.unnormalized.mags2);
         trace!(?tags123, ?dags1223, ?mags2);
-        if let Source::Calculation = context.settings.calculation.sources.dag1223 {
+        if let Source::Calculated = context.settings.calculation.sources.dag1223 {
             dags1223 = tags123
                 .iter()
                 .zip(&mags2)
                 .map(|(tag123, mag2)| cast((3.0 * tag123 + mag2) / 4.0))
                 .normalize();
         }
-        if let Source::Calculation = context.settings.calculation.sources.mags2 {
+        if let Source::Calculated = context.settings.calculation.sources.mags2 {
             mags2 = tags123
                 .iter()
                 .zip(&dags1223)
@@ -130,8 +111,8 @@ pub struct Key<'a> {
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.context.settings.calculation.hash(state);
-        self.context.state.meta.hash(state);
-        self.context.state.data.unnormalized.hash(state);
+        self.context.state.entry().meta.hash(state);
+        self.context.state.entry().data.unnormalized.hash(state);
     }
 }
 
@@ -140,14 +121,3 @@ impl<'a> std::convert::From<&'a Context> for Key<'a> {
         Self { context: value }
     }
 }
-
-// impl<'a, T: Borrow<Context> + 'a> std::convert::From<T> for Key<'a> {
-//     fn from(value: T) -> Self {
-//         Self {
-//             context: value.borrow(),
-//         }
-//     }
-// }
-
-/// Value
-type Value = Normalized;

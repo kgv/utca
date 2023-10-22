@@ -1,6 +1,6 @@
 use self::{
-    calculation::Calculation, composition::Composition, configuration::Configuration,
-    visualization::Visualization,
+    calculation::Calculation, comparison::Comparison, composition::Composition,
+    configuration::Configuration, visualization::Visualization,
 };
 use super::CentralTab;
 use crate::app::{context::Context, view::View};
@@ -16,11 +16,8 @@ pub(super) struct Settings<'a> {
 }
 
 impl<'a> Settings<'a> {
-    pub(super) fn new(context: &'a mut Context, tree: &'a DockState<CentralTab>) -> Self {
-        Self {
-            context,
-            state: tree,
-        }
+    pub(super) fn new(context: &'a mut Context, state: &'a DockState<CentralTab>) -> Self {
+        Self { context, state }
     }
 }
 
@@ -32,12 +29,14 @@ impl View for Settings<'_> {
                 CentralTab::Calculation => Calculation::new(self.context).view(ui),
                 CentralTab::Composition => Composition::new(self.context).view(ui),
                 CentralTab::Visualization => Visualization::new(self.context).view(ui),
+                CentralTab::Comparison => Comparison::new(self.context).view(ui),
             }
         }
     }
 }
 
 mod calculation;
+mod comparison;
 mod composition;
 mod configuration;
 mod visualization;

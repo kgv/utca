@@ -1,13 +1,14 @@
 use serde::{Deserialize, Serialize};
-use std::fmt::{self, Display, Formatter};
 
 /// Calculation settings
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) struct Settings {
-    pub(in crate::app) normalization: Normalization,
+    pub(in crate::app) resizable: bool,
+
     pub(in crate::app) percent: bool,
     pub(in crate::app) precision: usize,
-    pub(in crate::app) resizable: bool,
+
+    pub(in crate::app) normalization: Normalization,
     pub(in crate::app) signedness: Signedness,
     pub(in crate::app) sources: Sources,
 }
@@ -15,10 +16,10 @@ pub(in crate::app) struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            normalization: Default::default(),
+            resizable: false,
             percent: true,
             precision: 1,
-            resizable: Default::default(),
+            normalization: Default::default(),
             signedness: Default::default(),
             sources: Default::default(),
         }
@@ -34,12 +35,20 @@ pub(in crate::app) enum Normalization {
     Pchelkin,
 }
 
-impl Display for Normalization {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+impl Normalization {
+    pub(in crate::app) fn text(self) -> &'static str {
         match self {
-            Self::Mass => f.write_str("Mass"),
-            Self::Molar => f.write_str("Molar"),
-            Self::Pchelkin => f.write_str("Pchelkin???"),
+            Self::Mass => "Mass",
+            Self::Molar => "Molar",
+            Self::Pchelkin => "Pchelkin???",
+        }
+    }
+
+    pub(in crate::app) fn hover_text(self) -> &'static str {
+        match self {
+            Self::Mass => "s / ∑(s)",
+            Self::Molar => "(s * m) / ∑(s * m)",
+            Self::Pchelkin => "s / ∑(s * m / 10.0)",
         }
     }
 }
@@ -52,11 +61,18 @@ pub(in crate::app) enum Signedness {
     Unsigned,
 }
 
-impl Display for Signedness {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+impl Signedness {
+    pub(in crate::app) fn text(self) -> &'static str {
         match self {
-            Self::Signed => f.write_str("Signed"),
-            Self::Unsigned => f.write_str("Unsigned"),
+            Self::Signed => "Signed",
+            Self::Unsigned => "Unsigned",
+        }
+    }
+
+    pub(in crate::app) fn hover_text(self) -> &'static str {
+        match self {
+            Self::Signed => "Calculated negative values are as is",
+            Self::Unsigned => "Calculated negative values are replaced with zeros",
         }
     }
 }
@@ -72,8 +88,8 @@ pub(in crate::app) struct Sources {
 impl Default for Sources {
     fn default() -> Self {
         Self {
-            dag1223: Source::Experiment,
-            mags2: Source::Experiment,
+            dag1223: Source::Experimental,
+            mags2: Source::Experimental,
             dag13: From::Dag1223,
         }
     }
@@ -82,8 +98,24 @@ impl Default for Sources {
 /// Source
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Source {
-    Experiment,
-    Calculation,
+    Experimental,
+    Calculated,
+}
+
+impl Source {
+    pub(in crate::app) fn text(self) -> &'static str {
+        match self {
+            Self::Experimental => "Experimental",
+            Self::Calculated => "Calculated",
+        }
+    }
+
+    pub(in crate::app) fn hover_text(self, from: From) -> String {
+        match self {
+            Self::Experimental => format!("{} {}", self.text(), from.text()),
+            Self::Calculated => format!("{} {}", self.text(), from.text()),
+        }
+    }
 }
 
 /// From
@@ -91,4 +123,20 @@ pub(in crate::app) enum Source {
 pub(in crate::app) enum From {
     Dag1223,
     Mag2,
+}
+
+impl From {
+    pub(in crate::app) fn text(self) -> &'static str {
+        match self {
+            Self::Dag1223 => "1,2/2,3-DAGs",
+            Self::Mag2 => "2-MAGs",
+        }
+    }
+
+    pub(in crate::app) fn hover_text(self, source: Source) -> String {
+        match self {
+            Self::Dag1223 => format!("{} {}", source.text(), self.text()),
+            Self::Mag2 => format!("{} {}", source.text(), self.text()),
+        }
+    }
 }

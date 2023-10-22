@@ -3,6 +3,7 @@ use crate::app::{
         settings::calculation::{Normalization, Signedness},
         Context,
     },
+    tabs::CentralTab,
     view::View,
     MAX_PRECISION,
 };
@@ -22,70 +23,82 @@ impl<'a> Calculation<'a> {
 impl View for Calculation<'_> {
     fn view(self, ui: &mut Ui) {
         let Self { context } = self;
-        ui.collapsing(RichText::new("🖩 Calculation").heading(), |ui| {
-            ui.horizontal(|ui| {
-                ui.toggle_value(&mut context.settings.calculation.resizable, "↔ Resizable")
-                    .on_hover_text("Resize table columns")
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Precision:");
-                ui.add(Slider::new(
-                    &mut context.settings.calculation.precision,
-                    0..=MAX_PRECISION,
-                ));
-            });
-            ui.horizontal(|ui| {
-                ui.label("Percent:");
-                ui.checkbox(&mut context.settings.calculation.percent, "");
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Normalization:");
-                ComboBox::from_id_source("normalization")
-                    .selected_text(context.settings.calculation.normalization.to_string())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            &mut context.settings.calculation.normalization,
-                            Normalization::Mass,
-                            "Mass",
-                        )
-                        .on_hover_text("Mass parts");
-                        ui.selectable_value(
-                            &mut context.settings.calculation.normalization,
-                            Normalization::Molar,
-                            "Molar",
-                        )
-                        .on_hover_text("Molar parts");
-                        ui.selectable_value(
-                            &mut context.settings.calculation.normalization,
-                            Normalization::Pchelkin,
-                            "Pchelkin",
-                        )
-                        .on_hover_text("Molar parts (Pchelkin)");
-                    })
-                    .response
-                    .on_hover_text(format!("{:#}", context.settings.calculation.normalization));
-            });
-            ui.horizontal(|ui| {
-                ui.label("Signedness:");
-                ComboBox::from_id_source("signedness")
-                    .selected_text(context.settings.calculation.signedness.to_string())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            &mut context.settings.calculation.signedness,
-                            Signedness::Signed,
-                            "Signed",
-                        );
-                        ui.selectable_value(
-                            &mut context.settings.calculation.signedness,
-                            Signedness::Unsigned,
-                            "Unsigned",
-                        );
-                    })
-                    .response
-                    .on_hover_text(format!("{:#}", context.settings.calculation.signedness));
-            });
-        });
+        ui.collapsing(
+            RichText::new(CentralTab::Calculation.to_string()).heading(),
+            |ui| {
+                ui.horizontal(|ui| {
+                    ui.toggle_value(&mut context.settings.calculation.resizable, "↔ Resizable")
+                        .on_hover_text("Resize table columns")
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Precision:");
+                    let precision = &mut context.settings.calculation.precision;
+                    if ui.add(Slider::new(precision, 0..=MAX_PRECISION)).changed()
+                        && context.settings.link
+                    {
+                        context.settings.configuration.precision = *precision;
+                        context.settings.composition.precision = *precision;
+                        context.settings.visualization.precision = *precision;
+                        context.settings.comparison.precision = *precision;
+                    }
+                    ui.toggle_value(&mut context.settings.link, "🔗");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Percent:");
+                    ui.checkbox(&mut context.settings.calculation.percent, "");
+                    ui.toggle_value(&mut context.settings.link, "🔗");
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Normalization:");
+                    ComboBox::from_id_source("normalization")
+                        .selected_text(context.settings.calculation.normalization.text())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut context.settings.calculation.normalization,
+                                Normalization::Mass,
+                                Normalization::Mass.text(),
+                            )
+                            .on_hover_text(Normalization::Mass.hover_text());
+                            ui.selectable_value(
+                                &mut context.settings.calculation.normalization,
+                                Normalization::Molar,
+                                Normalization::Molar.text(),
+                            )
+                            .on_hover_text(Normalization::Molar.hover_text());
+                            ui.selectable_value(
+                                &mut context.settings.calculation.normalization,
+                                Normalization::Pchelkin,
+                                Normalization::Pchelkin.text(),
+                            )
+                            .on_hover_text(Normalization::Pchelkin.hover_text());
+                        })
+                        .response
+                        .on_hover_text(context.settings.calculation.normalization.hover_text());
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Signedness:");
+                    ComboBox::from_id_source("signedness")
+                        .selected_text(context.settings.calculation.signedness.text())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut context.settings.calculation.signedness,
+                                Signedness::Signed,
+                                Signedness::Signed.text(),
+                            )
+                            .on_hover_text(Signedness::Signed.hover_text());
+                            ui.selectable_value(
+                                &mut context.settings.calculation.signedness,
+                                Signedness::Unsigned,
+                                Signedness::Unsigned.text(),
+                            )
+                            .on_hover_text(Signedness::Unsigned.hover_text());
+                        })
+                        .response
+                        .on_hover_text(context.settings.calculation.signedness.hover_text());
+                });
+            },
+        );
     }
 }

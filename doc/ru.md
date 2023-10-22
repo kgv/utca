@@ -1,9 +1,14 @@
 # UTCA
 
-Программа условно разделена на 4 составляющие: `Configuration`, `Calculation`,
-`Composition` и `Visualization`.
+Программа условно разделена на 5 составляющих: `Configuration`, `Calculation`,
+`Composition`, `Visualization` и `Comparison`.
 
 ## Configuration
+
+### Settings
+
+- `C` - задает минимальное и максимальное значение для `C`.
+- `U` - задает максимальное значение для `U`.
 
 ## Calculation
 
@@ -75,6 +80,7 @@
 
 Полученные при композиции данные представляются в графическом виде.
 
+## Comparison
 
 [^pin341.for/56]: `MEC(I) = 4 * MAL(I) - 3 * MBL(I)`: Fortran program [PIN341.for], page 56
 [^pin341.for/68]: `MED(I) = 3 * MBL(I) - 2 * MAL(I)`: Fortran program [PIN341.for], page 68

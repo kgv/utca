@@ -4,8 +4,10 @@ use std::ops::RangeInclusive;
 /// Configuration settings
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) struct Settings {
-    pub(in crate::app) precision: usize,
     pub(in crate::app) resizable: bool,
+
+    pub(in crate::app) precision: usize,
+
     pub(in crate::app) c: C,
     pub(in crate::app) u: usize,
 }
@@ -13,8 +15,8 @@ pub(in crate::app) struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            precision: 0,
             resizable: false,
+            precision: 0,
             c: C { start: 4, end: 36 },
             u: 6,
         }

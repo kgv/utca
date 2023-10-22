@@ -1,8 +1,21 @@
-use crate::app::{context::Context, view::View};
-use egui::{epaint::util::FloatOrd, Ui};
-use egui_plot::{Bar, BarChart, Plot};
+use crate::{
+    acylglycerol::Tag,
+    app::{
+        context::{
+            settings::composition::Group::{Ecn, Ptc},
+            state::Group,
+            Context,
+        },
+        view::View,
+    },
+    utils::FloatExt,
+};
+use egui::{epaint::util::FloatOrd, Align2, RichText, Ui};
+use egui_ext::color;
+use egui_plot::{Bar, BarChart, Plot, PlotPoint, Text};
 use itertools::Itertools;
-use std::{cmp::Reverse, collections::HashMap};
+use molecule::Saturation::{Saturated, Unsaturated};
+use std::{cmp::Reverse, collections::HashMap, ops::RangeInclusive};
 
 /// Central visualization tab
 pub(super) struct Visualization<'a> {
@@ -17,42 +30,100 @@ impl<'a> Visualization<'a> {
 
 impl View for Visualization<'_> {
     fn view(self, ui: &mut Ui) {
+        // let height = ui.text_style_height(&TextStyle::Heading);
         let Self { context } = self;
         let mut plot = Plot::new("plot");
-        // .x_axis_formatter(|x, _range: &RangeInclusive<f64>| {
-        //     if !x.is_approx_zero() && x.is_approx_integer() {
-        //         // let species = self.configured.species[x as usize];
-        //         // return format!("{species}");
-        //     }
-        //     String::new()
-        // })
-        // .y_axis_formatter(percent_axis_formatter)
         if context.settings.visualization.legend {
             plot = plot.legend(Default::default());
         }
-        plot.show(ui, |ui| {
-            let mut offsets = HashMap::new();
-            for (&tag, &value) in context
+        if let Some(Ptc) = context.settings.composition.group {
+            let groups: Vec<_> = context
                 .state
+                .entry()
+                .data
+                .composed
+                .filtered
+                .keys()
+                .flat_map(|&group| {
+                    if let Group::Ptc(r#type) = group? {
+                        Some(r#type)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            // if context.settings.composition.order {
+
+            // }
+            plot = plot.x_axis_formatter(move |x, _t, _range: &RangeInclusive<f64>| {
+                if x.is_approx_integer() {
+                    if let Some(r#type) = groups.get(x as usize) {
+                        return r#type.to_string();
+                    }
+                }
+                String::new()
+            });
+        }
+        // .y_axis_formatter(percent_axis_formatter);
+        plot.show(ui, |ui| {
+            for (index, (&group, values)) in context
+                .state
+                .entry()
                 .data
                 .composed
                 .filtered
                 .iter()
-                .sorted_by_key(|(_, &value)| Reverse(value.ord()))
+                .enumerate()
             {
-                // let name = &r#type;
-                // let bar = Bar::new(1.0 + i as f64, *value).name(name);
-                // println!("tag: {tag}");
-                let ecn = context.ecn(tag).sum();
-                let name = context.species(tag);
-                let offset = offsets.entry(ecn).or_default();
-                let bar = Bar::new(ecn as f64, value).name(name).base_offset(*offset);
-                *offset += value;
-                let chart = BarChart::new(vec![bar])
+                let x = group.map(|group| match group {
+                    Group::Ecn(ecn) => ecn,
+                    Group::Ptc(_) => index,
+                    Group::Occurrence(occurrence) => occurrence,
+                });
+                // let mut value = 0;
+                // for (index, &saturation) in r#type.iter().enumerate() {
+                //     if saturation == Saturated {
+                //         value += 2usize.pow(index as _);
+                //     }
+                // }
+                // value
+                let mut offset = 0.0;
+                let bars = values
+                    .iter()
+                    .enumerate()
+                    .map(|(index, (&tag, &(mut value)))| {
+                        if context.settings.visualization.percent {
+                            value *= 100.0;
+                        }
+                        let argument = x.unwrap_or(index);
+                        let name = context.species(tag);
+                        let bar = Bar::new(argument as f64, value)
+                            .name(name)
+                            .base_offset(offset);
+                        offset += value;
+                        bar
+                    })
+                    .collect();
+                let chart = BarChart::new(bars)
+                    // .color(color(y))
                     .width(context.settings.visualization.width)
-                    .name(context.r#type(tag));
+                    .name(x.unwrap_or_default());
                 ui.bar_chart(chart);
+                ui.text(
+                    Text::new(
+                        PlotPoint::new(x.unwrap_or_default() as f64, offset),
+                        RichText::new(format!(
+                            "{offset:.*}",
+                            context.settings.visualization.precision
+                        ))
+                        .heading(),
+                    )
+                    // .color(color(ecn))
+                    .name(x.unwrap_or_default())
+                    .anchor(Align2::CENTER_BOTTOM),
+                );
             }
+
             // let mut group = None;
             // for (i, (&tag, &value)) in context.state.data.composed.filtered.iter().enumerate() {
             //     let r#type = context.r#type(tag);

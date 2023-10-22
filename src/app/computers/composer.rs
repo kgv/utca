@@ -1,8 +1,11 @@
 use crate::{
     acylglycerol::Tag,
     app::context::{
-        settings::composition::{Order, Sort},
-        state::Composed as Value,
+        settings::{
+            composition::Group::{Ecn, Ptc},
+            Order, Sort,
+        },
+        state::{Composed as Value, Group},
         Context,
     },
 };
@@ -34,33 +37,34 @@ pub(in crate::app) struct Composer;
 impl ComputerMut<Key<'_>, Value> for Composer {
     fn compute(&mut self, key: Key) -> Value {
         let Key { context } = key;
-        let dags13 = &context.state.data.normalized.dags13;
-        let mags2 = &context.state.data.normalized.mags2;
+        let dags13 = &context.state.entry().data.normalized.dags13;
+        let mags2 = &context.state.entry().data.normalized.mags2;
         let filter = &context.settings.composition.filter;
-        let mut unfiltered = IndexMap::new();
-        for indices in repeat(0..context.state.len())
+        let mut unfiltered: Map = IndexMap::new();
+        for indices in repeat(0..context.state.entry().len())
             .take(3)
             .multi_cartesian_product()
         {
             let value = dags13[indices[0]] * mags2[indices[1]] * dags13[indices[2]];
-            if context.settings.composition.mirror {
-                let key = Tag([indices[0], indices[1], indices[2]]);
-                unfiltered.insert(key, value);
+            let tag = if context.settings.composition.mirror {
+                Tag([indices[0], indices[1], indices[2]])
             } else {
-                let key = Tag([
+                Tag([
                     min(indices[0], indices[2]),
                     indices[1],
                     max(indices[0], indices[2]),
-                ]);
-                *unfiltered.entry(key).or_default() += value;
-            }
+                ])
+            };
+            let group = context.settings.composition.group.map(|group| match group {
+                Ecn => Group::Ecn(context.ecn(tag).sum()),
+                Ptc => Group::Ptc(context.r#type(tag)),
+            });
+            *unfiltered.entry(group).or_default().entry(tag).or_default() += value;
         }
         unfiltered.sort(key);
-        let mut filtered = IndexMap::new();
-        let mut grouped = IndexMap::new();
-        let mut start = 0;
-        for (r#type, group) in &unfiltered.iter().group_by(|(&tag, _)| context.r#type(tag)) {
-            filtered.extend(group.filter(|(&tag, &value)| {
+        let mut filtered = unfiltered.clone();
+        filtered.retain(|_, values| {
+            values.retain(|tag, &mut value| {
                 if context.settings.composition.mirror {
                     !filter.sn1.contains(&tag[0])
                         && !filter.sn2.contains(&tag[1])
@@ -71,15 +75,12 @@ impl ComputerMut<Key<'_>, Value> for Composer {
                         && !filter.sn2.contains(&tag[1])
                         && value >= filter.value
                 }
-            }));
-            let end = filtered.len();
-            grouped.insert(r#type, start..end);
-            start = end;
-        }
+            });
+            !values.is_empty()
+        });
         Value {
             unfiltered,
             filtered,
-            grouped,
         }
     }
 }
@@ -93,8 +94,8 @@ pub struct Key<'a> {
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.context.settings.composition.hash(state);
-        self.context.state.meta.hash(state);
-        self.context.state.data.normalized.hash(state);
+        self.context.state.entry().meta.hash(state);
+        self.context.state.entry().data.normalized.hash(state);
     }
 }
 
@@ -104,71 +105,50 @@ impl<'a> From<&'a Context> for Key<'a> {
     }
 }
 
-/// Sort by
-trait SortBy {
+/// Map
+type Map = IndexMap<Option<Group>, IndexMap<Tag<usize>, f64>>;
+
+/// Sort by key
+trait SortByKey {
     fn sort(&mut self, key: Key);
 }
 
-impl SortBy for IndexMap<Tag<usize>, f64> {
+impl SortByKey for Map {
     fn sort(&mut self, key: Key) {
         let Key { context } = key;
-        let ptc = context.settings.composition.is_positional_type();
-        match context.settings.composition.sort {
-            Sort::Tag if ptc => match context.settings.composition.order {
-                Order::Ascending => self.sort_by_cached_key(|&tag, _| (context.r#type(tag), tag)),
-                Order::Descending => {
-                    self.sort_by_cached_key(|&tag, _| Reverse((context.r#type(tag), tag)))
-                }
-            },
-            Sort::Tag => match context.settings.composition.order {
-                Order::Ascending => self.sort_by_cached_key(|&tag, _| tag),
-                Order::Descending => self.sort_by_cached_key(|&tag, _| Reverse(tag)),
-            },
-            Sort::Value if ptc => {
-                let types = self
-                    .iter()
-                    .into_grouping_map_by(|(&tag, _)| context.r#type(tag))
-                    .fold(0.0, |sum, _, (_, &value)| sum + value);
-                match context.settings.composition.order {
-                    Order::Ascending => self.sort_by_cached_key(|&tag, value| {
-                        (types[&context.r#type(tag)].ord(), value.ord())
-                    }),
-                    Order::Descending => self.sort_by_cached_key(|&tag, value| {
-                        Reverse((types[&context.r#type(tag)].ord(), value.ord()))
-                    }),
-                }
+        match context.settings.composition.order {
+            Order::Ascending => {
+                self.sort_by_cached_key(|&tag, _| tag);
+                self.values_mut()
+                    .for_each(|value| match context.settings.composition.sort {
+                        Sort::Key => match context.settings.composition.group {
+                            None => value.sort_by_cached_key(|&tag, _| tag),
+                            Some(Ecn) => {
+                                value.sort_by_cached_key(|&tag, _| (context.ecn(tag), tag))
+                            }
+                            Some(Ptc) => {
+                                value.sort_by_cached_key(|&tag, _| (context.r#type(tag), tag))
+                            }
+                        },
+                        Sort::Value => value.sort_by_cached_key(|_, value| value.ord()),
+                    });
             }
-            Sort::Value => match context.settings.composition.order {
-                Order::Ascending => self.sort_by_cached_key(|_, value| value.ord()),
-                Order::Descending => self.sort_by_cached_key(|_, value| Reverse(value.ord())),
-            },
-            Sort::Ecn if ptc => {
-                let types = self
-                    .keys()
-                    .copied()
-                    .into_grouping_map_by(|&tag| context.r#type(tag))
-                    .minmax_by_key(|_, &tag| context.ecn(tag).sum());
-                match context.settings.composition.order {
-                    Order::Ascending => self.sort_by_cached_key(|&tag, _| {
-                        (
-                            types[&context.r#type(tag)].into_option(),
-                            context.ecn(tag).sum(),
-                        )
-                    }),
-                    Order::Descending => self.sort_by_cached_key(|&tag, _| {
-                        Reverse((
-                            types[&context.r#type(tag)].into_option(),
-                            context.ecn(tag).sum(),
-                        ))
-                    }),
-                }
+            Order::Descending => {
+                self.sort_by_cached_key(|&tag, _| Reverse(tag));
+                self.values_mut()
+                    .for_each(|value| match context.settings.composition.sort {
+                        Sort::Key => match context.settings.composition.group {
+                            None => value.sort_by_cached_key(|&tag, _| Reverse(tag)),
+                            Some(Ecn) => value.sort_by_cached_key(|&tag, _| {
+                                (Reverse(context.ecn(tag)), Reverse(tag))
+                            }),
+                            Some(Ptc) => value.sort_by_cached_key(|&tag, _| {
+                                (Reverse(context.r#type(tag)), Reverse(tag))
+                            }),
+                        },
+                        Sort::Value => value.sort_by_cached_key(|_, value| Reverse(value.ord())),
+                    });
             }
-            Sort::Ecn => match context.settings.composition.order {
-                Order::Ascending => self.sort_by_cached_key(|&tag, _| context.ecn(tag).sum()),
-                Order::Descending => {
-                    self.sort_by_cached_key(|&tag, _| Reverse(context.ecn(tag).sum()))
-                }
-            },
         }
     }
 }

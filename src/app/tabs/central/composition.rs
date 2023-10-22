@@ -1,11 +1,15 @@
-use crate::app::{computers::composer::Composed, context::Context, view::View};
-use egui::{Align, Direction, Layout, Ui};
-use egui_ext::{ClickedLabel, TableBodyExt};
+use crate::app::{
+    context::{settings::composition::Group, Context},
+    view::View,
+};
+use egui::{Align, Direction, InnerResponse, Layout, Ui};
+use egui_ext::{ClickedLabel, CollapsingButton, TableBodyExt};
 use egui_extras::{Column, TableBuilder};
+use indexmap::IndexMap;
 use itertools::Itertools;
-use std::ops::Range;
+use std::convert::identity;
 
-const COLUMNS: usize = 5;
+const COLUMNS: usize = 4;
 
 /// Central composition tab
 pub(super) struct Composition<'a> {
@@ -21,90 +25,101 @@ impl<'a> Composition<'a> {
 impl View for Composition<'_> {
     fn view(self, ui: &mut Ui) {
         let Self { context } = self;
-        context.state.data.composed =
-            ui.memory_mut(|memory| memory.caches.cache::<Composed>().get((&*context).into()));
+        context.compose(ui);
         let height = ui.spacing().interact_size.y;
-        let ptc = context.settings.composition.is_positional_type();
-        let psc = context.settings.composition.is_positional_species();
-        let mut count = COLUMNS;
-        if !ptc || !psc {
-            count -= 1;
-        }
+        let mut columns = COLUMNS;
         if !context.settings.composition.ecn {
-            count -= 1;
+            columns -= 1;
         }
         if !context.settings.composition.mass {
-            count -= 1;
+            columns -= 1;
         }
+        let mut open = None;
         TableBuilder::new(ui)
-            .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
-            .columns(Column::auto(), count)
             .auto_shrink([false; 2])
+            .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
+            .columns(Column::auto(), columns)
+            .max_scroll_height(f32::NAN)
             .resizable(context.settings.composition.resizable)
             .striped(true)
             .header(height, |mut row| {
-                if ptc {
-                    row.col(|ui| {
-                        ui.clicked_heading("Type")
-                            .context_menu(|ui| {
-                                if ui.button("Copy type list").clicked() {
+                row.col(|ui| {
+                    ui.clicked_heading("TAG")
+                        .context_menu(|ui| {
+                            if context.settings.composition.group.is_some() {
+                                if ui
+                                    .button("Expand")
+                                    .on_hover_text("Expand all groups")
+                                    .clicked()
+                                {
+                                    open = Some(true);
+                                    ui.close_menu();
+                                }
+                                if ui
+                                    .button("Collapse")
+                                    .on_hover_text("Collapse all groups")
+                                    .clicked()
+                                {
+                                    open = Some(false);
+                                    ui.close_menu();
+                                }
+                                ui.separator();
+                            }
+                            ui.menu_button("Copy", |ui| {
+                                if ui.button("All").clicked() {
+                                    ui.close_menu();
+                                }
+                                if ui.button("Groups").clicked() {
                                     ui.output_mut(|output| {
                                         output.copied_text = context
                                             .state
+                                            .entry()
                                             .data
                                             .composed
                                             .filtered
                                             .keys()
-                                            .map(|&tag| context.r#type(tag))
-                                            .unique()
+                                            .copied()
+                                            .filter_map(identity)
                                             .join("\n");
                                     });
                                     ui.close_menu();
                                 }
-                            })
-                            .on_hover_text("TAG's type");
-                    });
-                }
-                if psc {
-                    row.col(|ui| {
-                        ui.clicked_heading("Species")
-                            .context_menu(|ui| {
-                                if ui.button("Copy species list").clicked() {
+                                if ui.button("Items").clicked() {
                                     ui.output_mut(|output| {
                                         output.copied_text = context
                                             .state
+                                            .entry()
                                             .data
                                             .composed
                                             .filtered
-                                            .keys()
-                                            .map(|&tag| context.species(tag))
+                                            .values()
+                                            .flat_map(|values| {
+                                                values.keys().map(|&tag| context.species(tag))
+                                            })
                                             .join("\n");
                                     });
                                     ui.close_menu();
                                 }
-                            })
-                            .on_hover_text("TAG's species");
-                    });
-                }
+                            });
+                        })
+                        .on_hover_text("Triacylglycerol");
+                });
                 row.col(|ui| {
                     ui.clicked_heading("Value").context_menu(|ui| {
-                        if ptc {
-                            let text = if psc {
-                                "Copy type value list"
-                            } else {
-                                "Copy value list"
-                            };
-                            if ui.button(text).clicked() {
+                        ui.menu_button("Copy", |ui| {
+                            if ui.button("Values").clicked() {
+                                ui.close_menu();
+                            }
+                            if ui.button("Group values").clicked() {
                                 ui.output_mut(|output| {
                                     output.copied_text = context
                                         .state
+                                        .entry()
                                         .data
                                         .composed
                                         .filtered
-                                        .iter()
-                                        .group_by(|(&tag, _)| context.r#type(tag))
-                                        .into_iter()
-                                        .map(|(_, group)| group.map(|(_, &value)| value).sum())
+                                        .values()
+                                        .map(|values| values.values().sum())
                                         .format_with("\n", |mut value: f64, f| {
                                             if context.settings.composition.percent {
                                                 value *= 100.0;
@@ -118,21 +133,16 @@ impl View for Composition<'_> {
                                 });
                                 ui.close_menu();
                             };
-                        }
-                        if psc {
-                            let text = if ptc {
-                                "Copy species value list"
-                            } else {
-                                "Copy value list"
-                            };
-                            if ui.button(text).clicked() {
+                            if ui.button("Species values").clicked() {
                                 ui.output_mut(|output| {
                                     output.copied_text = context
                                         .state
+                                        .entry()
                                         .data
                                         .composed
                                         .filtered
                                         .values()
+                                        .flat_map(IndexMap::values)
                                         .format_with("\n", |&(mut value), f| {
                                             if context.settings.composition.percent {
                                                 value *= 100.0;
@@ -146,238 +156,221 @@ impl View for Composition<'_> {
                                 });
                                 ui.close_menu();
                             }
-                        }
+                        });
                     });
                 });
                 if context.settings.composition.ecn {
                     row.col(|ui| {
                         ui.clicked_heading("ECN")
                             .context_menu(|ui| {
-                                if ui.button("Copy ECN list").clicked() {
-                                    ui.output_mut(|output| {
-                                        output.copied_text = context
-                                            .state
-                                            .data
-                                            .composed
-                                            .filtered
-                                            .keys()
-                                            .map(|&tag| context.ecn(tag).sum())
-                                            .join("\n");
-                                    });
-                                    ui.close_menu();
-                                }
+                                //         if ui.button("Copy ECN list").clicked() {
+                                //             ui.output_mut(|output| {
+                                //                 output.copied_text = context
+                                //                     .state
+                                //                     .entry()
+                                //                     .data
+                                //                     .composed
+                                //                     .filtered
+                                //                     .keys()
+                                //                     .map(|&tag| context.ecn(tag).sum())
+                                //                     .join("\n");
+                                //             });
+                                //             ui.close_menu();
+                                //         }
                             })
                             .on_hover_text("Equivalent carbon number");
                     });
                 }
                 if context.settings.composition.mass {
                     row.col(|ui| {
-                        ui.heading("Mass").on_hover_text("Triacylglycerol mass");
+                        ui.heading("Mass");
                     });
                 }
             })
             .body(|mut body| {
-                let mut index = 0;
-                for (&tag, &(mut value)) in &context.state.data.composed.filtered {
-                    let r#type = &context.r#type(tag);
-                    if ptc {
-                        let Range { start, end } = context.state.data.composed.grouped[r#type];
-                        if index == start {
-                            index = end;
+                for (group, values) in &context.state.entry().data.composed.filtered {
+                    let mut close = false;
+                    if let Some(group) = group {
+                        body.row(height, |mut row| {
+                            row.col(|ui| {
+                                let InnerResponse { inner, response } = CollapsingButton::new()
+                                    .text(group.to_string())
+                                    .open(open)
+                                    .show(ui);
+                                response.on_hover_text(values.len().to_string());
+                                close = !inner;
+                            });
+                            row.col(|ui| {
+                                let mut sum: f64 = values.values().sum();
+                                if context.settings.composition.percent {
+                                    sum *= 100.0;
+                                }
+                                ui.label(format!(
+                                    "{sum:.*}",
+                                    context.settings.composition.precision,
+                                ))
+                                .on_hover_text(sum.to_string());
+                            });
+                            if context.settings.composition.ecn {
+                                row.col(|ui| {
+                                    if let Some((min, max)) = values
+                                        .keys()
+                                        .map(|&tag| context.ecn(tag).sum())
+                                        .minmax()
+                                        .into_option()
+                                    {
+                                        ui.label(format!("[{min}, {max}]"));
+                                    }
+                                });
+                            }
+                            if context.settings.composition.mass {
+                                row.col(|ui| {
+                                    if let Some((min, max)) = values
+                                        .keys()
+                                        .map(|&tag| context.mass(tag).sum())
+                                        .minmax()
+                                        .into_option()
+                                    {
+                                        ui.label(format!(
+                                            "[{min:.0$}, {max:.0$}]",
+                                            context.settings.composition.precision
+                                        ));
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    if !close {
+                        for (&tag, &(mut value)) in values {
                             body.row(height, |mut row| {
                                 row.col(|ui| {
-                                    ui.label(r#type.to_string());
+                                    let species = context.species(tag);
+                                    let response = ui.label(species.to_string());
+                                    if let Some(group) = context.settings.composition.group {
+                                        response.on_hover_text(match group {
+                                            Group::Ecn => format!("{:#}", context.ecn(tag)),
+                                            Group::Ptc => context.r#type(tag).to_string(),
+                                        });
+                                    }
                                 });
-                                if psc {
-                                    row.col(|ui| {
-                                        let count = context.state.data.composed.filtered
-                                            [start..end]
-                                            .keys()
-                                            .count();
-                                        ui.label(count.to_string());
-                                    });
-                                }
                                 row.col(|ui| {
-                                    ui.with_layout(
-                                        Layout::left_to_right(Align::Center)
-                                            .with_main_align(Align::RIGHT)
-                                            .with_main_justify(true),
-                                        |ui| {
-                                            let mut value: f64 =
-                                                context.state.data.composed.filtered[start..end]
-                                                    .values()
-                                                    .sum();
-                                            if context.settings.composition.percent {
-                                                value *= 100.0;
-                                            }
-                                            ui.label(format!(
-                                                "{value:.*}",
-                                                context.settings.composition.precision
-                                            ))
-                                            .on_hover_text(value.to_string());
-                                        },
-                                    );
+                                    if context.settings.composition.percent {
+                                        value *= 100.0;
+                                    }
+                                    ui.label(format!(
+                                        "{value:.*}",
+                                        context.settings.composition.precision
+                                    ))
+                                    .on_hover_text(value.to_string());
                                 });
                                 if context.settings.composition.ecn {
                                     row.col(|ui| {
-                                        if let Some((min, max)) =
-                                            context.state.data.composed.filtered[start..end]
-                                                .keys()
-                                                .map(|&tag| context.ecn(tag).sum())
-                                                .minmax()
-                                                .into_option()
-                                        {
-                                            ui.label(format!("[{min}, {max}]"));
-                                        }
+                                        ui.with_layout(
+                                            Layout::left_to_right(Align::Center)
+                                                .with_main_align(Align::Center)
+                                                .with_main_justify(true),
+                                            |ui| {
+                                                let ecn = context.ecn(tag);
+                                                ui.label(ecn.sum().to_string())
+                                                    .on_hover_text(format!("{ecn:#}"));
+                                            },
+                                        );
                                     });
                                 }
                                 if context.settings.composition.mass {
                                     row.col(|ui| {
-                                        if let Some((min, max)) =
-                                            context.state.data.composed.filtered[start..end]
-                                                .keys()
-                                                .map(|&tag| context.weight(tag).sum())
-                                                .minmax()
-                                                .into_option()
-                                        {
-                                            ui.label(format!(
-                                                "[{min:.0$}, {max:.0$}]",
-                                                context.settings.composition.precision
-                                            ));
-                                        }
+                                        ui.with_layout(
+                                            Layout::left_to_right(Align::Center)
+                                                .with_main_align(Align::Center)
+                                                .with_main_justify(true),
+                                            |ui| {
+                                                let mass = context.mass(tag);
+                                                ui.label(format!(
+                                                    "{:.*}",
+                                                    context.settings.composition.precision,
+                                                    mass.sum(),
+                                                ))
+                                                .on_hover_text(format!(
+                                                    "{mass:#.*}",
+                                                    context.settings.composition.precision
+                                                ));
+                                            },
+                                        );
                                     });
                                 }
                             });
                         }
                     }
-                    if psc {
-                        body.row(height, |mut row| {
-                            if ptc {
-                                row.col(|_| {});
-                            }
-                            row.col(|ui| {
-                                ui.label(context.species(tag).to_string())
-                                    .on_hover_text(r#type.to_string());
-                            });
-                            row.col(|ui| {
-                                ui.with_layout(
-                                    Layout::left_to_right(Align::Center)
-                                        .with_main_align(Align::RIGHT)
-                                        .with_main_justify(true),
-                                    |ui| {
-                                        if context.settings.composition.percent {
-                                            value *= 100.0;
-                                        }
-                                        ui.label(format!(
-                                            "{value:.*}",
-                                            context.settings.composition.precision
-                                        ))
-                                        .on_hover_text(value.to_string());
-                                    },
-                                );
-                            });
-                            if context.settings.composition.ecn {
-                                row.col(|ui| {
-                                    ui.with_layout(
-                                        Layout::left_to_right(Align::Center)
-                                            .with_main_align(Align::Center)
-                                            .with_main_justify(true),
-                                        |ui| {
-                                            let ecn = context.ecn(tag);
-                                            ui.label(ecn.sum().to_string())
-                                                .on_hover_text(format!("{ecn:#}"));
-                                        },
-                                    );
-                                });
-                            }
-                            if context.settings.composition.mass {
-                                row.col(|ui| {
-                                    ui.with_layout(
-                                        Layout::left_to_right(Align::Center)
-                                            .with_main_align(Align::Center)
-                                            .with_main_justify(true),
-                                        |ui| {
-                                            let weight = context.weight(tag);
-                                            ui.label(format!(
-                                                "{:.*}",
-                                                context.settings.composition.precision,
-                                                weight.sum(),
-                                            ))
-                                            .on_hover_text(format!(
-                                                "{weight:#.*}",
-                                                context.settings.composition.precision
-                                            ));
-                                        },
-                                    );
-                                });
-                            }
-                        });
-                    }
                 }
                 // Footer
-                body.separate(height / 2.0, count);
+                body.separate(height / 2.0, columns);
                 body.row(height, |mut row| {
-                    if ptc {
-                        row.col(|ui| {
-                            let unfiltered = context.state.data.composed.grouped.len();
-                            let filtered = context
-                                .state
-                                .data
-                                .composed
-                                .grouped
-                                .values()
-                                .filter(|&range| !range.is_empty())
-                                .count();
-                            let count = unfiltered - filtered;
-                            ui.label(filtered.to_string())
-                                .on_hover_text(format!("{unfiltered} - {count} = {filtered}"));
-                        });
-                    }
-                    if psc {
-                        row.col(|ui| {
-                            let unfiltered = context.state.data.composed.unfiltered.len();
-                            let filtered = context.state.data.composed.filtered.len();
-                            let count = unfiltered - filtered;
-                            ui.label(filtered.to_string())
-                                .on_hover_text(format!("{unfiltered} - {count} = {filtered}"));
-                        });
-                    }
                     row.col(|ui| {
-                        ui.with_layout(
-                            Layout::left_to_right(Align::Center)
-                                .with_main_align(Align::RIGHT)
-                                .with_main_justify(true),
-                            |ui| {
-                                let mut unfiltered: f64 =
-                                    context.state.data.composed.unfiltered.values().sum();
-                                let mut filtered: f64 =
-                                    context.state.data.composed.filtered.values().sum();
-
-                                if context.settings.composition.percent {
-                                    unfiltered *= 100.0;
-                                    filtered *= 100.0;
-                                }
-                                let sum = unfiltered - filtered;
-                                ui.label(format!(
-                                    "{filtered:.*}",
-                                    context.settings.composition.precision
-                                ))
-                                .on_hover_text(format!(
-                                    "{unfiltered:.0$} - {sum:.0$} = {filtered:.0$}",
-                                    context.settings.composition.precision
-                                ));
-                            },
-                        );
+                        let composed = &context.state.entry().data.composed;
+                        let unfiltered = composed
+                            .unfiltered
+                            .values()
+                            .flat_map(IndexMap::values)
+                            .count();
+                        let filtered = composed
+                            .filtered
+                            .values()
+                            .flat_map(IndexMap::values)
+                            .count();
+                        let count = unfiltered - filtered;
+                        ui.label(filtered.to_string()).on_hover_ui(|ui| {
+                            if context.settings.composition.group.is_some() {
+                                let unfiltered = composed.unfiltered.len();
+                                let filtered = composed.filtered.len();
+                                let count = unfiltered - filtered;
+                                ui.label(format!("{unfiltered} - {count} = {filtered}"));
+                            }
+                            ui.label(format!("{unfiltered} - {count} = {filtered}"));
+                        });
+                    });
+                    row.col(|ui| {
+                        let mut unfiltered: f64 = context
+                            .state
+                            .entry()
+                            .data
+                            .composed
+                            .unfiltered
+                            .values()
+                            .flat_map(IndexMap::values)
+                            .sum();
+                        let mut filtered: f64 = context
+                            .state
+                            .entry()
+                            .data
+                            .composed
+                            .filtered
+                            .values()
+                            .flat_map(IndexMap::values)
+                            .sum();
+                        if context.settings.composition.percent {
+                            unfiltered *= 100.0;
+                            filtered *= 100.0;
+                        }
+                        let sum = unfiltered - filtered;
+                        ui.label(format!(
+                            "{filtered:.*}",
+                            context.settings.composition.precision
+                        ))
+                        .on_hover_text(format!(
+                            "{unfiltered:.0$} - {sum:.0$} = {filtered:.0$}",
+                            context.settings.composition.precision
+                        ));
                     });
                     if context.settings.composition.ecn {
                         row.col(|ui| {
                             if let Some((min, max)) = context
                                 .state
+                                .entry()
                                 .data
                                 .composed
                                 .filtered
-                                .keys()
-                                .map(|&tag| context.ecn(tag).sum())
+                                .values()
+                                .flat_map(|values| values.keys().map(|&tag| context.ecn(tag).sum()))
                                 .minmax()
                                 .into_option()
                             {
@@ -389,11 +382,14 @@ impl View for Composition<'_> {
                         row.col(|ui| {
                             if let Some((min, max)) = context
                                 .state
+                                .entry()
                                 .data
                                 .composed
                                 .filtered
-                                .keys()
-                                .map(|&tag| context.weight(tag).sum())
+                                .values()
+                                .flat_map(|values| {
+                                    values.keys().map(|&tag| context.mass(tag).sum())
+                                })
                                 .minmax()
                                 .into_option()
                             {
@@ -405,7 +401,7 @@ impl View for Composition<'_> {
                         });
                     }
                 });
-                body.separate(height / 2.0, count);
+                body.separate(height / 2.0, columns);
             });
     }
 }

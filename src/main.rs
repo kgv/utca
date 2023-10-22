@@ -19,6 +19,7 @@
 #![feature(float_next_up_down)]
 #![feature(lazy_cell)]
 #![feature(option_take_if)]
+#![feature(return_position_impl_trait_in_trait)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use app::App;

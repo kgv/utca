@@ -21,12 +21,12 @@ jobs:
     - uses: jetli/trunk-action@v0.4.0
     - uses: jetli/wasm-bindgen-action@v0.2.0
     - name: build
-      run: trunk build --release --filehash=false --public-url=${{ github.event.repository.name }}
+      run: trunk build --release --filehash=false --public-url=goose
     - name: deploy
       uses: JamesIves/github-pages-deploy-action@v4
       with:
         clean: false
         folder: dist
-        repository-name: ippras/utca
+        repository-name: ippras/goose
         single-commit: true
-        token: ${{ secrets.deploy }}
+        token: ${{ secrets.deploy_goose }}

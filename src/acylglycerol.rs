@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::{
     array::IntoIter,
-    fmt::{self, Display, Formatter},
+    fmt::{Display, Formatter, Result},
     hash::Hash,
-    ops::{Add, Deref},
+    ops::{Add, Deref, DerefMut},
     slice::Iter,
 };
 
@@ -54,7 +54,7 @@ impl<T: Add<Output = T> + Copy> Tag<T> {
 }
 
 impl<T: Display> Display for Tag<T> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> Result {
         Display::fmt(&self.0[0], f)?;
         if f.alternate() {
             f.write_str("/")?;
@@ -72,6 +72,12 @@ impl<T> Deref for Tag<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<T> DerefMut for Tag<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -104,7 +110,7 @@ pub(super) enum Count {
 }
 
 impl Display for Count {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
             Self::Di => f.write_str("di"),
             Self::Mono => f.write_str("mono"),
@@ -121,12 +127,22 @@ pub(super) enum Sn {
     Three,
 }
 
-impl Display for Sn {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+impl Sn {
+    pub(super) fn text(self) -> &'static str {
         match self {
-            Self::One => f.write_str("1"),
-            Self::Two => f.write_str("2"),
-            Self::Three => f.write_str("3"),
+            Self::One => "1",
+            Self::Two => "2",
+            Self::Three => "3",
         }
     }
 }
+
+// impl Display for Sn {
+//     fn fmt(&self, f: &mut Formatter) -> Result {
+//         match self {
+//             Self::One => f.write_str("1"),
+//             Self::Two => f.write_str("2"),
+//             Self::Three => f.write_str("3"),
+//         }
+//     }
+// }

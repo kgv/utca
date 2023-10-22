@@ -43,11 +43,10 @@ impl Default for Dock {
 
 // impl Default for LeftDock {
 //     fn default() -> Self {
-//         let mut tree = Tree::new(vec![Tab::Settings]);
-//         tree.split_below(NodeIndex::root(), 0.5, vec![Tab::Files]);
+//         let mut state = DockState::new(vec![Tab::Settings]);
+//         state.split_below(NodeIndex::root(), 0.5, vec![Tab::Files]);
 //         Self {
-//             tree,
-//             tabs: Default::default(),
+//             state,
 //         }
 //     }
 // }
@@ -73,11 +72,20 @@ pub(in crate::app) enum Tab {
     Settings,
 }
 
+impl Tab {
+    pub(in crate::app) fn sign(&self) -> &'static str {
+        match self {
+            Self::Files => "📂",
+            Self::Settings => "⚙",
+        }
+    }
+}
+
 impl Display for Tab {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::Files => f.write_str("📂 Files"),
-            Self::Settings => f.write_str("⚙ Settings"),
+            Self::Files => f.write_str("Files"),
+            Self::Settings => f.write_str("Settings"),
         }
     }
 }
@@ -93,7 +101,7 @@ impl TabViewer for Tabs<'_> {
     type Tab = Tab;
 
     fn title(&mut self, tab: &mut Self::Tab) -> WidgetText {
-        tab.to_string().into()
+        format!("{} {tab}", tab.sign()).into()
     }
 
     fn ui(&mut self, ui: &mut Ui, tab: &mut Self::Tab) {

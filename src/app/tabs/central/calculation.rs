@@ -1,5 +1,4 @@
 use crate::app::{
-    computers::calculator::Calculated,
     context::{
         settings::calculation::{From, Source},
         Context,
@@ -26,8 +25,7 @@ impl<'a> Calculation<'a> {
 impl View for Calculation<'_> {
     fn view(self, ui: &mut Ui) {
         let Self { context } = self;
-        context.state.data.normalized =
-            ui.memory_mut(|memory| memory.caches.cache::<Calculated>().get((&*context).into()));
+        context.calculate(ui);
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
         TableBuilder::new(ui)
@@ -51,22 +49,26 @@ impl View for Calculation<'_> {
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
                                 &mut context.settings.calculation.sources.dag1223,
-                                Source::Experiment,
-                                "Experimental ",
+                                Source::Experimental,
+                                Source::Experimental.text(),
                             )
-                            .on_hover_text("Experimental 1,2/2,3-DAGs");
+                            .on_hover_text(Source::Experimental.hover_text(From::Dag1223));
                             ui.selectable_value(
                                 &mut context.settings.calculation.sources.dag1223,
-                                Source::Calculation,
-                                "Calculated",
+                                Source::Calculated,
+                                Source::Calculated.text(),
                             )
-                            .on_hover_text("Calculated 1,2/2,3-DAGs");
+                            .on_hover_text(Source::Calculated.hover_text(From::Dag1223));
                         })
                         .response
-                        .on_hover_text(format!(
-                            "{:?} 1,2/2,3-DAGs",
-                            context.settings.calculation.sources.dag1223
-                        ));
+                        .on_hover_text(
+                            context
+                                .settings
+                                .calculation
+                                .sources
+                                .dag1223
+                                .hover_text(From::Dag1223),
+                        );
                 });
                 // 2-MAGs
                 row.col(|ui| {
@@ -76,22 +78,26 @@ impl View for Calculation<'_> {
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
                                 &mut context.settings.calculation.sources.mags2,
-                                Source::Experiment,
-                                "Experimental",
+                                Source::Experimental,
+                                Source::Experimental.text(),
                             )
-                            .on_hover_text("Experimental 2-MAGs");
+                            .on_hover_text(Source::Experimental.hover_text(From::Mag2));
                             ui.selectable_value(
                                 &mut context.settings.calculation.sources.mags2,
-                                Source::Calculation,
-                                "Calculated",
+                                Source::Calculated,
+                                Source::Calculated.text(),
                             )
-                            .on_hover_text("Calculated 2-MAGs");
+                            .on_hover_text(Source::Calculated.hover_text(From::Mag2));
                         })
                         .response
-                        .on_hover_text(format!(
-                            "{:?} 2-MAGs",
-                            context.settings.calculation.sources.mags2
-                        ));
+                        .on_hover_text(
+                            context
+                                .settings
+                                .calculation
+                                .sources
+                                .mags2
+                                .hover_text(From::Mag2),
+                        );
                 });
                 // 1,3-DAGs
                 row.col(|ui| {
@@ -102,21 +108,20 @@ impl View for Calculation<'_> {
                             ui.selectable_value(
                                 &mut context.settings.calculation.sources.dag13,
                                 From::Dag1223,
-                                "From 1,2/2,3-DAGs",
+                                From::Dag1223.text(),
                             )
-                            .on_hover_text(format!(
-                                "From {:?} 1,2/2,3-DAGs",
-                                &context.settings.calculation.sources.dag1223
-                            ));
+                            .on_hover_text(
+                                From::Dag1223
+                                    .hover_text(context.settings.calculation.sources.dag1223),
+                            );
                             ui.selectable_value(
                                 &mut context.settings.calculation.sources.dag13,
                                 From::Mag2,
-                                "From 2-MAGs",
+                                From::Mag2.text(),
                             )
-                            .on_hover_text(format!(
-                                "From {:?} 2-MAGs",
-                                &context.settings.calculation.sources.mags2
-                            ));
+                            .on_hover_text(
+                                From::Mag2.hover_text(context.settings.calculation.sources.mags2),
+                            );
                         })
                         .response
                         .on_hover_text("1,3-DAGs");
@@ -142,10 +147,11 @@ impl View for Calculation<'_> {
                 };
                 for (label, (&tag123, &dag1223, &mag2, &dag13)) in context
                     .state
+                    .entry()
                     .meta
                     .labels
                     .iter()
-                    .zip(context.state.data.normalized.zip())
+                    .zip(context.state.entry().data.normalized.zip())
                 {
                     body.row(height, |mut row| {
                         row.col(|ui| {
@@ -162,7 +168,7 @@ impl View for Calculation<'_> {
                     });
                 }
                 // Footer
-                let normalized = &context.state.data.normalized;
+                let normalized = &context.state.entry().data.normalized;
                 body.separate(height / 2.0, 5);
                 body.row(height, |mut row| {
                     row.col(|_| {});

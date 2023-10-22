@@ -2,50 +2,221 @@ use crate::{
     acylglycerol::Sn,
     app::{
         context::{
-            settings::composition::{Filter, Order, Positional, Sort},
+            settings::{
+                composition::{Filter, Group},
+                Order, Sort,
+            },
             Context,
         },
+        tabs::CentralTab,
         view::View,
         MAX_PRECISION,
     },
 };
 use egui::{ComboBox, Id, RichText, Slider, Ui};
 
-// macro filter_combobox($ui:ident, $context:expr, $id:ident) {{
-//     let id_source = stringify!($id).trim_start_matches("sn");
-//     let selected_text = id_source.chars().join(", ");
-//     let mut changed = false;
-//     ComboBox::from_id_source(id_source)
-//         .selected_text(selected_text)
-//         .show_ui($ui, |ui| {
-//             for (index, label) in $context.state.meta.labels.iter().enumerate() {
-//                 let mut checked = !$context.settings.composition.filter.$id.contains(&index);
-//                 if ui.checkbox(&mut checked, label).changed() {
-//                     changed |= true;
-//                     if !checked {
-//                         $context.settings.composition.filter.$id.insert(index);
-//                     } else {
-//                         $context.settings.composition.filter.$id.remove(&index);
-//                     }
-//                 }
-//             }
-//         })
-//         .response
-//         .context_menu(|ui| {
-//             if ui.button("Check all").clicked() {
-//                 $context.settings.composition.filter.$id.clear();
-//                 ui.close_menu();
-//             } else if ui.button("Uncheck all").clicked() {
-//                 $context.settings.composition.filter.$id =
-//                     (0..$context.state.meta.labels.len()).collect();
-//                 ui.close_menu();
-//             }
-//         });
-//     if changed {
-//         let popup_id = $ui.make_persistent_id(Id::new(id_source)).with("popup");
-//         $ui.memory_mut(|memory| memory.open_popup(popup_id));
-//     }
-// }}
+/// Left composition tab
+pub(super) struct Composition<'a> {
+    pub(super) context: &'a mut Context,
+}
+
+impl<'a> Composition<'a> {
+    pub(super) fn new(context: &'a mut Context) -> Self {
+        Self { context }
+    }
+}
+
+impl View for Composition<'_> {
+    fn view(self, ui: &mut Ui) {
+        let Self { context } = self;
+        ui.collapsing(
+            RichText::new(CentralTab::Composition.to_string()).heading(),
+            |ui| {
+                ui.horizontal(|ui| {
+                    ui.toggle_value(&mut context.settings.composition.resizable, "↔ Resizable")
+                        .on_hover_text("Resize table columns")
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Precision:");
+                    let precision = &mut context.settings.composition.precision;
+                    if ui.add(Slider::new(precision, 0..=MAX_PRECISION)).changed()
+                        && context.settings.link
+                    {
+                        context.settings.configuration.precision = *precision;
+                        context.settings.calculation.precision = *precision;
+                        context.settings.visualization.precision = *precision;
+                        context.settings.comparison.precision = *precision;
+                    }
+                    ui.toggle_value(&mut context.settings.link, "🔗");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Percent:");
+                    ui.checkbox(&mut context.settings.composition.percent, "");
+                    ui.toggle_value(&mut context.settings.link, "🔗");
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Columns:");
+                    ui.toggle_value(&mut context.settings.composition.ecn, "ECN")
+                        .on_hover_text("ECN (equivalent carbon number)");
+                    ui.toggle_value(&mut context.settings.composition.mass, "Mass");
+                });
+                ui.separator();
+                if ui
+                    .checkbox(&mut context.settings.composition.mirror, "Mirror")
+                    .changed()
+                    && !context.settings.composition.mirror
+                {
+                    context.settings.composition.filter.sn1.clear();
+                    context.settings.composition.filter.sn3.clear();
+                }
+                ui.horizontal(|ui| {
+                    ui.label("Group:");
+                    let response = ComboBox::from_id_source("group")
+                        .selected_text(context.settings.composition.group.map_or("", Group::text))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut context.settings.composition.group,
+                                None,
+                                "None",
+                            )
+                            .on_hover_text("Don't group");
+                            ui.selectable_value(
+                                &mut context.settings.composition.group,
+                                Some(Group::Ecn),
+                                Group::Ecn.text(),
+                            )
+                            .on_hover_text(Group::Ecn.hover_text());
+                            ui.selectable_value(
+                                &mut context.settings.composition.group,
+                                Some(Group::Ptc),
+                                Group::Ptc.text(),
+                            )
+                            .on_hover_text(Group::Ptc.hover_text());
+                        })
+                        .response;
+                    if let Some(group) = context.settings.composition.group {
+                        response.on_hover_text(group.hover_text());
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sort:");
+                    ComboBox::from_id_source("sort")
+                        .selected_text(context.settings.composition.sort.text())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut context.settings.composition.sort,
+                                Sort::Key,
+                                Sort::Key.text(),
+                            )
+                            .on_hover_text(Sort::Key.hover_text());
+                            ui.selectable_value(
+                                &mut context.settings.composition.sort,
+                                Sort::Value,
+                                Sort::Value.text(),
+                            )
+                            .on_hover_text(Sort::Value.hover_text());
+                        })
+                        .response
+                        .on_hover_text(context.settings.composition.sort.hover_text());
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Order:");
+                    ComboBox::from_id_source("order")
+                        .selected_text(context.settings.composition.order.text())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut context.settings.composition.order,
+                                Order::Ascending,
+                                Order::Ascending.text(),
+                            )
+                            .on_hover_text(Order::Ascending.hover_text());
+                            ui.selectable_value(
+                                &mut context.settings.composition.order,
+                                Order::Descending,
+                                Order::Descending.text(),
+                            )
+                            .on_hover_text(Order::Descending.hover_text());
+                        })
+                        .response
+                        .on_hover_text(context.settings.composition.order.hover_text());
+                });
+                ui.separator();
+                ui.collapsing(RichText::new("🔎 Filter").heading(), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("SN:").on_hover_text("Stereochemical number");
+                        ui.filter_combobox(context, Sn::One);
+                        ui.filter_combobox(context, Sn::Two);
+                        ui.filter_combobox(context, Sn::Three);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Value:");
+                        ui.add(
+                            Slider::new(&mut context.settings.composition.filter.value, 0.0..=1.0)
+                                .logarithmic(true)
+                                .custom_formatter(|mut value, _| {
+                                    let mut precision = 7;
+                                    if context.settings.composition.percent {
+                                        value *= 100.0;
+                                        precision = 5;
+                                    }
+                                    format!("{value:.precision$}")
+                                })
+                                .custom_parser(|value| {
+                                    let mut parsed = value.parse::<f64>().ok()?;
+                                    if context.settings.composition.percent {
+                                        parsed /= 100.0;
+                                    }
+                                    Some(parsed)
+                                }),
+                        );
+                    });
+                });
+                // ui.collapsing(RichText::new("🔤 Sort").heading(), |ui| {
+                //     ui.horizontal(|ui| {
+                //         ui.label("By:");
+                //         ComboBox::from_id_source("by")
+                //             .selected_text(context.settings.composition.sort.to_string())
+                //             .show_ui(ui, |ui| {
+                //                 ui.selectable_value(
+                //                     &mut context.settings.composition.sort,
+                //                     Sort::Key,
+                //                     Sort::Key.to_string(),
+                //                 )
+                //                 .on_hover_text(Sort::Key.description());
+                //                 ui.selectable_value(
+                //                     &mut context.settings.composition.sort,
+                //                     Sort::Value,
+                //                     Sort::Value.to_string(),
+                //                 )
+                //                 .on_hover_text(Sort::Value.description());
+                //             });
+                //         ui.label("Order:");
+                //         ComboBox::from_id_source("order")
+                //             .selected_text(context.settings.composition.order.to_string())
+                //             .show_ui(ui, |ui| {
+                //                 ui.selectable_value(
+                //                     &mut context.settings.composition.order,
+                //                     Ascending,
+                //                     format!("{Ascending:#}"),
+                //                 )
+                //                 .on_hover_text(Ascending.description());
+                //                 ui.selectable_value(
+                //                     &mut context.settings.composition.order,
+                //                     Descending,
+                //                     format!("{Descending:#}"),
+                //                 )
+                //                 .on_hover_text(Descending.description());
+                //             })
+                //             .response
+                //             .on_hover_text(context.settings.comparison.order.description());
+                //     });
+                // });
+            },
+        );
+    }
+}
 
 /// Filter combobox
 trait FilterCombobox {
@@ -57,9 +228,9 @@ impl FilterCombobox for Ui {
         let Filter { sn1, sn2, sn3, .. } = &mut context.settings.composition.filter;
         let mut changed = false;
         ComboBox::from_id_source(sn)
-            .selected_text(sn.to_string())
+            .selected_text(sn.text())
             .show_ui(self, |ui| {
-                for (index, label) in context.state.meta.labels.iter().enumerate() {
+                for (index, label) in context.state.entry().meta.labels.iter().enumerate() {
                     let mut checked = match sn {
                         Sn::One => !sn1.contains(&index),
                         Sn::Two => !sn2.contains(&index),
@@ -123,7 +294,7 @@ impl FilterCombobox for Ui {
                     }
                     ui.close_menu();
                 } else if ui.button("Uncheck all").clicked() {
-                    let all = (0..context.state.meta.labels.len()).collect();
+                    let all = (0..context.state.entry().meta.labels.len()).collect();
                     match sn {
                         Sn::One | Sn::Three if !context.settings.composition.mirror => {
                             *sn1 = all;
@@ -146,153 +317,5 @@ impl FilterCombobox for Ui {
             let popup_id = self.make_persistent_id(Id::new(sn)).with("popup");
             self.memory_mut(|memory| memory.open_popup(popup_id));
         }
-    }
-}
-
-/// Left composition tab
-pub(super) struct Composition<'a> {
-    pub(super) context: &'a mut Context,
-}
-
-impl<'a> Composition<'a> {
-    pub(super) fn new(context: &'a mut Context) -> Self {
-        Self { context }
-    }
-}
-
-impl View for Composition<'_> {
-    fn view(self, ui: &mut Ui) {
-        let Self { context } = self;
-        ui.collapsing(RichText::new("⛃ Composition").heading(), |ui| {
-            ui.horizontal(|ui| {
-                ui.toggle_value(&mut context.settings.composition.resizable, "↔ Resizable")
-                    .on_hover_text("Resize table columns")
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Precision:");
-                ui.add(Slider::new(
-                    &mut context.settings.composition.precision,
-                    0..=MAX_PRECISION,
-                ));
-            });
-            ui.horizontal(|ui| {
-                ui.label("Percent:");
-                ui.checkbox(&mut context.settings.composition.percent, "");
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Columns:");
-                let mut ptc = context.settings.composition.is_positional_type();
-                ptc ^= ui
-                    .selectable_label(ptc, "PTC")
-                    .on_hover_text("Positional-type composition")
-                    .clicked();
-                let mut psc = context.settings.composition.is_positional_species();
-                psc ^= ui
-                    .selectable_label(psc, "PSC")
-                    .on_hover_text("Positional-species composition")
-                    .clicked();
-                context.settings.composition.positional = if ptc && psc {
-                    None
-                } else if ptc {
-                    Some(Positional::Type)
-                } else if psc {
-                    Some(Positional::Species)
-                } else {
-                    context
-                        .settings
-                        .composition
-                        .positional
-                        .map(|positional| match positional {
-                            Positional::Type => Positional::Species,
-                            Positional::Species => Positional::Type,
-                        })
-                };
-                if ui
-                    .checkbox(&mut context.settings.composition.mirror, "Mirror")
-                    .changed()
-                    && !context.settings.composition.mirror
-                {
-                    context.settings.composition.filter.sn1.clear();
-                    context.settings.composition.filter.sn3.clear();
-                }
-                ui.toggle_value(&mut context.settings.composition.ecn, "ECN")
-                    .on_hover_text("ECN (equivalent carbon number)");
-                ui.toggle_value(&mut context.settings.composition.mass, "Mass");
-            });
-            ui.collapsing(RichText::new("🔎 Filter").heading(), |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("SN:").on_hover_text("Stereochemical number");
-                    ui.filter_combobox(context, Sn::One);
-                    ui.filter_combobox(context, Sn::Two);
-                    ui.filter_combobox(context, Sn::Three);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Value:");
-                    ui.add(
-                        Slider::new(&mut context.settings.composition.filter.value, 0.0..=1.0)
-                            .logarithmic(true)
-                            .custom_formatter(|mut value, _| {
-                                let mut precision = 7;
-                                if context.settings.composition.percent {
-                                    value *= 100.0;
-                                    precision = 5;
-                                }
-                                format!("{value:.precision$}")
-                            })
-                            .custom_parser(|value| {
-                                let mut parsed = value.parse::<f64>().ok()?;
-                                if context.settings.composition.percent {
-                                    parsed /= 100.0;
-                                }
-                                Some(parsed)
-                            }),
-                    );
-                });
-            });
-            ui.collapsing(RichText::new("🔤 Sort").heading(), |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("By:");
-                    ComboBox::from_id_source("by")
-                        .selected_text(context.settings.composition.sort.to_string())
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut context.settings.composition.sort,
-                                Sort::Tag,
-                                "Tag",
-                            )
-                            .on_hover_text("Sort by type and species");
-                            ui.selectable_value(
-                                &mut context.settings.composition.sort,
-                                Sort::Value,
-                                "Value",
-                            )
-                            .on_hover_text("Sort by value");
-                            ui.selectable_value(
-                                &mut context.settings.composition.sort,
-                                Sort::Ecn,
-                                "Ecn",
-                            )
-                            .on_hover_text("Sort by ECN (Equivalent Carbon Number)");
-                        });
-                    ui.label("Order:");
-                    ComboBox::from_id_source("order")
-                        .selected_text(context.settings.composition.order.to_string())
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut context.settings.composition.order,
-                                Order::Ascending,
-                                "⬊ Ascending",
-                            );
-                            ui.selectable_value(
-                                &mut context.settings.composition.order,
-                                Order::Descending,
-                                "⬈ Descending",
-                            );
-                        });
-                });
-            });
-        });
     }
 }

@@ -137,66 +137,6 @@ impl App {
                         );
                 },
             );
-
-        // SidePanel::left("left_panel")
-        //     .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(0.0))
-        //     .resizable(true)
-        //     .show_animated(ctx, self.settings, |ui| {
-        //         // ui.heading("⚙ Settings");
-        //         // ui.separator();
-        //         // if let Some((_, tab)) = self.central_panel.tree.find_active_focused() {
-        //         //     match *tab {
-        //         //         Tab::Input => {
-        //         //             self.tabs.input.settings(ui);
-        //         //             ui.separator();
-        //         //             ui.vertical_centered_justified(|ui| {
-        //         //                 if ui.button(RichText::new("🖩 Calculate").heading()).clicked() {
-        //         //                     let tab = self.tabs.calculation();
-        //         //                     self.tree.push_to_focused_leaf(tab);
-        //         //                 }
-        //         //             });
-        //         //         }
-        //         //         Tab::Output(Output::Calculation { index }) => {
-        //         //             self.tabs
-        //         //                 .calculations
-        //         //                 .get_mut(&index)
-        //         //                 .map(|calculation| calculation.settings(ui));
-        //         //             ui.separator();
-        //         //             ui.vertical_centered_justified(|ui| {
-        //         //                 if ui.button(RichText::new("Compose").heading()).clicked() {
-        //         //                     let tab = self.tabs.composition(index);
-        //         //                     self.tree.push_to_focused_leaf(tab);
-        //         //                 }
-        //         //             });
-        //         //         }
-        //         //         Tab::Output(Output::Composition { index }) => {
-        //         //             self.tabs
-        //         //                 .compositions
-        //         //                 .get_mut(&index)
-        //         //                 .map(|composition| composition.settings(ui));
-        //         //             ui.separator();
-        //         //             ui.vertical_centered_justified(|ui| {
-        //         //                 if ui.button(RichText::new("📊 Visualize").heading()).clicked() {
-        //         //                     self.tree
-        //         //                         .push_to_first_leaf(Tab::Output(Output::Visualization {
-        //         //                             index,
-        //         //                         }));
-        //         //                 }
-        //         //             });
-        //         //         }
-        //         //         Tab::Output(Output::Visualization { index }) => {
-        //         //             self.tabs.visualization.settings(ui);
-        //         //         }
-        //         //     }
-        //         // }
-        //         let mut style = Style::from_egui(&ctx.style());
-        //         style.tabs.fill_tab_bar = true;
-        //         DockArea::new(&mut self.docks.left.tree)
-        //             .id(Id::new("left_dock"))
-        //             .scroll_area_in_tabs(false)
-        //             .style(style)
-        //             .show_inside(ui, &mut self.docks.left.tabs);
-        //     });
     }
 
     // Top panel
@@ -204,170 +144,172 @@ impl App {
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             bar(ui, |ui| {
                 ui.visuals_mut().button_frame = false;
-
-                ui.group(|ui| {
-                    global_dark_light_mode_switch(ui);
-                });
+                global_dark_light_mode_switch(ui);
                 ui.separator();
-                ui.group(|ui| {
-                    if ui
-                        .add(Button::new(RichText::new("🗑")))
-                        .on_hover_text("Reset data")
-                        .clicked()
-                    {
-                        *self = Self {
-                            docks: take(&mut self.docks),
-                            ..Default::default()
-                        };
-                    }
-                    // Reset gui
-                    if ui
-                        .add(Button::new(RichText::new("🔃")))
-                        .on_hover_text("Reset gui")
-                        .clicked()
-                    {
-                        ui.with_visuals(|ui, _| {
-                            ui.memory_mut(|memory| *memory = Default::default())
-                        });
-                    }
-                    // Organize windows
-                    if ui
-                        .add(Button::new(RichText::new("▣")))
-                        .on_hover_text("Organize windows")
-                        .clicked()
-                    {
-                        self.docks.left = Default::default();
-                        self.docks.central = Default::default();
-                        ui.ctx().memory_mut(|memory| memory.reset_areas());
-                    }
-                });
+                if ui
+                    .add(Button::new(RichText::new("🗑")))
+                    .on_hover_text("Reset data")
+                    .clicked()
+                {
+                    *self = Self {
+                        docks: take(&mut self.docks),
+                        ..Default::default()
+                    };
+                }
+                // Reset gui
+                if ui
+                    .add(Button::new(RichText::new("🔃")))
+                    .on_hover_text("Reset gui")
+                    .clicked()
+                {
+                    ui.with_visuals(|ui, _| ui.memory_mut(|memory| *memory = Default::default()));
+                }
+                // Organize windows
+                if ui
+                    .add(Button::new(RichText::new("▣")))
+                    .on_hover_text("Organize windows")
+                    .clicked()
+                {
+                    self.docks.left = Default::default();
+                    self.docks.central = Default::default();
+                    ui.ctx().memory_mut(|memory| memory.reset_areas());
+                }
                 ui.separator();
-
                 #[derive(Clone, Copy, Debug, PartialEq)]
                 enum Format {
                     Toml,
                 }
-                ui.group(|ui| {
-                    // Import file
-                    if ui.button("📤").on_hover_text("Import file").clicked() {
-                        if let Err(error) = self.import() {
-                            error!(?error);
+                // Import file
+                if ui.button("📤").on_hover_text("Import file").clicked() {
+                    if let Err(error) = self.import() {
+                        error!(?error);
+                    }
+                }
+                if let Some(bytes) = self.file_dialog.take() {
+                    match String::from_utf8(bytes) {
+                        Err(error) => {
+                            error!(%error);
+                            return;
+                        }
+                        Ok(content) => {
+                            trace!(?content);
+                            let parsed = match content.parse() {
+                                Ok(file) => file,
+                                Err(error) => {
+                                    error!(%error);
+                                    return;
+                                }
+                            };
+                            trace!(?parsed);
+                            self.context.init(parsed);
                         }
                     }
-                    if let Some(bytes) = self.file_dialog.take() {
-                        match String::from_utf8(bytes) {
-                            Err(error) => {
-                                error!(%error);
-                                return;
-                            }
-                            Ok(content) => {
-                                trace!(?content);
-                                let parsed = match content.parse() {
-                                    Ok(file) => file,
-                                    Err(error) => {
-                                        error!(%error);
-                                        return;
-                                    }
-                                };
-                                trace!(?parsed);
-                                self.context.init(ctx, parsed);
-                            }
-                        }
+                }
+                let mut format = Format::Toml;
+                ComboBox::from_id_source("export")
+                    .selected_text(format!("{format:?}"))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut format, Format::Toml, "Toml");
+                    });
+                // Export file
+                if ui.button("📥").on_hover_text("Export file").clicked() {
+                    if let Err(error) = self.export() {
+                        error!(?error);
                     }
-                    let mut format = Format::Toml;
-                    ComboBox::from_id_source("export")
-                        .selected_text(format!("{format:?}"))
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut format, Format::Toml, "Toml");
-                        });
-                    // Export file
-                    if ui.button("📥").on_hover_text("Export file").clicked() {
-                        if let Err(error) = self.export() {
-                            error!(?error);
-                        }
-                    }
-                });
+                }
                 ui.separator();
-                ui.group(|ui| {
-                    // Settings
-                    let checked = self.docks.left.state.find_tab(&LeftTab::Settings).is_some();
-                    if ui
-                        .selectable_label(checked, RichText::new("⚙"))
-                        .on_hover_text("Settings")
-                        .clicked()
-                    {
-                        self.docks.left.toggle(LeftTab::Settings);
-                    }
-                    // Files
-                    let checked = self.docks.left.state.find_tab(&LeftTab::Files).is_some();
-                    let text = if checked { "📂" } else { "📁" };
-                    if ui
-                        .selectable_label(checked, RichText::new(text))
-                        .on_hover_text("Files")
-                        .clicked()
-                    {
-                        self.docks.left.toggle(LeftTab::Files);
-                    }
-                });
+                // Settings
+                let tab = LeftTab::Settings;
+                let checked = self.docks.left.state.find_tab(&tab).is_some();
+                if ui
+                    .selectable_label(checked, tab.sign())
+                    .on_hover_text(tab.to_string())
+                    .clicked()
+                {
+                    self.docks.left.toggle(tab);
+                }
+                // Files
+                let tab = LeftTab::Files;
+                let checked = self.docks.left.state.find_tab(&tab).is_some();
+                let text = if checked { "📂" } else { "📁" };
+                if ui
+                    .selectable_label(checked, RichText::new(text))
+                    .on_hover_text(tab.to_string())
+                    .clicked()
+                {
+                    self.docks.left.toggle(tab);
+                }
                 ui.separator();
-                ui.group(|ui| {
-                    // Configuration
-                    let tab = CentralTab::Configuration;
-                    let found = self.docks.central.find_tab(&tab);
-                    if ui
-                        .selectable_label(found.is_some(), RichText::new("📝"))
-                        .on_hover_text("Configuration")
-                        .clicked()
-                    {
-                        if let Some(index) = found {
-                            self.docks.central.remove_tab(index);
-                        } else {
-                            self.docks.central.push_to_focused_leaf(tab);
-                        }
+                // Configuration
+                let tab = CentralTab::Configuration;
+                let found = self.docks.central.find_tab(&tab);
+                if ui
+                    .selectable_label(found.is_some(), tab.sign())
+                    .on_hover_text(tab.to_string())
+                    .clicked()
+                {
+                    if let Some(index) = found {
+                        self.docks.central.remove_tab(index);
+                    } else {
+                        self.docks.central.push_to_focused_leaf(tab);
                     }
-                    // Calculation
-                    let tab = CentralTab::Calculation;
-                    let found = self.docks.central.find_tab(&tab);
-                    if ui
-                        .selectable_label(found.is_some(), RichText::new("🖩"))
-                        .on_hover_text("Calculation")
-                        .clicked()
-                    {
-                        if let Some(index) = found {
-                            self.docks.central.remove_tab(index);
-                        } else {
-                            self.docks.central.push_to_focused_leaf(tab);
-                        }
+                }
+                // Calculation
+                let tab = CentralTab::Calculation;
+                let found = self.docks.central.find_tab(&tab);
+                if ui
+                    .selectable_label(found.is_some(), tab.sign())
+                    .on_hover_text(tab.to_string())
+                    .clicked()
+                {
+                    if let Some(index) = found {
+                        self.docks.central.remove_tab(index);
+                    } else {
+                        self.docks.central.push_to_focused_leaf(tab);
                     }
-                    // Composition
-                    let tab = CentralTab::Composition;
-                    let found = self.docks.central.find_tab(&tab);
-                    if ui
-                        .selectable_label(found.is_some(), RichText::new("⛃"))
-                        .on_hover_text("Composition")
-                        .clicked()
-                    {
-                        if let Some(index) = found {
-                            self.docks.central.remove_tab(index);
-                        } else {
-                            self.docks.central.push_to_focused_leaf(tab);
-                        }
+                }
+                // Composition
+                let tab = CentralTab::Composition;
+                let found = self.docks.central.find_tab(&tab);
+                if ui
+                    .selectable_label(found.is_some(), tab.sign())
+                    .on_hover_text(tab.to_string())
+                    .clicked()
+                {
+                    if let Some(index) = found {
+                        self.docks.central.remove_tab(index);
+                    } else {
+                        self.docks.central.push_to_focused_leaf(tab);
                     }
-                    // Visualization
-                    let tab = CentralTab::Visualization;
-                    let found = self.docks.central.find_tab(&tab);
-                    if ui
-                        .selectable_label(found.is_some(), RichText::new("📊"))
-                        .on_hover_text("Visualization")
-                        .clicked()
-                    {
-                        if let Some(index) = found {
-                            self.docks.central.remove_tab(index);
-                        } else {
-                            self.docks.central.push_to_focused_leaf(tab);
-                        }
+                }
+                // Comparison
+                let tab = CentralTab::Comparison;
+                let found = self.docks.central.find_tab(&tab);
+                if ui
+                    .selectable_label(found.is_some(), tab.sign())
+                    .on_hover_text(tab.to_string())
+                    .clicked()
+                {
+                    if let Some(index) = found {
+                        self.docks.central.remove_tab(index);
+                    } else {
+                        self.docks.central.push_to_focused_leaf(tab);
                     }
-                });
+                }
+                // Visualization
+                let tab = CentralTab::Visualization;
+                let found = self.docks.central.find_tab(&tab);
+                if ui
+                    .selectable_label(found.is_some(), tab.sign())
+                    .on_hover_text(tab.to_string())
+                    .clicked()
+                {
+                    if let Some(index) = found {
+                        self.docks.central.remove_tab(index);
+                    } else {
+                        self.docks.central.push_to_focused_leaf(tab);
+                    }
+                }
                 ui.separator();
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if ui
@@ -458,7 +400,7 @@ impl App {
                     }
                 };
                 trace!(?parsed);
-                self.context.init(ctx, parsed);
+                self.context.init(parsed);
             }
         }
     }
@@ -527,12 +469,15 @@ impl App {
 
     fn export(&self) -> Result<(), impl Debug> {
         let content = to_string(&TomlParsed {
-            name: self.context.state.meta.name.clone(),
-            fatty_acids: self.context.state.fatty_acids(),
+            name: self.context.state.entry().meta.name.clone(),
+            fatty_acids: self.context.state.entry().fatty_acids(),
         })
         .unwrap();
         self.file_dialog
-            .save(&format!("{}.toml", self.context.state.meta.name), content)
+            .save(
+                &format!("{}.toml", self.context.state.entry().meta.name),
+                content,
+            )
             .unwrap();
         Ok::<_, ()>(())
     }

@@ -34,7 +34,10 @@ impl View for Configuration<'_> {
         let combo_width = ui.spacing().combo_width;
         ui.horizontal_wrapped(|ui| {
             ui.label("Name:");
-            ui.add(TextEdit::singleline(&mut context.state.meta.name).desired_width(f32::INFINITY));
+            ui.add(
+                TextEdit::singleline(&mut context.state.entry_mut().meta.name)
+                    .desired_width(f32::INFINITY),
+            );
         });
         TableBuilder::new(ui)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
@@ -67,14 +70,16 @@ impl View for Configuration<'_> {
             })
             .body(|mut body| {
                 // Content
-                for index in 0..context.state.len() {
+                for index in 0..context.state.entry().len() {
                     let mut keep = true;
                     body.row(height, |mut row| {
                         row.col(|ui| {
-                            ui.text_edit_singleline(&mut context.state.meta.labels[index]);
+                            ui.text_edit_singleline(
+                                &mut context.state.entry_mut().meta.labels[index],
+                            );
                         });
                         row.col(|ui| {
-                            let formula = &mut context.state.meta.formulas[index];
+                            let formula = &mut context.state.entry_mut().meta.formulas[index];
                             let c = formula.count(C);
                             ComboBox::from_id_source(Id::new("c").with(index))
                                 .selected_text(c.to_string())
@@ -94,7 +99,7 @@ impl View for Configuration<'_> {
                                 .on_hover_text(format!("{formula} ({})", formula.weight(),));
                         });
                         row.col(|ui| {
-                            let formula = &mut context.state.meta.formulas[index];
+                            let formula = &mut context.state.entry_mut().meta.formulas[index];
                             let c = formula.count(C);
                             let u = formula.unsaturated();
                             ComboBox::from_id_source(Id::new("u").with(index))
@@ -112,7 +117,7 @@ impl View for Configuration<'_> {
                                 .response
                                 .on_hover_text(format!("{formula} ({})", formula.weight()));
                         });
-                        for unnormalized in context.state.data.unnormalized.iter_mut() {
+                        for unnormalized in context.state.entry_mut().data.unnormalized.iter_mut() {
                             row.col(|ui| {
                                 ui.with_layout(
                                     Layout::left_to_right(Align::Center)
@@ -142,8 +147,7 @@ impl View for Configuration<'_> {
                         });
                     });
                     if !keep {
-                        context.state.del(index);
-                        context.calculate(body.ui_mut().ctx());
+                        context.state.entry_mut().del(index);
                         break;
                     }
                 }
@@ -152,7 +156,7 @@ impl View for Configuration<'_> {
                 body.row(height, |mut row| {
                     row.cols(3, |_| {});
                     // ∑
-                    for unnormalized in context.state.data.unnormalized.iter() {
+                    for unnormalized in context.state.entry().data.unnormalized.iter() {
                         row.col(|ui| {
                             ui.with_layout(
                                 Layout::left_to_right(Align::Center)
@@ -176,8 +180,7 @@ impl View for Configuration<'_> {
                             .on_hover_text("Add row")
                             .clicked()
                         {
-                            context.state.add();
-                            context.calculate(ui.ctx());
+                            context.state.entry_mut().add();
                         }
                     });
                 });
