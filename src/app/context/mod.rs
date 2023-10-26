@@ -7,7 +7,10 @@ use crate::{acylglycerol::Tag, ecn::Ecn, parsers::toml::Parsed};
 use egui::Ui;
 use molecule::{Saturable, Saturation};
 use serde::{Deserialize, Serialize};
-use std::cmp::{max, min};
+use std::{
+    cmp::{max, min},
+    sync::Arc,
+};
 
 /// Context
 #[derive(Debug, Default, Deserialize, Hash, Serialize)]

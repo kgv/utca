@@ -19,10 +19,11 @@ use std::{
     cmp::{max, min, Reverse},
     hash::{Hash, Hasher},
     iter::repeat,
+    sync::Arc,
 };
 
 /// Composed
-pub(in crate::app) type Composed = FrameCache<Value, Composer>;
+pub(in crate::app) type Composed = FrameCache<Arc<Value>, Composer>;
 
 /// Composer
 #[derive(Default)]
@@ -34,8 +35,8 @@ pub(in crate::app) struct Composer;
 // [aba] = [a13]^2*[b2]
 // [abc] = [a13]*[b2]*[c13]
 // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
-impl ComputerMut<Key<'_>, Value> for Composer {
-    fn compute(&mut self, key: Key) -> Value {
+impl ComputerMut<Key<'_>, Arc<Value>> for Composer {
+    fn compute(&mut self, key: Key) -> Arc<Value> {
         let Key { context } = key;
         let dags13 = &context.state.entry().data.normalized.dags13;
         let mags2 = &context.state.entry().data.normalized.mags2;
@@ -71,17 +72,20 @@ impl ComputerMut<Key<'_>, Value> for Composer {
                         && !filter.sn3.contains(&tag[2])
                         && value >= filter.value
                 } else {
-                    (!filter.sn1.contains(&tag[0]) || !filter.sn3.contains(&tag[2]))
+                    // (!filter.sn1.contains(&tag[0]) || !filter.sn3.contains(&tag[2]))
+                    //     && !filter.sn2.contains(&tag[1])
+                    //     && value >= filter.value
+                    !(filter.sn1.contains(&tag[0]) && filter.sn3.contains(&tag[2]))
                         && !filter.sn2.contains(&tag[1])
                         && value >= filter.value
                 }
             });
             !values.is_empty()
         });
-        Value {
+        Arc::new(Value {
             unfiltered,
             filtered,
-        }
+        })
     }
 }
 

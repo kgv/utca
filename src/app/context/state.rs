@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
+    sync::Arc,
 };
 
 /// State
@@ -99,8 +100,8 @@ impl Meta {
 #[derive(Clone, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) struct Data {
     pub(in crate::app) unnormalized: Unnormalized,
-    pub(in crate::app) normalized: Normalized,
-    pub(in crate::app) composed: Composed,
+    pub(in crate::app) normalized: Arc<Normalized>,
+    pub(in crate::app) composed: Arc<Composed>,
 }
 
 /// Unnormalized data

@@ -7,19 +7,22 @@ use crate::{
     utils::Normalize,
 };
 use egui::util::cache::{ComputerMut, FrameCache};
-use std::hash::{Hash, Hasher};
+use std::{
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 use tracing::trace;
 
 /// Calculated
-pub(in crate::app) type Calculated = FrameCache<Value, Calculator>;
+pub(in crate::app) type Calculated = FrameCache<Arc<Value>, Calculator>;
 
 /// Calculator
 #[derive(Default)]
 pub(in crate::app) struct Calculator;
 
 // stereospecific numbering (1,2,3-TAGs; 1,2/2,3-DAGs; 2-MAGs; 1,3-DAGs).
-impl ComputerMut<Key<'_>, Value> for Calculator {
-    fn compute(&mut self, key: Key) -> Value {
+impl ComputerMut<Key<'_>, Arc<Value>> for Calculator {
+    fn compute(&mut self, key: Key) -> Arc<Value> {
         let Key { context } = key;
         let masses: Vec<_> = context
             .state
@@ -93,12 +96,12 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
                 .normalize(),
         };
         trace!(?dags13);
-        Value {
+        Arc::new(Value {
             tags123,
             dags1223,
             mags2,
             dags13,
-        }
+        })
     }
 }
 
