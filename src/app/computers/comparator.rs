@@ -16,6 +16,7 @@ use egui::{
     util::cache::{ComputerMut, FrameCache},
 };
 use indexmap::IndexMap;
+use itertools::Either::{Left, Right};
 use std::{
     cmp::Reverse,
     hash::{Hash, Hasher},
@@ -84,68 +85,155 @@ trait SortByKey {
 }
 
 impl SortByKey for IndexMap<Option<Group>, IndexMap<Tag<usize>, Vec<Option<f64>>>> {
+    // fn sort(&mut self, key: Key) {
+    //     let Key { context } = key;
+    //     match context.settings.comparison.order {
+    //         Order::Ascending => {
+    //             self.sort_by_cached_key(|&tag, _| tag);
+    //             self.values_mut()
+    //                 .for_each(|value| match context.settings.comparison.sort {
+    //                     Sort::Key => match context.settings.comparison.group {
+    //                         None => value.sort_by_cached_key(|&tag, _| tag),
+    //                         Some(Composition(Ecn)) => {
+    //                             value.sort_by_cached_key(|&tag, _| (context.ecn(tag), tag))
+    //                         }
+    //                         Some(Composition(Ptc)) => {
+    //                             value.sort_by_cached_key(|&tag, _| (context.r#type(tag), tag))
+    //                         }
+    //                         Some(Occurrence) => {
+    //                             value.sort_by_cached_key(|&tag, _| (context.occurrence(tag), tag))
+    //                         }
+    //                     },
+    //                     Sort::Value => match context.settings.comparison.mode {
+    //                         Mode::MinMax => value.sort_by_cached_key(|_, values| {
+    //                             values
+    //                                 .iter()
+    //                                 .filter_map(|value| value.map(FloatOrd::ord))
+    //                                 .min()
+    //                         }),
+    //                         Mode::Sum => value.sort_by_cached_key(|_, values| {
+    //                             values.iter().filter_map(|&value| value).sum::<f64>().ord()
+    //                         }),
+    //                     },
+    //                 });
+    //         }
+    //         Order::Descending => {
+    //             self.sort_by_cached_key(|&tag, _| Reverse(tag));
+    //             self.values_mut()
+    //                 .for_each(|value| match context.settings.comparison.sort {
+    //                     Sort::Key => match context.settings.comparison.group {
+    //                         None => value.sort_by_cached_key(|&tag, _| Reverse(tag)),
+    //                         Some(Composition(Ecn)) => value.sort_by_cached_key(|&tag, _| {
+    //                             (Reverse(context.ecn(tag)), Reverse(tag))
+    //                         }),
+    //                         Some(Composition(Ptc)) => value.sort_by_cached_key(|&tag, _| {
+    //                             (Reverse(context.r#type(tag)), Reverse(tag))
+    //                         }),
+    //                         Some(Occurrence) => value.sort_by_cached_key(|&tag, _| {
+    //                             (Reverse(context.occurrence(tag)), Reverse(tag))
+    //                         }),
+    //                     },
+    //                     Sort::Value => match context.settings.comparison.mode {
+    //                         Mode::MinMax => value.sort_by_cached_key(|_, values| {
+    //                             Reverse(
+    //                                 values
+    //                                     .iter()
+    //                                     .filter_map(|value| value.map(FloatOrd::ord))
+    //                                     .max(),
+    //                             )
+    //                         }),
+    //                         Mode::Sum => value.sort_by_cached_key(|_, values| {
+    //                             Reverse(values.iter().filter_map(|&value| value).sum::<f64>().ord())
+    //                         }),
+    //                     },
+    //                 });
+    //         }
+    //     }
+    // }
+
     fn sort(&mut self, key: Key) {
         let Key { context } = key;
-        match context.settings.comparison.order {
-            Order::Ascending => {
-                self.sort_by_cached_key(|&tag, _| tag);
-                self.values_mut()
-                    .for_each(|value| match context.settings.comparison.sort {
-                        Sort::Key => match context.settings.comparison.group {
-                            None => value.sort_by_cached_key(|&tag, _| tag),
-                            Some(Composition(Ecn)) => {
-                                value.sort_by_cached_key(|&tag, _| (context.ecn(tag), tag))
-                            }
-                            Some(Composition(Ptc)) => {
-                                value.sort_by_cached_key(|&tag, _| (context.r#type(tag), tag))
-                            }
-                            Some(Occurrence) => {
-                                value.sort_by_cached_key(|&tag, _| (context.occurrence(tag), tag))
-                            }
-                        },
-                        Sort::Value => match context.settings.comparison.mode {
-                            Mode::MinMax => value.sort_by_cached_key(|_, values| {
-                                values
-                                    .iter()
-                                    .filter_map(|value| value.map(FloatOrd::ord))
-                                    .min()
-                            }),
-                            Mode::Sum => value.sort_by_cached_key(|_, values| {
-                                values.iter().filter_map(|&value| value).sum::<f64>().ord()
-                            }),
-                        },
-                    });
+        match context.settings.comparison.sort {
+            Sort::Key => {
+                self.sort_by_cached_key(|&tag, _| match context.settings.comparison.order {
+                    Order::Ascending => Right(tag),
+                    Order::Descending => Left(Reverse(tag)),
+                })
             }
-            Order::Descending => {
-                self.sort_by_cached_key(|&tag, _| Reverse(tag));
-                self.values_mut()
-                    .for_each(|value| match context.settings.comparison.sort {
-                        Sort::Key => match context.settings.comparison.group {
-                            None => value.sort_by_cached_key(|&tag, _| Reverse(tag)),
-                            Some(Composition(Ecn)) => value.sort_by_cached_key(|&tag, _| {
-                                (Reverse(context.ecn(tag)), Reverse(tag))
-                            }),
-                            Some(Composition(Ptc)) => value.sort_by_cached_key(|&tag, _| {
-                                (Reverse(context.r#type(tag)), Reverse(tag))
-                            }),
-                            Some(Occurrence) => value.sort_by_cached_key(|&tag, _| {
-                                (Reverse(context.occurrence(tag)), Reverse(tag))
-                            }),
-                        },
-                        Sort::Value => match context.settings.comparison.mode {
-                            Mode::MinMax => value.sort_by_cached_key(|_, values| {
-                                Reverse(
-                                    values
-                                        .iter()
-                                        .filter_map(|value| value.map(FloatOrd::ord))
-                                        .max(),
-                                )
-                            }),
-                            Mode::Sum => value.sort_by_cached_key(|_, values| {
-                                Reverse(values.iter().filter_map(|&value| value).sum::<f64>().ord())
-                            }),
-                        },
-                    });
+            Sort::Value => match context.settings.comparison.mode {
+                Mode::MinMax => {
+                    // TODO
+                    // self.sort_by_cached_key(|_, values| {
+                    //     let values = values
+                    //         .values()
+                    //         .map(|t| t)
+                    //         .filter_map(|value| value.map(FloatOrd::ord));
+                    //     match context.settings.comparison.order {
+                    //         Order::Ascending => Right(values.min()),
+                    //         Order::Descending => Left(Reverse(values.max())),
+                    //     }
+                    // })
+                }
+                Mode::Sum => self.sort_by_cached_key(|_, values| {
+                    let sum = values
+                        .values()
+                        .flatten()
+                        .filter_map(|&value| value)
+                        .sum::<f64>()
+                        .ord();
+                    match context.settings.comparison.order {
+                        Order::Ascending => Right(sum),
+                        Order::Descending => Left(Reverse(sum)),
+                    }
+                }),
+            },
+        }
+        for values in self.values_mut() {
+            match context.settings.comparison.sort {
+                Sort::Key => match context.settings.comparison.group {
+                    None => values.sort_by_cached_key(|&tag, _| {
+                        match context.settings.comparison.order {
+                            Order::Ascending => Right(tag),
+                            Order::Descending => Left(Reverse(tag)),
+                        }
+                    }),
+                    Some(Composition(Ecn)) => values.sort_by_cached_key(|&tag, _| {
+                        match context.settings.comparison.order {
+                            Order::Ascending => Right((context.ecn(tag), tag)),
+                            Order::Descending => Left((Reverse(context.ecn(tag)), Reverse(tag))),
+                        }
+                    }),
+                    Some(Composition(Ptc)) => values.sort_by_cached_key(|&tag, _| {
+                        match context.settings.comparison.order {
+                            Order::Ascending => Right((context.r#type(tag), tag)),
+                            Order::Descending => Left((Reverse(context.r#type(tag)), Reverse(tag))),
+                        }
+                    }),
+                    Some(Occurrence) => values.sort_by_cached_key(|&tag, _| {
+                        match context.settings.comparison.order {
+                            Order::Ascending => Right((context.occurrence(tag), tag)),
+                            Order::Descending => {
+                                Left((Reverse(context.occurrence(tag)), Reverse(tag)))
+                            }
+                        }
+                    }),
+                },
+                Sort::Value => match context.settings.comparison.mode {
+                    Mode::MinMax => values.sort_by_cached_key(|_, values| {
+                        let values = values.iter().filter_map(|value| value.map(FloatOrd::ord));
+                        match context.settings.comparison.order {
+                            Order::Ascending => Right(values.min()),
+                            Order::Descending => Left(Reverse(values.max())),
+                        }
+                    }),
+                    Mode::Sum => values.sort_by_cached_key(|_, values| {
+                        let sum = values.iter().filter_map(|&value| value).sum::<f64>().ord();
+                        match context.settings.comparison.order {
+                            Order::Ascending => Right(sum),
+                            Order::Descending => Left(Reverse(sum)),
+                        }
+                    }),
+                },
             }
         }
     }

@@ -183,46 +183,6 @@ impl View for Composition<'_> {
                         ui.checkbox(&mut context.settings.composition.symmetrical, "Symmetrical");
                     });
                 });
-                // ui.collapsing(RichText::new("🔤 Sort").heading(), |ui| {
-                //     ui.horizontal(|ui| {
-                //         ui.label("By:");
-                //         ComboBox::from_id_source("by")
-                //             .selected_text(context.settings.composition.sort.to_string())
-                //             .show_ui(ui, |ui| {
-                //                 ui.selectable_value(
-                //                     &mut context.settings.composition.sort,
-                //                     Sort::Key,
-                //                     Sort::Key.to_string(),
-                //                 )
-                //                 .on_hover_text(Sort::Key.description());
-                //                 ui.selectable_value(
-                //                     &mut context.settings.composition.sort,
-                //                     Sort::Value,
-                //                     Sort::Value.to_string(),
-                //                 )
-                //                 .on_hover_text(Sort::Value.description());
-                //             });
-                //         ui.label("Order:");
-                //         ComboBox::from_id_source("order")
-                //             .selected_text(context.settings.composition.order.to_string())
-                //             .show_ui(ui, |ui| {
-                //                 ui.selectable_value(
-                //                     &mut context.settings.composition.order,
-                //                     Ascending,
-                //                     format!("{Ascending:#}"),
-                //                 )
-                //                 .on_hover_text(Ascending.description());
-                //                 ui.selectable_value(
-                //                     &mut context.settings.composition.order,
-                //                     Descending,
-                //                     format!("{Descending:#}"),
-                //                 )
-                //                 .on_hover_text(Descending.description());
-                //             })
-                //             .response
-                //             .on_hover_text(context.settings.comparison.order.description());
-                //     });
-                // });
             },
         );
     }

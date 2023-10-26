@@ -14,7 +14,10 @@ use egui::{
     util::cache::{ComputerMut, FrameCache},
 };
 use indexmap::IndexMap;
-use itertools::Itertools;
+use itertools::{
+    Either::{Left, Right},
+    Itertools,
+};
 use std::{
     cmp::{max, min, Reverse},
     hash::{Hash, Hasher},
@@ -115,38 +118,48 @@ trait SortByKey {
 impl SortByKey for Map {
     fn sort(&mut self, key: Key) {
         let Key { context } = key;
-        match context.settings.composition.order {
-            Order::Ascending => {
-                self.sort_by_cached_key(|&tag, _| tag);
-                self.values_mut()
-                    .for_each(|value| match context.settings.composition.sort {
-                        Sort::Key => match context.settings.composition.group {
-                            None => value.sort_by_cached_key(|&tag, _| tag),
-                            Some(Ecn) => {
-                                value.sort_by_cached_key(|&tag, _| (context.ecn(tag), tag))
-                            }
-                            Some(Ptc) => {
-                                value.sort_by_cached_key(|&tag, _| (context.r#type(tag), tag))
-                            }
-                        },
-                        Sort::Value => value.sort_by_cached_key(|_, value| value.ord()),
-                    });
+        match context.settings.composition.sort {
+            Sort::Key => {
+                self.sort_by_cached_key(|&tag, _| match context.settings.composition.order {
+                    Order::Ascending => Right(tag),
+                    Order::Descending => Left(Reverse(tag)),
+                })
             }
-            Order::Descending => {
-                self.sort_by_cached_key(|&tag, _| Reverse(tag));
-                self.values_mut()
-                    .for_each(|value| match context.settings.composition.sort {
-                        Sort::Key => match context.settings.composition.group {
-                            None => value.sort_by_cached_key(|&tag, _| Reverse(tag)),
-                            Some(Ecn) => value.sort_by_cached_key(|&tag, _| {
-                                (Reverse(context.ecn(tag)), Reverse(tag))
-                            }),
-                            Some(Ptc) => value.sort_by_cached_key(|&tag, _| {
-                                (Reverse(context.r#type(tag)), Reverse(tag))
-                            }),
-                        },
-                        Sort::Value => value.sort_by_cached_key(|_, value| Reverse(value.ord())),
-                    });
+            Sort::Value => {
+                self.sort_by_cached_key(|_, values| match context.settings.composition.order {
+                    Order::Ascending => Right(values.values().sum::<f64>().ord()),
+                    Order::Descending => Left(Reverse(values.values().sum::<f64>().ord())),
+                })
+            }
+        }
+        for values in self.values_mut() {
+            match context.settings.composition.sort {
+                Sort::Key => match context.settings.composition.group {
+                    None => values.sort_by_cached_key(|&tag, _| {
+                        match context.settings.composition.order {
+                            Order::Ascending => Right(tag),
+                            Order::Descending => Left(Reverse(tag)),
+                        }
+                    }),
+                    Some(Ecn) => values.sort_by_cached_key(|&tag, _| {
+                        match context.settings.composition.order {
+                            Order::Ascending => Right((context.ecn(tag), tag)),
+                            Order::Descending => Left((Reverse(context.ecn(tag)), Reverse(tag))),
+                        }
+                    }),
+                    Some(Ptc) => values.sort_by_cached_key(|&tag, _| {
+                        match context.settings.composition.order {
+                            Order::Ascending => Right((context.r#type(tag), tag)),
+                            Order::Descending => Left((Reverse(context.r#type(tag)), Reverse(tag))),
+                        }
+                    }),
+                },
+                Sort::Value => {
+                    values.sort_by_cached_key(|_, value| match context.settings.composition.order {
+                        Order::Ascending => Right(value.ord()),
+                        Order::Descending => Left(Reverse(value.ord())),
+                    })
+                }
             }
         }
     }

@@ -30,8 +30,9 @@ impl<'a> Visualization<'a> {
 
 impl View for Visualization<'_> {
     fn view(self, ui: &mut Ui) {
-        // let height = ui.text_style_height(&TextStyle::Heading);
         let Self { context } = self;
+        context.compose(ui);
+        // let height = ui.text_style_height(&TextStyle::Heading);
         let mut plot = Plot::new("plot");
         if context.settings.visualization.legend {
             plot = plot.legend(Default::default());
@@ -97,31 +98,34 @@ impl View for Visualization<'_> {
                         }
                         let argument = x.unwrap_or(index);
                         let name = context.species(tag);
-                        let bar = Bar::new(argument as f64, value)
-                            .name(name)
-                            .base_offset(offset);
+                        let mut bar = Bar::new(argument as f64, value).name(name);
+                        if let Some(x) = x {
+                            bar = bar.base_offset(offset);
+                        }
                         offset += value;
                         bar
                     })
                     .collect();
-                let chart = BarChart::new(bars)
-                    // .color(color(y))
-                    .width(context.settings.visualization.width)
-                    .name(x.unwrap_or_default());
+                let mut chart = BarChart::new(bars);
+                if let Some(x) = x {
+                    chart = chart.color(color(x)).name(x);
+                }
+                chart = chart.width(context.settings.visualization.width);
                 ui.bar_chart(chart);
-                ui.text(
-                    Text::new(
-                        PlotPoint::new(x.unwrap_or_default() as f64, offset),
-                        RichText::new(format!(
-                            "{offset:.*}",
-                            context.settings.visualization.precision
-                        ))
-                        .heading(),
-                    )
-                    // .color(color(ecn))
-                    .name(x.unwrap_or_default())
-                    .anchor(Align2::CENTER_BOTTOM),
+                // Text
+                let mut text = Text::new(
+                    PlotPoint::new(x.unwrap_or_default() as f64, offset),
+                    RichText::new(format!(
+                        "{offset:.*}",
+                        context.settings.visualization.precision
+                    ))
+                    .heading(),
                 );
+                if let Some(x) = x {
+                    text = text.color(color(x)).name(x);
+                }
+                text = text.anchor(Align2::CENTER_BOTTOM);
+                ui.text(text);
             }
 
             // let mut group = None;
