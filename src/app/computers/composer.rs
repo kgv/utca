@@ -48,13 +48,13 @@ impl ComputerMut<Key<'_>, Arc<Value>> for Composer {
         {
             let value = dags13[indices[0]] * mags2[indices[1]] * dags13[indices[2]];
             let tag = if context.settings.composition.mirror {
-                Tag([indices[0], indices[1], indices[2]])
-            } else {
                 Tag([
                     min(indices[0], indices[2]),
                     indices[1],
                     max(indices[0], indices[2]),
                 ])
+            } else {
+                Tag([indices[0], indices[1], indices[2]])
             };
             let group = context.settings.composition.group.map(|group| match group {
                 Ecn => Group::Ecn(context.ecn(tag).sum()),
@@ -64,20 +64,16 @@ impl ComputerMut<Key<'_>, Arc<Value>> for Composer {
         }
         unfiltered.sort(key);
         let mut filtered = unfiltered.clone();
-        tracing::error!(?filter);
         filtered.retain(|_, values| {
             values.retain(|tag, &mut value| {
-                if context.settings.composition.mirror {
-                    !filter.sn1.contains(&tag[0])
-                        && !filter.sn2.contains(&tag[1])
-                        && !filter.sn3.contains(&tag[2])
-                        && value >= filter.value
-                } else {
-                    !filter.sn1.contains(&tag[0])
-                        && !filter.sn3.contains(&tag[2])
-                        && !filter.sn2.contains(&tag[1])
-                        && value >= filter.value
+                let mut keep = !filter.sn1.contains(&tag[0])
+                    && !filter.sn2.contains(&tag[1])
+                    && !filter.sn3.contains(&tag[2])
+                    && value >= filter.value;
+                if context.settings.composition.symmetrical {
+                    keep &= tag[0] == tag[2]
                 }
+                keep
             });
             !values.is_empty()
         });

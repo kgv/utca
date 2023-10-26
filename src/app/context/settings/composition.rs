@@ -17,6 +17,7 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) ecn: bool,
     pub(in crate::app) mass: bool,
     pub(in crate::app) mirror: bool,
+    pub(in crate::app) symmetrical: bool,
 
     pub(in crate::app) group: Option<Group>,
     pub(in crate::app) sort: Sort,
@@ -33,9 +34,10 @@ impl Default for Settings {
             percent: true,
             precision: 1,
 
-            mirror: false,
             ecn: false,
             mass: false,
+            mirror: true,
+            symmetrical: false,
 
             group: None,
             sort: Sort::Value,

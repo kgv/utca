@@ -63,14 +63,6 @@ impl View for Composition<'_> {
                     ui.toggle_value(&mut context.settings.composition.mass, "Mass");
                 });
                 ui.separator();
-                if ui
-                    .checkbox(&mut context.settings.composition.mirror, "Mirror")
-                    .changed()
-                    && !context.settings.composition.mirror
-                {
-                    context.settings.composition.filter.sn1.clear();
-                    context.settings.composition.filter.sn3.clear();
-                }
                 ui.horizontal(|ui| {
                     ui.label("Group:");
                     let response = ComboBox::from_id_source("group")
@@ -172,6 +164,24 @@ impl View for Composition<'_> {
                                 }),
                         );
                     });
+                    ui.horizontal(|ui| {
+                        ui.label("Modifications:");
+                        let response =
+                            ui.checkbox(&mut context.settings.composition.mirror, "Mirror");
+                        if response.changed() && context.settings.composition.mirror {
+                            context.settings.composition.filter.sn1 = context
+                                .settings
+                                .composition
+                                .filter
+                                .sn1
+                                .union(&context.settings.composition.filter.sn3)
+                                .copied()
+                                .collect();
+                            context.settings.composition.filter.sn3 =
+                                context.settings.composition.filter.sn1.clone();
+                        }
+                        ui.checkbox(&mut context.settings.composition.symmetrical, "Symmetrical");
+                    });
                 });
                 // ui.collapsing(RichText::new("🔤 Sort").heading(), |ui| {
                 //     ui.horizontal(|ui| {
@@ -240,7 +250,7 @@ impl FilterCombobox for Ui {
                         changed |= true;
                         if !checked {
                             match sn {
-                                Sn::One | Sn::Three if !context.settings.composition.mirror => {
+                                Sn::One | Sn::Three if context.settings.composition.mirror => {
                                     sn1.insert(index);
                                     sn3.insert(index);
                                 }
@@ -256,7 +266,7 @@ impl FilterCombobox for Ui {
                             }
                         } else {
                             match sn {
-                                Sn::One | Sn::Three if !context.settings.composition.mirror => {
+                                Sn::One | Sn::Three if context.settings.composition.mirror => {
                                     sn1.remove(&index);
                                     sn3.remove(&index);
                                 }
@@ -278,7 +288,7 @@ impl FilterCombobox for Ui {
             .context_menu(|ui| {
                 if ui.button("Check all").clicked() {
                     match sn {
-                        Sn::One | Sn::Three if !context.settings.composition.mirror => {
+                        Sn::One | Sn::Three if context.settings.composition.mirror => {
                             sn1.clear();
                             sn3.clear();
                         }
@@ -296,7 +306,7 @@ impl FilterCombobox for Ui {
                 } else if ui.button("Uncheck all").clicked() {
                     let all = (0..context.state.entry().meta.labels.len()).collect();
                     match sn {
-                        Sn::One | Sn::Three if !context.settings.composition.mirror => {
+                        Sn::One | Sn::Three if context.settings.composition.mirror => {
                             *sn1 = all;
                             *sn3 = sn1.clone();
                         }

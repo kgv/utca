@@ -86,25 +86,20 @@ impl Context {
     }
 
     pub(super) fn r#type(&self, tag: Tag<usize>) -> Tag<Saturation> {
-        Tag([
-            if self.settings.composition.mirror {
-                self.state.entry().meta.formulas[tag[0]].saturation()
-            } else {
-                min(
-                    self.state.entry().meta.formulas[tag[0]].saturation(),
-                    self.state.entry().meta.formulas[tag[2]].saturation(),
-                )
-            },
-            self.state.entry().meta.formulas[tag[1]].saturation(),
-            if self.settings.composition.mirror {
-                self.state.entry().meta.formulas[tag[2]].saturation()
-            } else {
-                max(
-                    self.state.entry().meta.formulas[tag[0]].saturation(),
-                    self.state.entry().meta.formulas[tag[2]].saturation(),
-                )
-            },
-        ])
+        let formulas = &self.state.entry().meta.formulas;
+        if self.settings.composition.mirror {
+            Tag([
+                min(formulas[tag[0]].saturation(), formulas[tag[2]].saturation()),
+                formulas[tag[1]].saturation(),
+                max(formulas[tag[0]].saturation(), formulas[tag[2]].saturation()),
+            ])
+        } else {
+            Tag([
+                formulas[tag[0]].saturation(),
+                formulas[tag[1]].saturation(),
+                formulas[tag[2]].saturation(),
+            ])
+        }
     }
 
     pub(super) fn mass(&self, tag: Tag<usize>) -> Tag<f64> {
