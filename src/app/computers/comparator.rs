@@ -19,17 +19,18 @@ use indexmap::IndexMap;
 use std::{
     cmp::Reverse,
     hash::{Hash, Hasher},
+    sync::Arc,
 };
 
 /// Compared
-pub(in crate::app) type Compared = FrameCache<Value, Comparator>;
+pub(in crate::app) type Compared = FrameCache<Arc<Value>, Comparator>;
 
 /// Comparator
 #[derive(Default)]
 pub(in crate::app) struct Comparator;
 
-impl ComputerMut<Key<'_>, Value> for Comparator {
-    fn compute(&mut self, key: Key) -> Value {
+impl ComputerMut<Key<'_>, Arc<Value>> for Comparator {
+    fn compute(&mut self, key: Key) -> Arc<Value> {
         let Key { context } = key;
         let mut compared: Map = IndexMap::new();
         let len = context.state.entries.len();
@@ -49,7 +50,7 @@ impl ComputerMut<Key<'_>, Value> for Comparator {
             }
         }
         compared.sort(key);
-        Value(compared)
+        Arc::new(Value(compared))
     }
 }
 

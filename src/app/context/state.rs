@@ -15,7 +15,7 @@ use std::{
 pub(in crate::app) struct State {
     pub(in crate::app) entries: Vec<Entry>,
     pub(in crate::app) index: usize,
-    pub(in crate::app) compared: Compared,
+    pub(in crate::app) compared: Arc<Compared>,
 }
 
 impl State {

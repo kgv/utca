@@ -64,6 +64,7 @@ impl ComputerMut<Key<'_>, Arc<Value>> for Composer {
         }
         unfiltered.sort(key);
         let mut filtered = unfiltered.clone();
+        tracing::error!(?filter);
         filtered.retain(|_, values| {
             values.retain(|tag, &mut value| {
                 if context.settings.composition.mirror {
@@ -72,10 +73,8 @@ impl ComputerMut<Key<'_>, Arc<Value>> for Composer {
                         && !filter.sn3.contains(&tag[2])
                         && value >= filter.value
                 } else {
-                    // (!filter.sn1.contains(&tag[0]) || !filter.sn3.contains(&tag[2]))
-                    //     && !filter.sn2.contains(&tag[1])
-                    //     && value >= filter.value
-                    !(filter.sn1.contains(&tag[0]) && filter.sn3.contains(&tag[2]))
+                    !filter.sn1.contains(&tag[0])
+                        && !filter.sn3.contains(&tag[2])
                         && !filter.sn2.contains(&tag[1])
                         && value >= filter.value
                 }
