@@ -24,7 +24,7 @@ impl View for Calculation<'_> {
     fn view(self, ui: &mut Ui) {
         let Self { context } = self;
         ui.collapsing(
-            RichText::new(CentralTab::Calculation.to_string()).heading(),
+            RichText::new(CentralTab::Calculation.title()).heading(),
             |ui| {
                 ui.horizontal(|ui| {
                     ui.toggle_value(&mut context.settings.calculation.resizable, "↔ Resizable")

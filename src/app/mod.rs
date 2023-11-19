@@ -268,6 +268,8 @@ impl App {
                         self.docks.central.push_to_focused_leaf(tab);
                     }
                 }
+                // Filtration
+                ui.selectable_label(false, "🔎").on_hover_text("Filtration");
                 // Composition
                 let tab = CentralTab::Composition;
                 let found = self.docks.central.find_tab(&tab);

@@ -1,15 +1,12 @@
-use crate::app::{
-    context::{settings::composition::Group, Context},
-    view::View,
+use crate::{
+    app::{context::Context, view::View},
+    tree::{Hierarchized, Hierarchy, Item},
 };
-use egui::{Align, Direction, InnerResponse, Layout, Ui};
+use egui::{Direction, Id, InnerResponse, Layout, Ui, WidgetText};
 use egui_ext::{ClickedLabel, CollapsingButton, TableBodyExt};
-use egui_extras::{Column, TableBuilder};
-use indexmap::IndexMap;
-use itertools::Itertools;
-use std::convert::identity;
+use egui_extras::{Column, Size, StripBuilder, TableBuilder};
 
-const COLUMNS: usize = 4;
+const COLUMNS: usize = 2;
 
 /// Central composition tab
 pub(super) struct Composition<'a> {
@@ -25,20 +22,14 @@ impl<'a> Composition<'a> {
 impl View for Composition<'_> {
     fn view(self, ui: &mut Ui) {
         let Self { context } = self;
+        let p = context.settings.composition.precision;
         context.compose(ui);
         let height = ui.spacing().interact_size.y;
-        let mut columns = COLUMNS;
-        if !context.settings.composition.ecn {
-            columns -= 1;
-        }
-        if !context.settings.composition.mass {
-            columns -= 1;
-        }
         let mut open = None;
         TableBuilder::new(ui)
             .auto_shrink([false; 2])
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
-            .columns(Column::auto(), columns)
+            .columns(Column::auto(), COLUMNS)
             .max_scroll_height(f32::NAN)
             .resizable(context.settings.composition.resizable)
             .striped(true)
@@ -46,7 +37,7 @@ impl View for Composition<'_> {
                 row.col(|ui| {
                     ui.clicked_heading("TAG")
                         .context_menu(|ui| {
-                            if context.settings.composition.group.is_some() {
+                            if !context.settings.composition.groups.is_empty() {
                                 if ui
                                     .button("Expand")
                                     .on_hover_text("Expand all groups")
@@ -70,34 +61,34 @@ impl View for Composition<'_> {
                                     ui.close_menu();
                                 }
                                 if ui.button("Groups").clicked() {
-                                    ui.output_mut(|output| {
-                                        output.copied_text = context
-                                            .state
-                                            .entry()
-                                            .data
-                                            .composed
-                                            .filtered
-                                            .keys()
-                                            .copied()
-                                            .filter_map(identity)
-                                            .join("\n");
-                                    });
+                                    // ui.output_mut(|output| {
+                                    //     output.copied_text = context
+                                    //         .state
+                                    //         .entry()
+                                    //         .data
+                                    //         .composed
+                                    //         .filtered
+                                    //         .keys()
+                                    //         .copied()
+                                    //         .filter_map(identity)
+                                    //         .join("\n");
+                                    // });
                                     ui.close_menu();
                                 }
                                 if ui.button("Items").clicked() {
-                                    ui.output_mut(|output| {
-                                        output.copied_text = context
-                                            .state
-                                            .entry()
-                                            .data
-                                            .composed
-                                            .filtered
-                                            .values()
-                                            .flat_map(|values| {
-                                                values.keys().map(|&tag| context.species(tag))
-                                            })
-                                            .join("\n");
-                                    });
+                                    // ui.output_mut(|output| {
+                                    //     output.copied_text = context
+                                    //         .state
+                                    //         .entry()
+                                    //         .data
+                                    //         .composed
+                                    //         .filtered
+                                    //         .values()
+                                    //         .flat_map(|values| {
+                                    //             values.keys().map(|&tag| context.species(tag))
+                                    //         })
+                                    //         .join("\n");
+                                    // });
                                     ui.close_menu();
                                 }
                             });
@@ -111,297 +102,164 @@ impl View for Composition<'_> {
                                 ui.close_menu();
                             }
                             if ui.button("Group values").clicked() {
-                                ui.output_mut(|output| {
-                                    output.copied_text = context
-                                        .state
-                                        .entry()
-                                        .data
-                                        .composed
-                                        .filtered
-                                        .values()
-                                        .map(|values| values.values().sum())
-                                        .format_with("\n", |mut value: f64, f| {
-                                            if context.settings.composition.percent {
-                                                value *= 100.0;
-                                            }
-                                            f(&format_args!(
-                                                "{value:.*}",
-                                                context.settings.composition.precision
-                                            ))
-                                        })
-                                        .to_string();
-                                });
+                                // ui.output_mut(|output| {
+                                //     output.copied_text = context
+                                //         .state
+                                //         .entry()
+                                //         .data
+                                //         .composed
+                                //         .filtered
+                                //         .values()
+                                //         .map(|values| values.values().sum())
+                                //         .format_with("\n", |mut value: f64, f| {
+                                //             if context.settings.composition.percent {
+                                //                 value *= 100.0;
+                                //             }
+                                //             f(&format_args!("{value:.p$}"))
+                                //         })
+                                //         .to_string();
+                                // });
                                 ui.close_menu();
                             };
                             if ui.button("Species values").clicked() {
-                                ui.output_mut(|output| {
-                                    output.copied_text = context
-                                        .state
-                                        .entry()
-                                        .data
-                                        .composed
-                                        .filtered
-                                        .values()
-                                        .flat_map(IndexMap::values)
-                                        .format_with("\n", |&(mut value), f| {
-                                            if context.settings.composition.percent {
-                                                value *= 100.0;
-                                            }
-                                            f(&format_args!(
-                                                "{value:.*}",
-                                                context.settings.composition.precision
-                                            ))
-                                        })
-                                        .to_string();
-                                });
+                                // ui.output_mut(|output| {
+                                //     output.copied_text = context
+                                //         .state
+                                //         .entry()
+                                //         .data
+                                //         .composed
+                                //         .filtered
+                                //         .values()
+                                //         .flat_map(IndexMap::values)
+                                //         .format_with("\n", |&(mut value), f| {
+                                //             if context.settings.composition.percent {
+                                //                 value *= 100.0;
+                                //             }
+                                //             f(&format_args!("{value:.p$}"))
+                                //         })
+                                //         .to_string();
+                                // });
                                 ui.close_menu();
                             }
                         });
                     });
                 });
-                if context.settings.composition.ecn {
-                    row.col(|ui| {
-                        ui.clicked_heading("ECN")
-                            .context_menu(|ui| {
-                                //         if ui.button("Copy ECN list").clicked() {
-                                //             ui.output_mut(|output| {
-                                //                 output.copied_text = context
-                                //                     .state
-                                //                     .entry()
-                                //                     .data
-                                //                     .composed
-                                //                     .filtered
-                                //                     .keys()
-                                //                     .map(|&tag| context.ecn(tag).sum())
-                                //                     .join("\n");
-                                //             });
-                                //             ui.close_menu();
-                                //         }
-                            })
-                            .on_hover_text("Equivalent carbon number");
-                    });
-                }
-                if context.settings.composition.mass {
-                    row.col(|ui| {
-                        ui.heading("Mass");
-                    });
-                }
             })
             .body(|mut body| {
-                for (group, values) in &context.state.entry().data.composed.filtered {
-                    let mut close = false;
-                    if let Some(group) = group {
-                        body.row(height, |mut row| {
-                            row.col(|ui| {
-                                let InnerResponse { inner, response } = CollapsingButton::new()
-                                    .text(group.to_string())
-                                    .open(open)
-                                    .show(ui);
-                                response.on_hover_text(values.len().to_string());
-                                close = !inner;
-                            });
-                            row.col(|ui| {
-                                let mut sum: f64 = values.values().sum();
-                                if context.settings.composition.percent {
-                                    sum *= 100.0;
-                                }
-                                ui.label(format!(
-                                    "{sum:.*}",
-                                    context.settings.composition.precision,
-                                ))
-                                .on_hover_text(sum.to_string());
-                            });
-                            if context.settings.composition.ecn {
-                                row.col(|ui| {
-                                    if let Some((min, max)) = values
-                                        .keys()
-                                        .map(|&tag| context.ecn(tag).sum())
-                                        .minmax()
-                                        .into_option()
-                                    {
-                                        ui.label(format!("[{min}, {max}]"));
-                                    }
-                                });
+                let mut close = false;
+                let mut path = vec![];
+                for Hierarchized(Hierarchy { level, index }, item) in
+                    context.state.entry().data.composed.hierarchy()
+                {
+                    match item {
+                        Item::Meta(meta) => {
+                            while path.len() > level {
+                                path.pop();
                             }
-                            if context.settings.composition.mass {
-                                row.col(|ui| {
-                                    if let Some((min, max)) = values
-                                        .keys()
-                                        .map(|&tag| context.mass(tag).sum())
-                                        .minmax()
-                                        .into_option()
-                                    {
-                                        ui.label(format!(
-                                            "[{min:.0$}, {max:.0$}]",
-                                            context.settings.composition.precision
-                                        ));
-                                    }
-                                });
+                            if let Some(group) = meta.group {
+                                path.push(group.to_string());
                             }
-                        });
-                    }
-                    if !close {
-                        for (&tag, &(mut value)) in values {
+                            // if close {
+                            //     continue;
+                            // }
                             body.row(height, |mut row| {
                                 row.col(|ui| {
-                                    let species = context.species(tag);
-                                    let response = ui.label(species.to_string());
-                                    if let Some(group) = context.settings.composition.group {
-                                        response.on_hover_text(match group {
-                                            Group::Ecn => format!("{:#}", context.ecn(tag)),
-                                            Group::Ptc => context.r#type(tag).to_string(),
+                                    let indent = ui.spacing().indent;
+                                    StripBuilder::new(ui)
+                                        .sizes(Size::exact(indent), level)
+                                        .size(Size::remainder())
+                                        .horizontal(|mut strip| {
+                                            for _ in 0..level {
+                                                strip.cell(|ui| {
+                                                    ui.separator();
+                                                });
+                                            }
+                                            strip.cell(|ui| {
+                                                let text = meta
+                                                    .group
+                                                    .map_or_else(Default::default, |group| {
+                                                        group.to_string()
+                                                    });
+                                                let id = Id::new(&path);
+                                                let InnerResponse { inner, response } =
+                                                    CollapsingButton::new(text)
+                                                        .id_source(id)
+                                                        .open(open)
+                                                        .show(ui);
+                                                let filtered = meta.count.filtered;
+                                                let unfiltered = meta.count.unfiltered;
+                                                let count = unfiltered - filtered;
+                                                response.on_hover_text(format!(
+                                                    "Count: {filtered} = {unfiltered} - {count}",
+                                                ));
+                                                close = !inner;
+                                            });
                                         });
-                                    }
                                 });
                                 row.col(|ui| {
+                                    let value = &meta.value;
+                                    let mut rounded = value.rounded;
+                                    let mut unrounded = value.unrounded;
+                                    if context.settings.comparison.percent {
+                                        rounded *= 100.0;
+                                        unrounded *= 100.0;
+                                    }
+                                    ui.label(format!("{rounded:.p$}"))
+                                        .on_hover_text(format!("Unrounded: {unrounded}"));
+                                });
+                            });
+                        }
+                        Item::Data(data) => {
+                            if close {
+                                continue;
+                            }
+                            body.row(height, |mut row| {
+                                row.col(|ui| {
+                                    let species = context.species(data.tag);
+                                    ui.label(species.to_string()).on_hover_ui(|ui| {
+                                        ui.label(format!("PTC: {}", context.ptc(data.tag)));
+                                        let ecn = context.ecn(data.tag);
+                                        ui.label(format!("ECN: {ecn:#} ({})", ecn.sum()));
+                                        let mass = context.mass(data.tag);
+                                        ui.label(format!("Mass: {mass:#.p$} ({:.p$})", mass.sum()));
+                                    });
+                                });
+                                row.col(|ui| {
+                                    let mut value = data.value;
                                     if context.settings.composition.percent {
                                         value *= 100.0;
                                     }
-                                    ui.label(format!(
-                                        "{value:.*}",
-                                        context.settings.composition.precision
-                                    ))
-                                    .on_hover_text(value.to_string());
+                                    ui.label(format!("{value:.p$}"))
+                                        .on_hover_text(format!("Unrounded: {value}"));
                                 });
-                                if context.settings.composition.ecn {
-                                    row.col(|ui| {
-                                        ui.with_layout(
-                                            Layout::left_to_right(Align::Center)
-                                                .with_main_align(Align::Center)
-                                                .with_main_justify(true),
-                                            |ui| {
-                                                let ecn = context.ecn(tag);
-                                                ui.label(ecn.sum().to_string())
-                                                    .on_hover_text(format!("{ecn:#}"));
-                                            },
-                                        );
-                                    });
-                                }
-                                if context.settings.composition.mass {
-                                    row.col(|ui| {
-                                        ui.with_layout(
-                                            Layout::left_to_right(Align::Center)
-                                                .with_main_align(Align::Center)
-                                                .with_main_justify(true),
-                                            |ui| {
-                                                let mass = context.mass(tag);
-                                                ui.label(format!(
-                                                    "{:.*}",
-                                                    context.settings.composition.precision,
-                                                    mass.sum(),
-                                                ))
-                                                .on_hover_text(format!(
-                                                    "{mass:#.*}",
-                                                    context.settings.composition.precision
-                                                ));
-                                            },
-                                        );
-                                    });
-                                }
                             });
                         }
                     }
                 }
                 // Footer
-                body.separate(height / 2.0, columns);
+                let meta = &context.state.entry().data.composed.meta;
+                body.separate(height / 2.0, COLUMNS);
                 body.row(height, |mut row| {
                     row.col(|ui| {
-                        let composed = &context.state.entry().data.composed;
-                        let unfiltered = composed
-                            .unfiltered
-                            .values()
-                            .flat_map(IndexMap::values)
-                            .count();
-                        let filtered = composed
-                            .filtered
-                            .values()
-                            .flat_map(IndexMap::values)
-                            .count();
+                        let filtered = meta.count.filtered;
+                        let unfiltered = meta.count.unfiltered;
                         let count = unfiltered - filtered;
                         ui.label(filtered.to_string()).on_hover_ui(|ui| {
-                            if context.settings.composition.group.is_some() {
-                                let unfiltered = composed.unfiltered.len();
-                                let filtered = composed.filtered.len();
-                                let count = unfiltered - filtered;
-                                ui.label(format!("{unfiltered} - {count} = {filtered}"));
-                            }
-                            ui.label(format!("{unfiltered} - {count} = {filtered}"));
+                            ui.label(format!("{filtered} = {unfiltered} - {count}"));
                         });
                     });
                     row.col(|ui| {
-                        let mut unfiltered: f64 = context
-                            .state
-                            .entry()
-                            .data
-                            .composed
-                            .unfiltered
-                            .values()
-                            .flat_map(IndexMap::values)
-                            .sum();
-                        let mut filtered: f64 = context
-                            .state
-                            .entry()
-                            .data
-                            .composed
-                            .filtered
-                            .values()
-                            .flat_map(IndexMap::values)
-                            .sum();
+                        let mut rounded = meta.value.rounded;
+                        let mut unrounded = meta.value.unrounded;
                         if context.settings.composition.percent {
-                            unfiltered *= 100.0;
-                            filtered *= 100.0;
+                            rounded *= 100.0;
+                            unrounded *= 100.0;
                         }
-                        let sum = unfiltered - filtered;
-                        ui.label(format!(
-                            "{filtered:.*}",
-                            context.settings.composition.precision
-                        ))
-                        .on_hover_text(format!(
-                            "{unfiltered:.0$} - {sum:.0$} = {filtered:.0$}",
-                            context.settings.composition.precision
-                        ));
+                        ui.label(format!("{rounded:.p$}"))
+                            .on_hover_text(unrounded.to_string());
                     });
-                    if context.settings.composition.ecn {
-                        row.col(|ui| {
-                            if let Some((min, max)) = context
-                                .state
-                                .entry()
-                                .data
-                                .composed
-                                .filtered
-                                .values()
-                                .flat_map(|values| values.keys().map(|&tag| context.ecn(tag).sum()))
-                                .minmax()
-                                .into_option()
-                            {
-                                ui.label(format!("[{min}, {max}]"));
-                            }
-                        });
-                    }
-                    if context.settings.composition.mass {
-                        row.col(|ui| {
-                            if let Some((min, max)) = context
-                                .state
-                                .entry()
-                                .data
-                                .composed
-                                .filtered
-                                .values()
-                                .flat_map(|values| {
-                                    values.keys().map(|&tag| context.mass(tag).sum())
-                                })
-                                .minmax()
-                                .into_option()
-                            {
-                                ui.label(format!(
-                                    "[{min:.0$}, {max:.0$}]",
-                                    context.settings.composition.precision
-                                ));
-                            }
-                        });
-                    }
                 });
-                body.separate(height / 2.0, columns);
+                body.separate(height / 2.0, COLUMNS);
             });
     }
 }

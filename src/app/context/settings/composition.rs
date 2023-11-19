@@ -14,12 +14,10 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) percent: bool,
     pub(in crate::app) precision: usize,
 
-    pub(in crate::app) ecn: bool,
-    pub(in crate::app) mass: bool,
     pub(in crate::app) mirror: bool,
     pub(in crate::app) symmetrical: bool,
 
-    pub(in crate::app) group: Option<Group>,
+    pub(in crate::app) groups: [Checkable<Group>; 2],
     pub(in crate::app) sort: Sort,
     pub(in crate::app) order: Order,
 
@@ -34,12 +32,10 @@ impl Default for Settings {
             percent: true,
             precision: 1,
 
-            ecn: false,
-            mass: false,
             mirror: true,
             symmetrical: false,
 
-            group: None,
+            groups: [Checkable::new(Group::Ptc), Checkable::new(Group::Ecn)],
             sort: Sort::Value,
             order: Order::Descending,
 
@@ -48,8 +44,34 @@ impl Default for Settings {
     }
 }
 
-/// Group
+/// Checkable
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+pub(in crate::app) struct Checkable<T> {
+    pub(in crate::app) value: T,
+    pub(in crate::app) checked: bool,
+}
+
+impl<T> Checkable<T> {
+    pub(in crate::app) fn new(value: T) -> Self {
+        Self {
+            value,
+            checked: false,
+        }
+    }
+}
+
+impl<T> From<Checkable<T>> for Option<T> {
+    fn from(Checkable { value, checked }: Checkable<T>) -> Self {
+        if checked {
+            Some(value)
+        } else {
+            None
+        }
+    }
+}
+
+/// Group
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Group {
     Ecn,
     Ptc,

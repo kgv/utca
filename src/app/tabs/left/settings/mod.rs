@@ -1,6 +1,6 @@
 use self::{
     calculation::Calculation, comparison::Comparison, composition::Composition,
-    configuration::Configuration, visualization::Visualization,
+    configuration::Configuration, filtration::Filtration, visualization::Visualization,
 };
 use super::CentralTab;
 use crate::app::{context::Context, view::View};
@@ -23,14 +23,27 @@ impl<'a> Settings<'a> {
 
 impl View for Settings<'_> {
     fn view(self, ui: &mut Ui) {
-        for tab in self.state.main_surface().tabs().sorted() {
-            match tab {
-                CentralTab::Configuration => Configuration::new(self.context).view(ui),
-                CentralTab::Calculation => Calculation::new(self.context).view(ui),
-                CentralTab::Composition => Composition::new(self.context).view(ui),
-                CentralTab::Visualization => Visualization::new(self.context).view(ui),
-                CentralTab::Comparison => Comparison::new(self.context).view(ui),
-            }
+        let tree = self.state.main_surface();
+        if tree.tabs().contains(&CentralTab::Configuration) {
+            Configuration::new(self.context).view(ui);
+        }
+        if tree.tabs().contains(&CentralTab::Calculation) {
+            Calculation::new(self.context).view(ui);
+        }
+        let mut filtration = false;
+        if tree.tabs().contains(&CentralTab::Composition) {
+            Composition::new(self.context).view(ui);
+            filtration = true;
+        }
+        if tree.tabs().contains(&CentralTab::Comparison) {
+            Comparison::new(self.context).view(ui);
+            filtration = true;
+        }
+        if filtration {
+            Filtration::new(self.context).view(ui);
+        }
+        if tree.tabs().contains(&CentralTab::Visualization) {
+            Visualization::new(self.context).view(ui);
         }
     }
 }
@@ -39,4 +52,5 @@ mod calculation;
 mod comparison;
 mod composition;
 mod configuration;
+mod filtration;
 mod visualization;

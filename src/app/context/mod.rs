@@ -57,35 +57,29 @@ impl Context {
         });
     }
 
-    pub(super) fn ecn(&self, tag: Tag<usize>) -> Tag<usize> {
-        tag.map(|index| self.state.entry().meta.formulas[index].ecn())
-    }
-
-    pub(super) fn occurrence(&self, tag: Tag<usize>) -> usize {
+    pub(super) fn cmn(&self, tag: Tag<usize>) -> u32 {
         self.state
             .entries
             .iter()
             .rev()
             .enumerate()
             .fold(0, |mut value, (index, entry)| {
-                if entry
-                    .data
-                    .composed
-                    .filtered
-                    .values()
-                    .any(|values| values.contains_key(&tag))
-                {
-                    value += 2usize.pow(index as _);
+                if entry.data.composed.leafs().any(|leaf| leaf.data.tag == tag) {
+                    value += 2u32.pow(index as _);
                 }
                 value
             })
     }
 
-    pub(super) fn species(&self, tag: Tag<usize>) -> Tag<&str> {
-        tag.map(|index| &*self.state.entry().meta.labels[index])
+    pub(super) fn ecn(&self, tag: Tag<usize>) -> Tag<usize> {
+        tag.map(|index| self.state.entry().meta.formulas[index].ecn())
     }
 
-    pub(super) fn r#type(&self, tag: Tag<usize>) -> Tag<Saturation> {
+    pub(super) fn mass(&self, tag: Tag<usize>) -> Tag<f64> {
+        tag.map(|index| self.state.entry().meta.formulas[index].weight())
+    }
+
+    pub(super) fn ptc(&self, tag: Tag<usize>) -> Tag<Saturation> {
         let formulas = &self.state.entry().meta.formulas;
         if self.settings.composition.mirror {
             Tag([
@@ -102,8 +96,8 @@ impl Context {
         }
     }
 
-    pub(super) fn mass(&self, tag: Tag<usize>) -> Tag<f64> {
-        tag.map(|index| self.state.entry().meta.formulas[index].weight())
+    pub(super) fn species(&self, tag: Tag<usize>) -> Tag<&str> {
+        tag.map(|index| &*self.state.entry().meta.labels[index])
     }
 
     pub(super) fn calculate(&mut self, ui: &Ui) {

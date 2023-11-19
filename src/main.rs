@@ -15,11 +15,14 @@
 //!
 //! - Сделать PieChart как BarChart + legend
 
+#![feature(anonymous_lifetime_in_impl_trait)]
+#![feature(associated_type_defaults)]
 #![feature(decl_macro)]
 #![feature(float_next_up_down)]
+#![feature(hash_extract_if)]
+#![feature(impl_trait_in_assoc_type)]
 #![feature(lazy_cell)]
 #![feature(option_take_if)]
-#![feature(return_position_impl_trait_in_trait)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use app::App;
@@ -63,5 +66,6 @@ mod app;
 mod ecn;
 mod fatty_acid;
 mod parsers;
+mod tree;
 mod utils;
 mod widgets;

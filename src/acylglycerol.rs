@@ -1,6 +1,8 @@
+use egui::epaint::util::FloatOrd;
 use serde::{Deserialize, Serialize};
 use std::{
     array::IntoIter,
+    cmp::min,
     fmt::{Display, Formatter, Result},
     hash::Hash,
     ops::{Add, Deref, DerefMut},

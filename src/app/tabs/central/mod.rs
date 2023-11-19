@@ -253,8 +253,11 @@ impl TabViewer for Tabs<'_> {
         }
     }
 
-    fn scroll_bars(&self, _: &Self::Tab) -> [bool; 2] {
-        [true, false]
+    fn scroll_bars(&self, tab: &Self::Tab) -> [bool; 2] {
+        match tab {
+            Tab::Visualization => [false, true],
+            _ => [true, false],
+        }
     }
 
     fn title(&mut self, tab: &mut Self::Tab) -> WidgetText {

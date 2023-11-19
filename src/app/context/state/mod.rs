@@ -1,11 +1,10 @@
-use crate::{acylglycerol::Tag, parsers::toml::FattyAcid};
+use self::{comparison::Compared, composition::Composed};
+use crate::parsers::toml::FattyAcid;
 use egui::epaint::util::FloatOrd;
-use indexmap::IndexMap;
 use itertools::izip;
-use molecule::{Counter, Saturation};
+use molecule::Counter;
 use serde::{Deserialize, Serialize};
 use std::{
-    fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
     sync::Arc,
 };
@@ -172,75 +171,5 @@ impl Hash for Normalized {
     }
 }
 
-/// Composed data
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(in crate::app) struct Composed {
-    pub(in crate::app) unfiltered: IndexMap<Option<Group>, IndexMap<Tag<usize>, f64>>,
-    pub(in crate::app) filtered: IndexMap<Option<Group>, IndexMap<Tag<usize>, f64>>,
-}
-
-impl Composed {
-    pub(in crate::app) fn unfiltered(&self, tag: &Tag<usize>) -> Option<f64> {
-        self.unfiltered
-            .values()
-            .find_map(|value| value.get(tag))
-            .copied()
-    }
-}
-
-impl Hash for Composed {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        for (key, values) in &self.unfiltered {
-            key.hash(state);
-            for (key, value) in values {
-                key.hash(state);
-                value.ord().hash(state);
-            }
-        }
-        for (key, values) in &self.filtered {
-            key.hash(state);
-            for (key, value) in values {
-                key.hash(state);
-                value.ord().hash(state);
-            }
-        }
-    }
-}
-
-/// Compared data
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(in crate::app) struct Compared(
-    pub(in crate::app) IndexMap<Option<Group>, IndexMap<Tag<usize>, Vec<Option<f64>>>>,
-);
-
-impl Hash for Compared {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        for (key, value) in &self.0 {
-            key.hash(state);
-            for (key, values) in value {
-                key.hash(state);
-                for value in values {
-                    value.map(FloatOrd::ord).hash(state);
-                }
-            }
-        }
-    }
-}
-
-/// Group
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(in crate::app) enum Group {
-    Ecn(usize),
-    Ptc(Tag<Saturation>),
-    Occurrence(usize),
-}
-
-impl Display for Group {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Group::Ecn(ecn) => f.write_fmt(format_args!("{ecn}")),
-            Group::Ptc(r#type) => f.write_fmt(format_args!("{type}")),
-            Group::Occurrence(occurrence) => f.write_fmt(format_args!("{occurrence}")),
-        }
-    }
-}
+pub(in crate::app) mod comparison;
+pub(in crate::app) mod composition;

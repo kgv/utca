@@ -2,22 +2,25 @@ use crate::{
     acylglycerol::Tag,
     app::context::{
         settings::{
-            composition::Group::{Ecn, Ptc},
-            Order, Sort,
+            composition::Group::{self, Ecn as ECN, Ptc as PTC},
+            Order::{Ascending, Descending},
+            Sort,
         },
-        state::{Composed as Value, Group},
+        state::composition::{
+            Composed as Value, Data,
+            Group::{Ecn, Ptc},
+            Merge, Meta, Rounded,
+        },
         Context,
     },
+    tree::{Branch, Leaf, Node, Tree},
 };
-use egui::{
-    epaint::util::FloatOrd,
-    util::cache::{ComputerMut, FrameCache},
-};
-use indexmap::IndexMap;
+use egui::util::cache::{ComputerMut, FrameCache};
 use itertools::{
     Either::{Left, Right},
     Itertools,
 };
+use ordered_float::OrderedFloat;
 use std::{
     cmp::{max, min, Reverse},
     hash::{Hash, Hasher},
@@ -41,49 +44,28 @@ pub(in crate::app) struct Composer;
 impl ComputerMut<Key<'_>, Arc<Value>> for Composer {
     fn compute(&mut self, key: Key) -> Arc<Value> {
         let Key { context } = key;
+        let groups = &context.settings.composition.groups.map(Into::into);
         let dags13 = &context.state.entry().data.normalized.dags13;
         let mags2 = &context.state.entry().data.normalized.mags2;
-        let filter = &context.settings.composition.filter;
-        let mut unfiltered: Map = IndexMap::new();
-        for indices in repeat(0..context.state.entry().len())
+        let ungrouped = repeat(0..context.state.entry().len())
             .take(3)
             .multi_cartesian_product()
-        {
-            let value = dags13[indices[0]] * mags2[indices[1]] * dags13[indices[2]];
-            let tag = if context.settings.composition.mirror {
-                Tag([
-                    min(indices[0], indices[2]),
-                    indices[1],
-                    max(indices[0], indices[2]),
-                ])
-            } else {
-                Tag([indices[0], indices[1], indices[2]])
-            };
-            let group = context.settings.composition.group.map(|group| match group {
-                Ecn => Group::Ecn(context.ecn(tag).sum()),
-                Ptc => Group::Ptc(context.r#type(tag)),
-            });
-            *unfiltered.entry(group).or_default().entry(tag).or_default() += value;
-        }
-        unfiltered.sort(key);
-        let mut filtered = unfiltered.clone();
-        filtered.retain(|_, values| {
-            values.retain(|tag, &mut value| {
-                let mut keep = !filter.sn1.contains(&tag[0])
-                    && !filter.sn2.contains(&tag[1])
-                    && !filter.sn3.contains(&tag[2])
-                    && value >= filter.value;
-                if context.settings.composition.symmetrical {
-                    keep &= tag[0] == tag[2]
-                }
-                keep
-            });
-            !values.is_empty()
-        });
-        Arc::new(Value {
-            unfiltered,
-            filtered,
-        })
+            .map(|indices| {
+                let value = (dags13[indices[0]] * mags2[indices[1]] * dags13[indices[2]]).into();
+                let tag = if context.settings.composition.mirror {
+                    Tag([
+                        min(indices[0], indices[2]),
+                        indices[1],
+                        max(indices[0], indices[2]),
+                    ])
+                } else {
+                    Tag([indices[0], indices[1], indices[2]])
+                };
+                (tag, value)
+            })
+            .into_grouping_map()
+            .sum();
+        Arc::new(Tree::from(grouped(ungrouped, groups, key)))
     }
 }
 
@@ -107,60 +89,104 @@ impl<'a> From<&'a Context> for Key<'a> {
     }
 }
 
-/// Map
-type Map = IndexMap<Option<Group>, IndexMap<Tag<usize>, f64>>;
+/// Group by key
+trait GroupByKey {
+    fn group_by_key(&mut self, key: Key);
+}
+
+fn grouped(
+    ungrouped: impl IntoIterator<Item = (Tag<usize>, OrderedFloat<f64>)>,
+    groups: &[Option<Group>],
+    key: Key,
+) -> (Meta, Vec<Node<Meta, Data>>) {
+    let Key { context } = key;
+    let mut precision = context.settings.composition.precision;
+    if context.settings.composition.percent {
+        precision += 2;
+    }
+    let (meta, mut data) = match groups {
+        [None, ..] => grouped(ungrouped, &groups[1..], key),
+        [Some(group), ..] => {
+            let mut meta = Meta::default();
+            let children = ungrouped
+                .into_iter()
+                .into_group_map_by(|&(tag, _)| match group {
+                    ECN => Ecn(context.ecn(tag).sum()),
+                    PTC => Ptc(context.ptc(tag)),
+                })
+                .into_iter()
+                .filter_map(|(group, ungrouped)| {
+                    let mut branch = Branch::from(grouped(ungrouped, &groups[1..], key));
+                    if !branch.is_empty() {
+                        branch.meta.group = Some(group);
+                        meta.merge(branch.meta);
+                        return Some(Node::Branch(branch));
+                    }
+                    None
+                })
+                .collect();
+            (meta, children)
+        }
+        [] => {
+            let mut meta = Meta::default();
+            let data = ungrouped
+                .into_iter()
+                .filter_map(|(tag, value)| {
+                    // Filter
+                    let filter = &context.settings.composition.filter;
+                    let mut keep = !filter.sn1.contains(&tag[0])
+                        && !filter.sn2.contains(&tag[1])
+                        && !filter.sn3.contains(&tag[2])
+                        && value >= filter.value.into();
+                    if context.settings.composition.symmetrical {
+                        keep &= tag[0] == tag[2]
+                    }
+                    // Meta
+                    meta.count.merge(keep);
+                    if keep {
+                        meta.value.merge(Rounded::new(value, precision));
+                        return Some(Node::from(Data { tag, value }));
+                    }
+                    None
+                })
+                .collect();
+            (meta, data)
+        }
+    };
+    data.sort_by_key(key);
+    (meta, data)
+}
 
 /// Sort by key
 trait SortByKey {
-    fn sort(&mut self, key: Key);
+    fn sort_by_key(&mut self, key: Key);
 }
 
-impl SortByKey for Map {
-    fn sort(&mut self, key: Key) {
+impl SortByKey for Vec<Node<Meta, Data>> {
+    fn sort_by_key(&mut self, key: Key) {
         let Key { context } = key;
-        match context.settings.composition.sort {
-            Sort::Key => {
-                self.sort_by_cached_key(|&tag, _| match context.settings.composition.order {
-                    Order::Ascending => Right(tag),
-                    Order::Descending => Left(Reverse(tag)),
-                })
-            }
-            Sort::Value => {
-                self.sort_by_cached_key(|_, values| match context.settings.composition.order {
-                    Order::Ascending => Right(values.values().sum::<f64>().ord()),
-                    Order::Descending => Left(Reverse(values.values().sum::<f64>().ord())),
-                })
-            }
-        }
-        for values in self.values_mut() {
-            match context.settings.composition.sort {
-                Sort::Key => match context.settings.composition.group {
-                    None => values.sort_by_cached_key(|&tag, _| {
-                        match context.settings.composition.order {
-                            Order::Ascending => Right(tag),
-                            Order::Descending => Left(Reverse(tag)),
-                        }
-                    }),
-                    Some(Ecn) => values.sort_by_cached_key(|&tag, _| {
-                        match context.settings.composition.order {
-                            Order::Ascending => Right((context.ecn(tag), tag)),
-                            Order::Descending => Left((Reverse(context.ecn(tag)), Reverse(tag))),
-                        }
-                    }),
-                    Some(Ptc) => values.sort_by_cached_key(|&tag, _| {
-                        match context.settings.composition.order {
-                            Order::Ascending => Right((context.r#type(tag), tag)),
-                            Order::Descending => Left((Reverse(context.r#type(tag)), Reverse(tag))),
-                        }
-                    }),
-                },
-                Sort::Value => {
-                    values.sort_by_cached_key(|_, value| match context.settings.composition.order {
-                        Order::Ascending => Right(value.ord()),
-                        Order::Descending => Left(Reverse(value.ord())),
-                    })
-                }
-            }
-        }
+        let order = context.settings.composition.order;
+        self.sort_by_cached_key(|node| match context.settings.composition.sort {
+            Sort::Key => Left(match node {
+                Node::Branch(Branch { meta, .. }) => Left(match order {
+                    Ascending => Left(meta.group),
+                    Descending => Right(Reverse(meta.group)),
+                }),
+                Node::Leaf(Leaf { data }) => Right(match order {
+                    Ascending => Left(data.tag),
+                    Descending => Right(Reverse(data.tag)),
+                }),
+            }),
+            Sort::Value => Right(match node {
+                Node::Branch(Branch { meta, .. }) => Left(match order {
+                    Ascending => Left((meta.value, meta.group)),
+                    Descending => Right((Reverse(meta.value), Reverse(meta.group))),
+                }),
+                Node::Leaf(Leaf { data }) => Right(match order {
+                    Ascending => Left((data.value, data.tag)),
+                    Descending => Right((Reverse(data.value), Reverse(data.tag))),
+                }),
+            }),
+        });
     }
 }

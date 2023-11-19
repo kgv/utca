@@ -1,17 +1,14 @@
 use crate::app::{
     context::{
-        settings::{
-            comparison::Mode,
-            composition::Group::{Ecn, Ptc},
-            Group, Order, Sort,
-        },
+        settings::{composition::Checkable, Order, Sort},
         Context,
     },
     tabs::CentralTab,
     view::View,
     MAX_PRECISION,
 };
-use egui::{ComboBox, RichText, Slider, Ui};
+use egui::{ComboBox, Id, RichText, Slider, Ui};
+use egui_dnd::dnd;
 
 /// Left comparison tab
 pub(super) struct Comparison<'a> {
@@ -28,7 +25,7 @@ impl View for Comparison<'_> {
     fn view(self, ui: &mut Ui) {
         let Self { context } = self;
         ui.collapsing(
-            RichText::new(CentralTab::Comparison.to_string()).heading(),
+            RichText::new(CentralTab::Comparison.title()).heading(),
             |ui| {
                 ui.horizontal(|ui| {
                     ui.toggle_value(&mut context.settings.comparison.resizable, "↔ Resizable")
@@ -54,40 +51,26 @@ impl View for Comparison<'_> {
                     ui.toggle_value(&mut context.settings.link, "🔗");
                 });
                 ui.separator();
-                ui.horizontal(|ui| {
-                    ui.label("Group:");
-                    let response = ComboBox::from_id_source("group")
-                        .selected_text(context.settings.comparison.group.map_or("", Group::text))
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut context.settings.comparison.group,
-                                None,
-                                "None",
-                            )
-                            .on_hover_text("Don't group");
-                            ui.selectable_value(
-                                &mut context.settings.comparison.group,
-                                Some(Group::Composition(Ecn)),
-                                Group::Composition(Ecn).text(),
-                            )
-                            .on_hover_text(Group::Composition(Ecn).hover_text());
-                            ui.selectable_value(
-                                &mut context.settings.comparison.group,
-                                Some(Group::Composition(Ptc)),
-                                Group::Composition(Ptc).text(),
-                            )
-                            .on_hover_text(Group::Composition(Ptc).hover_text());
-                            ui.selectable_value(
-                                &mut context.settings.comparison.group,
-                                Some(Group::Occurrence),
-                                Group::Occurrence.text(),
-                            )
-                            .on_hover_text(Group::Occurrence.hover_text());
-                        })
-                        .response;
-                    if let Some(group) = context.settings.comparison.group {
-                        response.on_hover_text(group.hover_text());
-                    }
+                ui.label("Group:");
+                ui.group(|ui| {
+                    dnd(ui, Id::new("dnd").with("comparison")).show_vec(
+                        &mut context.settings.comparison.groups,
+                        |ui,
+                         Checkable {
+                             value: group,
+                             checked,
+                         },
+                         handle,
+                         state| {
+                            ui.horizontal(|ui| {
+                                handle.ui(ui, |ui| {
+                                    let _ = ui.button(if state.dragged { "👊" } else { "✋" });
+                                });
+                                ui.checkbox(checked, "");
+                                ui.label(group.text()).on_hover_text(group.hover_text());
+                            });
+                        },
+                    );
                 });
                 ui.horizontal(|ui| {
                     ui.label("Sort:");
@@ -110,25 +93,46 @@ impl View for Comparison<'_> {
                         .response
                         .on_hover_text(context.settings.comparison.sort.hover_text());
                     if context.settings.comparison.sort == Sort::Value {
-                        ui.label("Mode:");
-                        ComboBox::from_id_source("mode")
-                            .selected_text(context.settings.comparison.mode.text())
+                        // ui.label("Mode:");
+                        // ComboBox::from_id_source("mode")
+                        //     .selected_text(context.settings.comparison.mode.text())
+                        //     .show_ui(ui, |ui| {
+                        //         ui.selectable_value(
+                        //             &mut context.settings.comparison.mode,
+                        //             Mode::MinMax,
+                        //             Mode::MinMax.text(),
+                        //         )
+                        //         .on_hover_text(Mode::MinMax.hover_text());
+                        //         ui.selectable_value(
+                        //             &mut context.settings.comparison.mode,
+                        //             Mode::Sum,
+                        //             Mode::Sum.text(),
+                        //         )
+                        //         .on_hover_text(Mode::Sum.hover_text());
+                        //     })
+                        //     .response
+                        //     .on_hover_text(context.settings.comparison.mode.hover_text());
+                        ui.spacing_mut().combo_width /= 2.0;
+                        ui.label("Column:");
+                        ComboBox::from_id_source("column")
+                            .selected_text(context.settings.comparison.column.to_string())
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(
-                                    &mut context.settings.comparison.mode,
-                                    Mode::MinMax,
-                                    Mode::MinMax.text(),
-                                )
-                                .on_hover_text(Mode::MinMax.hover_text());
-                                ui.selectable_value(
-                                    &mut context.settings.comparison.mode,
-                                    Mode::Sum,
-                                    Mode::Sum.text(),
-                                )
-                                .on_hover_text(Mode::Sum.hover_text());
+                                for index in 0..context.state.entries.len() {
+                                    ui.selectable_value(
+                                        &mut context.settings.comparison.column,
+                                        index,
+                                        index.to_string(),
+                                    )
+                                    .on_hover_text(format!("Sort by {index} column values"));
+                                }
                             })
                             .response
-                            .on_hover_text(context.settings.comparison.mode.hover_text());
+                            .on_hover_text(format!(
+                                r#"Sort by "{}" column values"#,
+                                context.state.entries[context.settings.comparison.column]
+                                    .meta
+                                    .name,
+                            ));
                     }
                 });
                 ui.horizontal(|ui| {

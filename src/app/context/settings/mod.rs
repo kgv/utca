@@ -11,29 +11,6 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) comparison: comparison::Settings,
 }
 
-/// Group
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(in crate::app) enum Group {
-    Composition(composition::Group),
-    Occurrence,
-}
-
-impl Group {
-    pub(in crate::app) fn text(self) -> &'static str {
-        match self {
-            Self::Composition(group) => group.text(),
-            Self::Occurrence => "Occurrence",
-        }
-    }
-
-    pub(in crate::app) fn hover_text(self) -> &'static str {
-        match self {
-            Self::Composition(group) => group.hover_text(),
-            Self::Occurrence => "Group by occurrence ()",
-        }
-    }
-}
-
 /// Sort
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Sort {
