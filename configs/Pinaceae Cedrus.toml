@@ -1,0 +1,46 @@
+name = "Pinaceae Cedrus"
+
+[[fatty_acids]]
+label = "Pi"
+formula = "H34C19O2"
+data = { mag2 = 6057859.048, dag1223 = 208041598.375, tag123 = 42194071.0 }
+
+[[fatty_acids]]
+label = "Pa"
+formula = "H34C17O2"
+data = { mag2 = 19739896.657, dag1223 = 302116780.058, tag123 = 145011164.0 }
+
+[[fatty_acids]]
+label = "Pn"
+formula = "H32C19O2"
+data = { mag2 = 37615085.468, dag1223 = 2420977752.198, tag123 = 599666360.0 }
+
+[[fatty_acids]]
+label = "Gd"
+formula = "H40C21O2"
+data = { mag2 = 3409238.721, dag1223 = 85358549.162, tag123 = 25798972.0 }
+
+[[fatty_acids]]
+label = "St"
+formula = "H38C19O2"
+data = { mag2 = 7112473.957, dag1223 = 195624715.683, tag123 = 74037315.0 }
+
+[[fatty_acids]]
+label = "Ol"
+formula = "H36C19O2"
+data = { mag2 = 543320871.488, dag1223 = 2545783364.126, tag123 = 595392558.0 }
+
+[[fatty_acids]]
+label = "Ar"
+formula = "H42C21O2"
+data = { mag2 = 303620.577, dag1223 = 31481582.538, tag123 = 7737659.0 }
+
+[[fatty_acids]]
+label = "Li"
+formula = "H34C19O2"
+data = { mag2 = 1226498927.113, dag1223 = 4819585526.736, tag123 = 1158289211.0 }
+
+[[fatty_acids]]
+label = "Ln"
+formula = "H32C19O2"
+data = { mag2 = 1426035.096, dag1223 = 12823290.138, tag123 = 5070004.0 }

@@ -1,0 +1,28 @@
+# UTCA
+Ultimate TAG Calculation Application
+
+image:https://img.shields.io/crates/v/bevy_fluent.svg[crates.io, link=https://crates.io/crates/bevy_fluent]
+image:https://docs.rs/bevy_fluent/badge.svg[docs.rs, link=https://docs.rs/bevy_fluent]
+image:https://img.shields.io/crates/l/bevy_fluent[license, link=#license]
+image:https://github.com/kgv/bevy_fluent/workflows/ci/badge.svg[ci, link=https://github.com/kgv/bevy_fluent/actions]
+image:https://img.shields.io/badge/bevy%20tracking-main-yellow[bevy tracking, link=https://github.com/bevyengine/bevy/blob/master/docs/plugins_guidelines.md#master-branch-tracking]
+
+## Run
+
+### Native
+
+`cargo run`
+
+### Web (http://127.0.0.1:8080)
+
+`trunk serve --release --filehash=false`
+
+#### Requirements
+
+`rustup target add wasm32-unknown-unknown`
+
+## See also
+
+* https://byrdwell.com/Triacylglycerols/TAGbyMass1.htm[byrdwell.com]
+* https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl[nist.gov, title=Atomic Weights and Isotopic Compositions for All Elements]
+* https://tableconvert.com[tableconvert.com, title=Table converter]

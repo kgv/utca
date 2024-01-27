@@ -2,17 +2,18 @@ use crate::{
     acylglycerol::Tag,
     app::context::{
         settings::{
-            composition::Group::{self, Ecn as ECN, Ptc as PTC},
+            composition::{Group, Type, ECN, M, PTC, STC, TC},
             Order::{Ascending, Descending},
             Sort,
         },
         state::composition::{
             Composed as Value, Data,
-            Group::{Ecn, Ptc},
-            Merge, Meta, Rounded,
+            Group::{Ecn, Mass, Ptc, Stc, Tc},
+            Gunstone, Merge, Meta, Rounded, TypeComposition, VanderWal,
         },
         Context,
     },
+    r#const::C3H2,
     tree::{Branch, Leaf, Node, Tree},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
@@ -20,11 +21,16 @@ use itertools::{
     Either::{Left, Right},
     Itertools,
 };
+use molecule::{
+    Saturable,
+    Saturation::{self, Saturated, Unsaturated},
+};
 use ordered_float::OrderedFloat;
 use std::{
     cmp::{max, min, Reverse},
+    fmt::{Display, Formatter, Result},
     hash::{Hash, Hasher},
-    iter::repeat,
+    iter::{repeat, zip},
     sync::Arc,
 };
 
@@ -35,37 +41,215 @@ pub(in crate::app) type Composed = FrameCache<Arc<Value>, Composer>;
 #[derive(Default)]
 pub(in crate::app) struct Composer;
 
-// 1,3-sn 2-sn 1,2,3-sn
-// [abc] = 2*[a13]*[b2]*[c13]
-// [aab] = 2*[a13]*[a2]*[b13]
-// [aba] = [a13]^2*[b2]
-// [abc] = [a13]*[b2]*[c13]
-// `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
-impl ComputerMut<Key<'_>, Arc<Value>> for Composer {
-    fn compute(&mut self, key: Key) -> Arc<Value> {
+impl Composer {
+    fn gunstone(&mut self, key: Key) -> Gunstone {
         let Key { context } = key;
-        let groups = &context.settings.composition.groups.map(Into::into);
-        let dags13 = &context.state.entry().data.normalized.dags13;
-        let mags2 = &context.state.entry().data.normalized.mags2;
+        let tags123 = &context
+            .state
+            .entry()
+            .data
+            .calculated
+            .tags123
+            .experimental
+            .normalized;
+        let s: f64 = zip(tags123, &context.state.entry().meta.formulas)
+            .filter_map(|(value, formula)| match formula.saturation() {
+                Saturated => Some(value),
+                Unsaturated => None,
+            })
+            .sum();
+        let u = 1.0 - s;
+        // PTC
+        let s3;
+        let s2u;
+        let su2;
+        let u3;
+        if s <= 2.0 / 3.0 {
+            s3 = 0.0;
+            s2u = (3.0 * s / 2.0).powi(2);
+            su2 = 3.0 * s * (3.0 * u - 1.0) / 2.0;
+            u3 = ((3.0 * u - 1.0) / 2.0).powi(2);
+        } else {
+            s3 = 3.0 * s - 2.0;
+            s2u = 3.0 * u;
+            su2 = 0.0;
+            u3 = 0.0;
+        };
+        let ungrouped = repeat(0..context.state.entry().len())
+            .take(3)
+            .multi_cartesian_product()
+            .map(|indices| {
+                let tag = match context.settings.composition.r#type {
+                    Type::Stereo => Tag([indices[0], indices[1], indices[2]]),
+                    Type::Positional => Tag([
+                        min(indices[0], indices[2]),
+                        indices[1],
+                        max(indices[0], indices[2]),
+                    ]),
+                };
+                let factor = match context.r#type(tag).into() {
+                    TypeComposition::S3 => s3 / s.powi(3),
+                    TypeComposition::S2U => s2u / (s.powi(2) * u) / 3.0,
+                    TypeComposition::SU2 => su2 / (s * u.powi(2)) / 3.0,
+                    TypeComposition::U3 => u3 / u.powi(3),
+                };
+                let value =
+                    tags123[indices[0]] * tags123[indices[1]] * tags123[indices[2]] * factor;
+                (tag, value.into())
+            })
+            .into_grouping_map()
+            .sum();
+        Tree::from(grouped(
+            ungrouped,
+            &context.settings.composition.groups,
+            key,
+        ))
+    }
+
+    fn kazakov_sidorov(&mut self, key: Key) -> Gunstone {
+        let Key { context } = key;
+        let tags123 = &context
+            .state
+            .entry()
+            .data
+            .calculated
+            .tags123
+            .experimental
+            .normalized;
+        let dags13 = &context
+            .state
+            .entry()
+            .data
+            .calculated
+            .dags13
+            .value(context.settings.calculation.from)
+            .normalized;
+        let mags2 = &context
+            .state
+            .entry()
+            .data
+            .calculated
+            .mags2
+            .value()
+            .normalized;
+        tracing::error!("KAZAKOV:");
+
+        let s: f64 = zip(tags123, &context.state.entry().meta.formulas)
+            .filter_map(|(value, formula)| match formula.saturation() {
+                Saturated => Some(value),
+                Unsaturated => None,
+            })
+            .sum();
+        let u = 1.0 - s;
+        // PTC
+        let s3;
+        let s2u;
+        let su2;
+        let u3;
+        if s <= 2.0 / 3.0 {
+            s3 = 0.0;
+            s2u = (3.0 * s / 2.0).powi(2);
+            su2 = 3.0 * s * (3.0 * u - 1.0) / 2.0;
+            u3 = ((3.0 * u - 1.0) / 2.0).powi(2);
+        } else {
+            s3 = 3.0 * s - 2.0;
+            s2u = 3.0 * u;
+            su2 = 0.0;
+            u3 = 0.0;
+        };
+        // s3=0.0 s2u=0.1202991147938708 su2=0.45308502606679923 u3=0.42661585913932976
+        // tracing::error!(s3, s2u, su2, u3);
+        tracing::error!(s3=?s3 / s.powi(3), s2u=?s2u / (s.powi(2) * u), su2=?su2 / 2.0 / (s * u.powi(2)), u3=?u3 / u.powi(3));
+        tracing::error!(s3=?s3 * 100.0, s2u=?s2u * 100.0, su2=?su2 * 100.0, u3=?u3 * 100.0);
+        let ungrouped = repeat(0..context.state.entry().len())
+            .take(3)
+            .multi_cartesian_product()
+            .map(|indices| {
+                let tag = match context.settings.composition.r#type {
+                    Type::Stereo => Tag([indices[0], indices[1], indices[2]]),
+                    Type::Positional => Tag([
+                        min(indices[0], indices[2]),
+                        indices[1],
+                        max(indices[0], indices[2]),
+                    ]),
+                };
+                let factor = match context.r#type(tag).into() {
+                    TypeComposition::S3 => s3 / s.powi(3),
+                    TypeComposition::S2U => s2u / (s.powi(2) * u) / 3.0,
+                    TypeComposition::SU2 => su2 / (s * u.powi(2)) / 3.0,
+                    TypeComposition::U3 => u3 / u.powi(3),
+                };
+                let value = dags13[indices[0]] * mags2[indices[1]] * dags13[indices[2]] * factor;
+                (tag, value.into())
+            })
+            .into_grouping_map()
+            .sum();
+        Tree::from(grouped(
+            ungrouped,
+            &context.settings.composition.groups,
+            key,
+        ))
+    }
+
+    // 1,3-sn 2-sn 1,2,3-sn
+    // [abc] = 2*[a13]*[b2]*[c13]
+    // [aab] = 2*[a13]*[a2]*[b13]
+    // [aba] = [a13]^2*[b2]
+    // [abc] = [a13]*[b2]*[c13]
+    // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
+    fn vander_wal(&mut self, key: Key) -> VanderWal {
+        let Key { context } = key;
+        let dags13 = &context
+            .state
+            .entry()
+            .data
+            .calculated
+            .dags13
+            .value(context.settings.calculation.from)
+            .normalized;
+        let mags2 = &context
+            .state
+            .entry()
+            .data
+            .calculated
+            .mags2
+            .value()
+            .normalized;
         let ungrouped = repeat(0..context.state.entry().len())
             .take(3)
             .multi_cartesian_product()
             .map(|indices| {
                 let value = (dags13[indices[0]] * mags2[indices[1]] * dags13[indices[2]]).into();
-                let tag = if context.settings.composition.mirror {
-                    Tag([
+                let tag = match context.settings.composition.r#type {
+                    Type::Stereo => Tag([indices[0], indices[1], indices[2]]),
+                    Type::Positional => Tag([
                         min(indices[0], indices[2]),
                         indices[1],
                         max(indices[0], indices[2]),
-                    ])
-                } else {
-                    Tag([indices[0], indices[1], indices[2]])
+                    ]),
                 };
                 (tag, value)
             })
             .into_grouping_map()
             .sum();
-        Arc::new(Tree::from(grouped(ungrouped, groups, key)))
+        Tree::from(grouped(
+            ungrouped,
+            &context.settings.composition.groups,
+            key,
+        ))
+    }
+}
+
+impl ComputerMut<Key<'_>, Arc<Value>> for Composer {
+    fn compute(&mut self, key: Key) -> Arc<Value> {
+        let gunstone = self.gunstone(key);
+        let kazakov_sidorov = self.kazakov_sidorov(key);
+        let vander_wal = self.vander_wal(key);
+        Arc::new(Value {
+            gunstone,
+            kazakov_sidorov,
+            vander_wal,
+        })
     }
 }
 
@@ -77,9 +261,10 @@ pub struct Key<'a> {
 
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        self.context.settings.calculation.from.hash(state);
         self.context.settings.composition.hash(state);
         self.context.state.entry().meta.hash(state);
-        self.context.state.entry().data.normalized.hash(state);
+        self.context.state.entry().data.calculated.hash(state);
     }
 }
 
@@ -96,7 +281,7 @@ trait GroupByKey {
 
 fn grouped(
     ungrouped: impl IntoIterator<Item = (Tag<usize>, OrderedFloat<f64>)>,
-    groups: &[Option<Group>],
+    groups: &[Group],
     key: Key,
 ) -> (Meta, Vec<Node<Meta, Data>>) {
     let Key { context } = key;
@@ -105,14 +290,19 @@ fn grouped(
         precision += 2;
     }
     let (meta, mut data) = match groups {
-        [None, ..] => grouped(ungrouped, &groups[1..], key),
-        [Some(group), ..] => {
+        [group, ..] => {
             let mut meta = Meta::default();
-            let children = ungrouped
+            let children: Vec<_> = ungrouped
                 .into_iter()
-                .into_group_map_by(|&(tag, _)| match group {
+                .into_group_map_by(|&(tag, _)| match *group {
                     ECN => Ecn(context.ecn(tag).sum()),
-                    PTC => Ptc(context.ptc(tag)),
+                    M => Mass(
+                        (C3H2 + context.mass(tag).sum() + context.settings.composition.adduct.0)
+                            .round() as _,
+                    ),
+                    PTC => Ptc(context.r#type(tag).into()),
+                    STC => Stc(context.r#type(tag).into()),
+                    TC => Tc(context.r#type(tag).into()),
                 })
                 .into_iter()
                 .filter_map(|(group, ungrouped)| {
@@ -138,7 +328,9 @@ fn grouped(
                         && !filter.sn2.contains(&tag[1])
                         && !filter.sn3.contains(&tag[2])
                         && value >= filter.value.into();
-                    if context.settings.composition.symmetrical {
+                    if context.settings.composition.r#type == Type::Positional
+                        && context.settings.composition.symmetrical
+                    {
                         keep &= tag[0] == tag[2]
                     }
                     // Meta

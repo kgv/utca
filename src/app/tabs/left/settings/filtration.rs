@@ -1,7 +1,10 @@
 use crate::{
     acylglycerol::Sn,
     app::{
-        context::{settings::composition::Filter, Context},
+        context::{
+            settings::composition::{Filter, Type},
+            Context,
+        },
         view::View,
     },
 };
@@ -28,6 +31,11 @@ impl View for Filtration<'_> {
                 ui.filter_combobox(context, Sn::One);
                 ui.filter_combobox(context, Sn::Two);
                 ui.filter_combobox(context, Sn::Three);
+                if ui.button("🗑").on_hover_text("Clear filter").clicked() {
+                    context.settings.composition.filter = Default::default();
+                    context.settings.composition.r#type = Type::Positional;
+                    context.settings.composition.symmetrical = false;
+                }
             });
             ui.horizontal(|ui| {
                 ui.label("Value:");
@@ -53,20 +61,45 @@ impl View for Filtration<'_> {
             });
             ui.horizontal(|ui| {
                 ui.label("Modifications:");
-                let response = ui.checkbox(&mut context.settings.composition.mirror, "Mirror");
-                if response.changed() && context.settings.composition.mirror {
-                    context.settings.composition.filter.sn1 = context
-                        .settings
-                        .composition
-                        .filter
-                        .sn1
-                        .union(&context.settings.composition.filter.sn3)
-                        .copied()
-                        .collect();
-                    context.settings.composition.filter.sn3 =
-                        context.settings.composition.filter.sn1.clone();
+                ComboBox::from_id_source("composition")
+                    .selected_text(context.settings.composition.r#type.text())
+                    .show_ui(ui, |ui| {
+                        if ui
+                            .selectable_value(
+                                &mut context.settings.composition.r#type,
+                                Type::Stereo,
+                                Type::Stereo.text(),
+                            )
+                            .on_hover_text(Type::Stereo.hover_text())
+                            .clicked()
+                        {
+                            context.settings.composition.filter.sn1 = context
+                                .settings
+                                .composition
+                                .filter
+                                .sn1
+                                .union(&context.settings.composition.filter.sn3)
+                                .copied()
+                                .collect();
+                        }
+                        if ui
+                            .selectable_value(
+                                &mut context.settings.composition.r#type,
+                                Type::Positional,
+                                Type::Positional.text(),
+                            )
+                            .on_hover_text(Type::Positional.hover_text())
+                            .clicked()
+                        {
+                            context.settings.composition.filter.sn3 =
+                                context.settings.composition.filter.sn1.clone();
+                        }
+                    })
+                    .response
+                    .on_hover_text(context.settings.composition.r#type.hover_text());
+                if let Type::Positional = context.settings.composition.r#type {
+                    ui.checkbox(&mut context.settings.composition.symmetrical, "Symmetrical");
                 }
-                ui.checkbox(&mut context.settings.composition.symmetrical, "Symmetrical");
             });
         });
     }
@@ -94,7 +127,9 @@ impl FilterCombobox for Ui {
                         changed |= true;
                         if !checked {
                             match sn {
-                                Sn::One | Sn::Three if context.settings.composition.mirror => {
+                                Sn::One | Sn::Three
+                                    if context.settings.composition.r#type == Type::Positional =>
+                                {
                                     sn1.insert(index);
                                     sn3.insert(index);
                                 }
@@ -110,7 +145,9 @@ impl FilterCombobox for Ui {
                             }
                         } else {
                             match sn {
-                                Sn::One | Sn::Three if context.settings.composition.mirror => {
+                                Sn::One | Sn::Three
+                                    if context.settings.composition.r#type == Type::Positional =>
+                                {
                                     sn1.remove(&index);
                                     sn3.remove(&index);
                                 }
@@ -132,7 +169,9 @@ impl FilterCombobox for Ui {
             .context_menu(|ui| {
                 if ui.button("Check all").clicked() {
                     match sn {
-                        Sn::One | Sn::Three if context.settings.composition.mirror => {
+                        Sn::One | Sn::Three
+                            if context.settings.composition.r#type == Type::Positional =>
+                        {
                             sn1.clear();
                             sn3.clear();
                         }
@@ -150,7 +189,9 @@ impl FilterCombobox for Ui {
                 } else if ui.button("Uncheck all").clicked() {
                     let all = (0..context.state.entry().meta.labels.len()).collect();
                     match sn {
-                        Sn::One | Sn::Three if context.settings.composition.mirror => {
+                        Sn::One | Sn::Three
+                            if context.settings.composition.r#type == Type::Positional =>
+                        {
                             *sn1 = all;
                             *sn3 = sn1.clone();
                         }

@@ -1,10 +1,34 @@
 use crate::{
-    app::{context::Context, view::View},
+    app::{
+        context::{state::composition::Group::Mass, Context},
+        view::View,
+    },
+    properties::density::Hammond,
+    r#const::{
+        atoms::C,
+        polymorphism::{alpha, beta::K_X},
+        C3H2,
+    },
     tree::{Hierarchized, Hierarchy, Item},
 };
-use egui::{Direction, Id, InnerResponse, Layout, Ui, WidgetText};
+use egui::{Direction, Id, InnerResponse, Layout, Ui};
 use egui_ext::{ClickedLabel, CollapsingButton, TableBodyExt};
 use egui_extras::{Column, Size, StripBuilder, TableBuilder};
+use molecule::{
+    Saturable,
+    Saturation::{self, Saturated, Unsaturated},
+};
+use std::cmp::{max, min};
+use uom::{
+    fmt::DisplayStyle::*,
+    si::{
+        dynamic_viscosity::pascal_second,
+        f64::ThermodynamicTemperature,
+        mass_density::{gram_per_cubic_centimeter, kilogram_per_cubic_meter},
+        molar_volume::cubic_meter_per_mole,
+        thermodynamic_temperature::{degree_celsius, kelvin},
+    },
+};
 
 const COLUMNS: usize = 2;
 
@@ -148,8 +172,13 @@ impl View for Composition<'_> {
             .body(|mut body| {
                 let mut close = false;
                 let mut path = vec![];
-                for Hierarchized(Hierarchy { level, index }, item) in
-                    context.state.entry().data.composed.hierarchy()
+                for Hierarchized(Hierarchy { level, index }, item) in context
+                    .state
+                    .entry()
+                    .data
+                    .composed
+                    .composition(context.settings.composition.method)
+                    .hierarchy()
                 {
                     match item {
                         Item::Meta(meta) => {
@@ -178,7 +207,7 @@ impl View for Composition<'_> {
                                                 let text = meta
                                                     .group
                                                     .map_or_else(Default::default, |group| {
-                                                        group.to_string()
+                                                        format!("{group:.p$}")
                                                     });
                                                 let id = Id::new(&path);
                                                 let InnerResponse { inner, response } =
@@ -189,9 +218,13 @@ impl View for Composition<'_> {
                                                 let filtered = meta.count.filtered;
                                                 let unfiltered = meta.count.unfiltered;
                                                 let count = unfiltered - filtered;
-                                                response.on_hover_text(format!(
-                                                    "Count: {filtered} = {unfiltered} - {count}",
-                                                ));
+                                                response.on_hover_ui(|ui| {
+                                                    if let Some(Mass(mass)) = meta.group {
+                                                        ui.label(mass.to_string());
+                                                    }
+                                                    ui.label(format!("Count: {filtered} = {unfiltered} - {count}"));
+                                                 }
+                                            );
                                                 close = !inner;
                                             });
                                         });
@@ -217,12 +250,38 @@ impl View for Composition<'_> {
                                 row.col(|ui| {
                                     let species = context.species(data.tag);
                                     ui.label(species.to_string()).on_hover_ui(|ui| {
-                                        ui.label(format!("PTC: {}", context.ptc(data.tag)));
+                                        ui.label(format!("PTC: {}", context.r#type(data.tag)));
                                         let ecn = context.ecn(data.tag);
                                         ui.label(format!("ECN: {ecn:#} ({})", ecn.sum()));
                                         let mass = context.mass(data.tag);
-                                        ui.label(format!("Mass: {mass:#.p$} ({:.p$})", mass.sum()));
+                                        let adduct = context.settings.composition.adduct;
+                                        ui.label(format!(
+                                            "Mass: {:.p$} = [{:.p$} + {:.p$} + {:.p$}] + {adduct:.p$}",
+                                            C3H2 + mass.sum() + adduct.0, mass[0], mass[1], mass[2]
+                                        ));
+                                    })
+                                    .on_hover_ui(|ui| {
+                                        let t = ThermodynamicTemperature::new::<degree_celsius>(20.0);
+                                        ui.heading("Properties");
+                                        ui.label(format!("Density: {}", context.formula(data.tag).map(|counter| counter.density(t).into_format_args(gram_per_cubic_centimeter, Abbreviation))));
+                                        // ui.label(format!("Molar volume: {}", properties.molar_volume.into_format_args(cubic_meter_per_mole, Abbreviation)));
+                                        // ui.label(format!("Dynamic viscosity: {} ({})", properties.dynamic_viscosity.into_format_args(pascal_second, Abbreviation), 
+                                        //     properties.dynamic_viscosity.into_format_args(pascal_second, Abbreviation)));
                                     });
+                                    // .on_hover_ui(|ui| {
+                                    //     ui.heading("Thermodynamic properties");
+                                    //     let thermodynamic = context.thermodynamic(data.tag);
+                                    //     for properties in [&thermodynamic.alpha, &thermodynamic.beta_prime, &thermodynamic.beta] {
+                                    //         ui.separator();
+                                    //         let k0 = properties.melting_points.0.into_format_args(kelvin, Abbreviation);
+                                    //         let c0 = properties.melting_points.0.into_format_args(degree_celsius, Abbreviation);
+                                    //         let k1 = properties.melting_points.1.into_format_args(kelvin, Abbreviation);
+                                    //         let c1 = properties.melting_points.1.into_format_args(degree_celsius, Abbreviation);
+                                    //         ui.label(format!("ΔH (enthalpy): {}", properties.enthalpy_of_fusion));
+                                    //         ui.label(format!("ΔS (entropy): {}", properties.entropy_of_fusion));
+                                    //         ui.label(format!("T: {c0} ({k0}) / {c1} ({k1})"));
+                                    //     }
+                                    // });
                                 });
                                 row.col(|ui| {
                                     let mut value = data.value;
@@ -237,7 +296,13 @@ impl View for Composition<'_> {
                     }
                 }
                 // Footer
-                let meta = &context.state.entry().data.composed.meta;
+                let meta = &context
+                    .state
+                    .entry()
+                    .data
+                    .composed
+                    .composition(context.settings.composition.method)
+                    .meta;
                 body.separate(height / 2.0, COLUMNS);
                 body.row(height, |mut row| {
                     row.col(|ui| {

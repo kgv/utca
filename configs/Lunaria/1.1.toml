@@ -1,0 +1,115 @@
+name = "Lunaria 1.1"
+
+[[fatty_acids]]
+label = "P"
+description = "Methyl tetradecanoate"
+formula = "H30C15O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 132906.363 }
+
+[[fatty_acids]]
+label = "H"
+description = "Hexadecanoic acid, methyl ester"
+formula = "H32C16O2"
+data = { mag2 = 160056.901, dag1223 = 1206585.242, tag123 = 11274419.872 }
+
+[[fatty_acids]]
+label = "Hm7"
+description = "7-Hexadecenoic acid, methyl ester, (Z)"
+formula = "H30C16O2"
+data = { mag2 = 0.0, dag1223 = 17064.358, tag123 = 539840.431 }
+
+[[fatty_acids]]
+label = "Hm9"
+description = "9-Hexadecenoic acid, methyl ester, (Z)"
+formula = "H30C16O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 118753.632 }
+
+[[fatty_acids]]
+label = "Ht"
+description = "7,10,13-Hexadecatrienoic acid (ZZZ)"
+formula = "H26C16O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 141611.249 }
+
+[[fatty_acids]]
+label = "O"
+description = "Methyl stearate"
+formula = "H36C18O2"
+data = { mag2 = 0.0, dag1223 = 354063.374, tag123 = 578215.174 }
+
+[[fatty_acids]]
+label = "Om9"
+description = "9-Octadecenoic acid, methyl ester"
+formula = "H34C18O2"
+data = { mag2 = 5523348.106, dag1223 = 10433836.352, tag123 = 153164714.095 }
+
+[[fatty_acids]]
+label = "Om11"
+description = "11-Octadecenoic acid, methyl ester"
+formula = "H34C18O2"
+data = { mag2 = 0.0, dag1223 = 111315.052, tag123 = 3217637.386 }
+
+[[fatty_acids]]
+label = "Od"
+description = "9,12-Octadecadienoic acid, methyl ester"
+formula = "H32C18O2"
+data = { mag2 = 3938684.811, dag1223 = 7289965.31, tag123 = 105565236.047 }
+
+[[fatty_acids]]
+label = "Ot"
+description = "9,12,15-Octadecatrienoic acid, methyl ester, (Z.Z.Z)"
+formula = "H30C18O2"
+data = { mag2 = 614974.569, dag1223 = 1126897.687, tag123 = 13990826.565 }
+
+[[fatty_acids]]
+label = "E"
+description = "Eicosanoic acid, methyl ester"
+formula = "H40C20O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 329851.648 }
+
+[[fatty_acids]]
+label = "Em11"
+description = "cis-Methyl 11-eicosenoate"
+formula = "H38C20O2"
+data = { mag2 = 0.0, dag1223 = 2307124.554, tag123 = 79506670.523 }
+
+[[fatty_acids]]
+label = "Em13"
+description = "cis-13-Eicosenoic acid, methyl ester"
+formula = "H38C20O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 1170415.213 }
+
+[[fatty_acids]]
+label = "Ed11,14"
+description = "11,14-Eicosadienoic acid, methyl ester"
+formula = "H36C20O2"
+data = { mag2 = 0.0, dag1223 = 24518.061, tag123 = 1217501.691 }
+
+[[fatty_acids]]
+label = "Ed"
+description = "11,14-Eicosadienoic acid, methyl ester"
+formula = "H36C20O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 226972.494 }
+
+[[fatty_acids]]
+label = "Dm11"
+description = "Methyl 11-docosenoate"
+formula = "H42C22O2"
+data = { mag2 = 0.0, dag1223 = 8925117.791, tag123 = 3336463.905 }
+
+[[fatty_acids]]
+label = "Dm13"
+description = "13-Docosenoic acid, methyl ester"
+formula = "H42C22O2"
+data = { mag2 = 0.0, dag1223 = 39030.157, tag123 = 399938020.17 }
+
+[[fatty_acids]]
+label = "Dd"
+description = "cis-13,16-Docasadienoic acid"
+formula = "H40C22O2"
+data = { mag2 = 0.0, dag1223 = 20439.132, tag123 = 1804511.634 }
+
+[[fatty_acids]]
+label = "Tm"
+description = "15-Tetracosenoic acid, methyl ester"
+formula = "H46C24O2"
+data = { mag2 = 0.0, dag1223 = 1217751.984, tag123 = 56883069.216 }

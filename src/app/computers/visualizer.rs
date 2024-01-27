@@ -1,24 +1,20 @@
 use crate::{
-    acylglycerol::Tag,
     app::context::{
-        settings::{
-            Group::{Ecn, Occurrence, Ptc},
-            Order, Sort,
-        },
-        state::{Group, Visualized as Value},
+        settings::visualization::{Source, X},
         Context,
     },
+    r#const::C3H2,
+    tree::Leaf,
 };
 use egui::{
-    epaint::util::FloatOrd,
+    emath::round_to_decimals,
+    epaint::util::{FloatOrd, OrderedFloat},
     util::cache::{ComputerMut, FrameCache},
 };
-use indexmap::IndexMap;
 use itertools::Itertools;
 use std::{
-    cmp::{max, min, Reverse},
+    collections::HashMap,
     hash::{Hash, Hasher},
-    iter::repeat,
 };
 
 /// Visualized
@@ -31,17 +27,44 @@ pub(in crate::app) struct Visualizer;
 impl ComputerMut<Key<'_>, Value> for Visualizer {
     fn compute(&mut self, key: Key) -> Value {
         let Key { context } = key;
-        let visualized = context
-            .state
-            .entry()
-            .data
-            .composed
-            .filtered
-            .values()
-            .flatten()
-            .collect();
-        // .sorted_by_key(|&value| Reverse(value.ord()))
-        Value(visualized)
+        match context.settings.visualization.source {
+            Source::Composition => {}
+            Source::Comparison => {}
+        }
+
+        match context.settings.visualization.axes.x {
+            X::Mass => context
+                .state
+                .entry()
+                .data
+                .composed
+                .composition(context.settings.composition.method)
+                .leafs()
+                .map(|Leaf { data }| {
+                    let key = round_to_decimals(
+                        C3H2 + context.mass(data.tag).sum() + context.settings.composition.adduct.0,
+                        5,
+                    );
+                    let name = context.species(data.tag).to_string();
+                    let value = data.value.0;
+                    (key.ord(), (name, value))
+                })
+                .into_group_map(),
+            X::EquivalentCarbonNumber => context
+                .state
+                .entry()
+                .data
+                .composed
+                .composition(context.settings.composition.method)
+                .leafs()
+                .map(|Leaf { data }| {
+                    let key = context.ecn(data.tag).sum() as f64;
+                    let name = context.species(data.tag).to_string();
+                    let value = data.value.0;
+                    (key.ord(), (name, value))
+                })
+                .into_group_map(),
+        }
     }
 }
 
@@ -59,11 +82,11 @@ impl Hash for Key<'_> {
     }
 }
 
-impl<'a> From<&'a Context> for Key<'a> {
+impl<'a> std::convert::From<&'a Context> for Key<'a> {
     fn from(value: &'a Context) -> Self {
         Self { context: value }
     }
 }
 
-// /// Map
-// type Map = IndexMap<Option<Group>, IndexMap<Tag<usize>, f64>>;
+/// Value
+type Value = HashMap<OrderedFloat<f64>, Vec<(String, f64)>>;

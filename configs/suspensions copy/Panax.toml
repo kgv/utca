@@ -1,0 +1,71 @@
+name = "Panax"
+
+[[fatty_acids]]
+label = "Lau"
+formula = "H24C12O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 54063.0 }
+
+[[fatty_acids]]
+label = "Myr"
+formula = "H28C14O2"
+data = { mag2 = 1.0, dag1223 = 0.0, tag123 = 550829.0 }
+
+[[fatty_acids]]
+label = "Pam"
+formula = "H32C16O2"
+data = { mag2 = 1200130.0, dag1223 = 2300389.0, tag123 = 30977748.0 }
+
+[[fatty_acids]]
+label = "Hx7"
+formula = "H30C16O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 295524.0 }
+
+[[fatty_acids]]
+label = "Hx9"
+formula = "H30C16O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 83334.0 }
+
+[[fatty_acids]]
+label = "Pl7"
+formula = "H28C16O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 88276.0 }
+
+[[fatty_acids]]
+label = "Ste"
+formula = "H36C18O2"
+data = { mag2 = 234788.0, dag1223 = 689257.0, tag123 = 11497698.0 }
+
+[[fatty_acids]]
+label = "Ole"
+formula = "H34C18O2"
+data = { mag2 = 3325164.0, dag1223 = 2701913.0, tag123 = 30682574.0 }
+
+[[fatty_acids]]
+label = "Vac"
+formula = "H34C18O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 270977.0 }
+
+[[fatty_acids]]
+label = "Lin"
+formula = "H32C18O2"
+data = { mag2 = 18837591.0, dag1223 = 17796103.0, tag123 = 178937172.0 }
+
+[[fatty_acids]]
+label = "Gad"
+formula = "H38C20O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 760634.0 }
+
+[[fatty_acids]]
+label = "Lnn"
+formula = "H30C18O2"
+data = { mag2 = 400395.0, dag1223 = 0.0, tag123 = 9308764.0 }
+
+[[fatty_acids]]
+label = "Etr"
+formula = "H34C20O2"
+data = { mag2 = 44241.0, dag1223 = 950168.0, tag123 = 351232.0 }
+
+[[fatty_acids]]
+label = "Ody"
+formula = "H32C18O2"
+data = { mag2 = 211749.0, dag1223 = 168519.0, tag123 = 339069.0 }

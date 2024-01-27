@@ -29,6 +29,8 @@ impl View for Configuration<'_> {
                 ui.horizontal(|ui| {
                     ui.toggle_value(&mut context.settings.configuration.resizable, "↔ Resizable")
                         .on_hover_text("Resize table columns");
+                    ui.toggle_value(&mut context.settings.configuration.editable, "✏ Editable")
+                        .on_hover_text("Edit table");
                 });
                 ui.separator();
                 ui.horizontal(|ui| {
@@ -63,6 +65,16 @@ impl View for Configuration<'_> {
                             .clamp_range(0..=U::max(context.settings.configuration.c.end)),
                     )
                     .on_hover_text("Max");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Names:");
+                    ui.checkbox(&mut context.settings.configuration.names, "")
+                        .on_hover_text("Propose names for fatty acids");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Properties:");
+                    ui.checkbox(&mut context.settings.configuration.properties, "")
+                        .on_hover_text("Show properties for fatty acids");
                 });
             },
         );

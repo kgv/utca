@@ -1,11 +1,11 @@
-use crate::app::{
-    context::{
-        settings::calculation::{From, Source},
-        Context,
+use crate::{
+    app::{
+        context::{settings::calculation::From, Context},
+        view::View,
     },
-    view::View,
+    utils::RightAlignColumn,
 };
-use egui::{Align, ComboBox, Direction, Layout, RichText, Ui};
+use egui::{Color32, Direction, Layout, Ui};
 use egui_ext::TableBodyExt;
 use egui_extras::{Column, TableBuilder};
 
@@ -26,6 +26,7 @@ impl View for Calculation<'_> {
     fn view(self, ui: &mut Ui) {
         let Self { context } = self;
         context.calculate(ui);
+        let p = context.settings.calculation.precision;
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
         TableBuilder::new(ui)
@@ -43,143 +44,261 @@ impl View for Calculation<'_> {
                 });
                 // 1,2/2,3-DAGs
                 row.col(|ui| {
-                    ComboBox::from_id_source("1,2/2,3")
-                        .width(ui.available_width())
-                        .selected_text(RichText::new("1,2/2,3").heading())
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut context.settings.calculation.sources.dag1223,
-                                Source::Experimental,
-                                Source::Experimental.text(),
-                            )
-                            .on_hover_text(Source::Experimental.hover_text(From::Dag1223));
-                            ui.selectable_value(
-                                &mut context.settings.calculation.sources.dag1223,
-                                Source::Calculated,
-                                Source::Calculated.text(),
-                            )
-                            .on_hover_text(Source::Calculated.hover_text(From::Dag1223));
-                        })
-                        .response
-                        .on_hover_text(
-                            context
-                                .settings
-                                .calculation
-                                .sources
-                                .dag1223
-                                .hover_text(From::Dag1223),
-                        );
+                    ui.heading("1,2/2,3").on_hover_text("1,2/2,3-DAGs");
                 });
                 // 2-MAGs
                 row.col(|ui| {
-                    ComboBox::from_id_source("2")
-                        .width(ui.available_width())
-                        .selected_text(RichText::new("2").heading())
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut context.settings.calculation.sources.mags2,
-                                Source::Experimental,
-                                Source::Experimental.text(),
-                            )
-                            .on_hover_text(Source::Experimental.hover_text(From::Mag2));
-                            ui.selectable_value(
-                                &mut context.settings.calculation.sources.mags2,
-                                Source::Calculated,
-                                Source::Calculated.text(),
-                            )
-                            .on_hover_text(Source::Calculated.hover_text(From::Mag2));
-                        })
-                        .response
-                        .on_hover_text(
-                            context
-                                .settings
-                                .calculation
-                                .sources
-                                .mags2
-                                .hover_text(From::Mag2),
-                        );
+                    ui.heading("2").on_hover_text("2-MAGs");
                 });
                 // 1,3-DAGs
                 row.col(|ui| {
-                    ComboBox::from_id_source("1,3")
-                        .width(ui.available_width())
-                        .selected_text(RichText::new("1,3").heading())
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut context.settings.calculation.sources.dag13,
-                                From::Dag1223,
-                                From::Dag1223.text(),
-                            )
-                            .on_hover_text(
-                                From::Dag1223
-                                    .hover_text(context.settings.calculation.sources.dag1223),
-                            );
-                            ui.selectable_value(
-                                &mut context.settings.calculation.sources.dag13,
-                                From::Mag2,
-                                From::Mag2.text(),
-                            )
-                            .on_hover_text(
-                                From::Mag2.hover_text(context.settings.calculation.sources.mags2),
-                            );
-                        })
-                        .response
-                        .on_hover_text("1,3-DAGs");
+                    ui.heading("1,3").on_hover_text("1,3-DAGs");
                 });
             })
             .body(|mut body| {
-                let cell = |mut value: f64| {
-                    if context.settings.calculation.percent {
-                        value *= 100.0;
-                    }
-                    let precision = context.settings.calculation.precision;
-                    move |ui: &mut Ui| {
-                        ui.with_layout(
-                            Layout::left_to_right(Align::Center)
-                                .with_main_align(Align::RIGHT)
-                                .with_main_justify(true),
-                            |ui| {
-                                ui.label(format!("{value:.precision$}"))
-                                    .on_hover_text(value.to_string());
-                            },
-                        );
-                    }
-                };
-                for (label, (&tag123, &dag1223, &mag2, &dag13)) in context
+                for (label, (mut tag123, mut dag1223, mut mag2, mut dag13)) in context
                     .state
                     .entry()
                     .meta
                     .labels
                     .iter()
-                    .zip(context.state.entry().data.normalized.zip())
+                    .zip(context.state.entry().data.calculated.zip())
                 {
                     body.row(height, |mut row| {
-                        row.col(|ui| {
+                        row.left_align_col(|ui| {
                             ui.heading(label);
                         });
                         // 1,2,3-TAGs
-                        row.col(cell(tag123));
+                        row.right_align_col(|ui| {
+                            if context.settings.calculation.percent {
+                                tag123.experimental.normalized *= 100.0;
+                                tag123.theoretical.normalized *= 100.0;
+                            }
+                            let response = ui
+                                .label(format!("{:.p$}", tag123.experimental.normalized))
+                                .on_hover_ui(|ui| {
+                                    ui.vertical(|ui| {
+                                        if context.settings.calculation.theoretical {
+                                            ui.heading("Experimental:");
+                                        }
+                                        ui.label(tag123.experimental.normalized.to_string());
+                                        if context.settings.calculation.unnormalized {
+                                            let mut unnormalized = tag123.experimental.unnormalized;
+                                            if context.settings.calculation.pchelkin {
+                                                unnormalized *= 10.0;
+                                            }
+                                            ui.label(format!("Unnormalized: {unnormalized}"));
+                                        }
+                                    });
+                                });
+                            if context.settings.calculation.theoretical {
+                                response.on_hover_ui(|ui| {
+                                    ui.heading("Theoretical:");
+                                    ui.label(tag123.theoretical.normalized.to_string());
+                                    if context.settings.calculation.unnormalized {
+                                        let mut unnormalized = tag123.theoretical.unnormalized;
+                                        if context.settings.calculation.pchelkin {
+                                            unnormalized *= 10.0;
+                                        }
+                                        ui.label(format!("Unnormalized: {unnormalized}"));
+                                    }
+                                    if context.settings.calculation.selectivity {
+                                        let selectivity = tag123.theoretical.normalized
+                                            / tag123.experimental.unnormalized;
+                                        ui.label(format!("Selectivity: {selectivity}"));
+                                    }
+                                });
+                            }
+                        });
                         // 1,2/2,3-DAGs
-                        row.col(cell(dag1223));
+                        row.right_align_col(|ui| {
+                            if context.settings.calculation.percent {
+                                dag1223.experimental.normalized *= 100.0;
+                                dag1223.theoretical.normalized *= 100.0;
+                            }
+                            let response = ui
+                                .label(format!("{:.p$}", dag1223.value().normalized))
+                                .on_hover_ui(|ui| {
+                                    if !dag1223.is_experimental() {
+                                        ui.colored_label(
+                                            Color32::YELLOW,
+                                            format!("⚠ Warning: it's a theoretical value"),
+                                        );
+                                        ui.label(dag1223.theoretical.normalized.to_string());
+                                    } else {
+                                        if context.settings.calculation.theoretical {
+                                            ui.heading("Experimental:");
+                                        }
+                                        ui.label(dag1223.experimental.normalized.to_string());
+                                        if context.settings.calculation.unnormalized {
+                                            let mut unnormalized =
+                                                dag1223.experimental.unnormalized;
+                                            if context.settings.calculation.pchelkin {
+                                                unnormalized *= 10.0;
+                                            }
+                                            ui.label(format!("Unnormalized: {unnormalized}"));
+                                        }
+                                    }
+                                });
+                            if context.settings.calculation.theoretical {
+                                response.on_hover_ui(|ui| {
+                                    ui.heading("Theoretical:");
+                                    ui.label(dag1223.theoretical.normalized.to_string());
+                                    if context.settings.calculation.unnormalized {
+                                        let mut unnormalized = dag1223.theoretical.unnormalized;
+                                        if context.settings.calculation.pchelkin {
+                                            unnormalized *= 10.0;
+                                        }
+                                        ui.label(format!("Unnormalized: {unnormalized}"));
+                                    }
+                                    if context.settings.calculation.selectivity {
+                                        let selectivity = dag1223.theoretical.normalized
+                                            / tag123.experimental.unnormalized;
+                                        ui.label(format!("Selectivity: {selectivity}"));
+                                    }
+                                });
+                            }
+                        });
                         // 2-MAGs
-                        row.col(cell(mag2));
+                        row.right_align_col(|ui| {
+                            if context.settings.calculation.percent {
+                                mag2.experimental.normalized *= 100.0;
+                                mag2.theoretical.normalized *= 100.0;
+                            }
+                            let response = ui
+                                .label(format!("{:.p$}", mag2.value().normalized))
+                                .on_hover_ui(|ui| {
+                                    if !mag2.is_experimental() {
+                                        ui.colored_label(
+                                            Color32::YELLOW,
+                                            format!("⚠ Warning: it's a theoretical value"),
+                                        );
+                                        ui.label(mag2.theoretical.normalized.to_string());
+                                    } else {
+                                        if context.settings.calculation.theoretical {
+                                            ui.heading("Experimental:");
+                                        }
+                                        ui.label(mag2.experimental.normalized.to_string());
+                                        if context.settings.calculation.unnormalized {
+                                            let mut unnormalized = mag2.experimental.unnormalized;
+                                            if context.settings.calculation.pchelkin {
+                                                unnormalized *= 10.0;
+                                            }
+                                            ui.label(format!("Unnormalized: {unnormalized}"));
+                                        }
+                                    }
+                                });
+                            if context.settings.calculation.theoretical {
+                                response.on_hover_ui(|ui| {
+                                    ui.heading("Theoretical:");
+                                    ui.label(mag2.theoretical.normalized.to_string());
+                                    if context.settings.calculation.unnormalized {
+                                        let mut unnormalized = mag2.theoretical.unnormalized;
+                                        if context.settings.calculation.pchelkin {
+                                            unnormalized *= 10.0;
+                                        }
+                                        ui.label(format!("Unnormalized: {unnormalized}"));
+                                    }
+                                    if context.settings.calculation.selectivity {
+                                        let selectivity = mag2.theoretical.normalized
+                                            / tag123.experimental.unnormalized;
+                                        ui.label(format!("Selectivity: {selectivity}"));
+                                    }
+                                });
+                            }
+                        });
                         // 1,3-DAGs
-                        row.col(cell(dag13));
+                        row.right_align_col(|ui| {
+                            if context.settings.calculation.percent {
+                                dag13.dag1223.normalized *= 100.0;
+                                dag13.mag2.normalized *= 100.0;
+                            }
+                            let value = *dag13.value(context.settings.calculation.from);
+                            ui.label(format!("{:.p$}", value.normalized))
+                                .on_hover_ui(|ui| match context.settings.calculation.from {
+                                    From::Dag1223 => {
+                                        ui.label(dag13.dag1223.normalized.to_string());
+                                        if context.settings.calculation.unnormalized {
+                                            let mut unnormalized = dag13.dag1223.unnormalized;
+                                            if context.settings.calculation.pchelkin {
+                                                unnormalized *= 10.0;
+                                            }
+                                            ui.label(format!("Unnormalized: {unnormalized}"));
+                                        }
+                                        if context.settings.calculation.selectivity {
+                                            let selectivity = dag13.dag1223.normalized
+                                                / tag123.experimental.unnormalized;
+                                            ui.label(format!("Selectivity: {selectivity}"));
+                                        }
+                                    }
+                                    From::Mag2 => {
+                                        ui.label(dag13.mag2.normalized.to_string());
+                                        if context.settings.calculation.unnormalized {
+                                            ui.label(format!(
+                                                "Unnormalized: {}",
+                                                dag13.mag2.unnormalized,
+                                            ));
+                                        }
+                                        if context.settings.calculation.selectivity {
+                                            let selectivity = dag13.mag2.normalized
+                                                / tag123.experimental.unnormalized;
+                                            ui.label(format!("Selectivity: {selectivity}"));
+                                        }
+                                    }
+                                });
+                        });
                     });
                 }
                 // Footer
-                let normalized = &context.state.entry().data.normalized;
+                let calculated = &context.state.entry().data.calculated;
                 body.separate(height / 2.0, 5);
                 body.row(height, |mut row| {
                     row.col(|_| {});
                     // 1,2,3-TAGs
-                    row.col(cell(normalized.tags123.iter().sum()));
+                    row.right_align_col(|ui| {
+                        let mut sum: f64 = calculated.tags123.experimental.normalized.iter().sum();
+                        if context.settings.calculation.percent {
+                            sum *= 100.0;
+                        }
+                        ui.label(format!("{sum:.p$}")).on_hover_ui(|ui| {
+                            ui.label(sum.to_string());
+                        });
+                    });
                     // 1,2/2,3-DAGs
-                    row.col(cell(normalized.dags1223.iter().sum()));
+                    row.right_align_col(|ui| {
+                        let mut sum: f64 = calculated.dags1223.experimental.normalized.iter().sum();
+                        if context.settings.calculation.percent {
+                            sum *= 100.0;
+                        }
+                        ui.label(format!("{sum:.p$}")).on_hover_ui(|ui| {
+                            ui.label(sum.to_string());
+                        });
+                    });
                     // 2-MAGs
-                    row.col(cell(normalized.mags2.iter().sum()));
+                    row.right_align_col(|ui| {
+                        let mut sum: f64 = calculated.mags2.experimental.normalized.iter().sum();
+                        if context.settings.calculation.percent {
+                            sum *= 100.0;
+                        }
+                        ui.label(format!("{sum:.p$}")).on_hover_ui(|ui| {
+                            ui.label(sum.to_string());
+                        });
+                    });
                     // 1,3-DAGs
-                    row.col(cell(normalized.dags13.iter().sum()));
+                    row.right_align_col(|ui| {
+                        let mut sum: f64 = calculated
+                            .dags13
+                            .value(context.settings.calculation.from)
+                            .normalized
+                            .iter()
+                            .sum();
+                        if context.settings.calculation.percent {
+                            sum *= 100.0;
+                        }
+                        ui.label(format!("{sum:.p$}")).on_hover_ui(|ui| {
+                            ui.label(sum.to_string());
+                        });
+                    });
                 });
             });
     }

@@ -1,13 +1,25 @@
 use self::{
-    settings::Settings,
-    state::{Data, Entry, Meta, State, Unnormalized},
+    settings::{composition::Type, Settings},
+    state::{Data, Entry, Meta, State},
 };
 use super::computers::{calculator::Calculated, comparator::Compared, composer::Composed};
-use crate::{acylglycerol::Tag, ecn::Ecn, parsers::toml::Parsed};
+use crate::{
+    acylglycerol::Tag,
+    ecn::Ecn,
+    parsers::toml::Parsed,
+    r#const::{
+        atoms::C,
+        polymorphism::{alpha, beta},
+        R,
+    },
+};
 use egui::Ui;
-use molecule::{Saturable, Saturation};
+use molecule::{Counter, Saturable, Saturation};
 use serde::{Deserialize, Serialize};
-use std::cmp::{max, min};
+use std::{
+    cmp::{max, min},
+    f64::consts::LN_2,
+};
 
 /// Context
 #[derive(Debug, Default, Deserialize, Hash, Serialize)]
@@ -19,23 +31,9 @@ pub(super) struct Context {
 impl Context {
     pub(super) fn init(&mut self, parsed: Parsed) {
         let Parsed { name, fatty_acids } = parsed;
-        let (labels, (formulas, (tags123, (dags1223, mags2)))): (
-            Vec<_>,
-            (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))),
-        ) = fatty_acids
+        let (labels, (formulas, configured)) = fatty_acids
             .into_iter()
-            .map(|fatty_acid| {
-                (
-                    fatty_acid.label,
-                    (
-                        fatty_acid.formula,
-                        (
-                            fatty_acid.data.tag123,
-                            (fatty_acid.data.dag1223, fatty_acid.data.mag2),
-                        ),
-                    ),
-                )
-            })
+            .map(|fatty_acid| (fatty_acid.label, (fatty_acid.formula, fatty_acid.data)))
             .unzip();
         if self.state.entries.len() == 1 && self.state.entries.first().unwrap().len() == 0 {
             self.state.entries.clear();
@@ -47,11 +45,7 @@ impl Context {
                 formulas,
             },
             data: Data {
-                unnormalized: Unnormalized {
-                    tags123,
-                    dags1223,
-                    mags2,
-                },
+                configured,
                 ..Default::default()
             },
         });
@@ -64,7 +58,13 @@ impl Context {
             .rev()
             .enumerate()
             .fold(0, |mut value, (index, entry)| {
-                if entry.data.composed.leafs().any(|leaf| leaf.data.tag == tag) {
+                if entry
+                    .data
+                    .composed
+                    .composition(self.settings.composition.method)
+                    .leafs()
+                    .any(|leaf| leaf.data.tag == tag)
+                {
                     value += 2u32.pow(index as _);
                 }
                 value
@@ -75,24 +75,27 @@ impl Context {
         tag.map(|index| self.state.entry().meta.formulas[index].ecn())
     }
 
+    pub(super) fn formula(&self, tag: Tag<usize>) -> Tag<&Counter> {
+        tag.map(|index| &self.state.entry().meta.formulas[index])
+    }
+
     pub(super) fn mass(&self, tag: Tag<usize>) -> Tag<f64> {
         tag.map(|index| self.state.entry().meta.formulas[index].weight())
     }
 
-    pub(super) fn ptc(&self, tag: Tag<usize>) -> Tag<Saturation> {
+    pub(super) fn r#type(&self, tag: Tag<usize>) -> Tag<Saturation> {
         let formulas = &self.state.entry().meta.formulas;
-        if self.settings.composition.mirror {
-            Tag([
-                min(formulas[tag[0]].saturation(), formulas[tag[2]].saturation()),
-                formulas[tag[1]].saturation(),
-                max(formulas[tag[0]].saturation(), formulas[tag[2]].saturation()),
-            ])
-        } else {
-            Tag([
+        match self.settings.composition.r#type {
+            Type::Stereo => Tag([
                 formulas[tag[0]].saturation(),
                 formulas[tag[1]].saturation(),
                 formulas[tag[2]].saturation(),
-            ])
+            ]),
+            Type::Positional => Tag([
+                min(formulas[tag[0]].saturation(), formulas[tag[2]].saturation()),
+                formulas[tag[1]].saturation(),
+                max(formulas[tag[0]].saturation(), formulas[tag[2]].saturation()),
+            ]),
         }
     }
 
@@ -101,7 +104,7 @@ impl Context {
     }
 
     pub(super) fn calculate(&mut self, ui: &Ui) {
-        self.state.entry_mut().data.normalized =
+        self.state.entry_mut().data.calculated =
             ui.memory_mut(|memory| memory.caches.cache::<Calculated>().get((&*self).into()));
     }
 

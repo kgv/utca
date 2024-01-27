@@ -1,0 +1,84 @@
+use molecule::{atom::isotopes::*, counter, Counter};
+
+pub(crate) const CH2: f64 =
+    C::Twelve.relative_atomic_mass().value + 2.0 * H::One.relative_atomic_mass().value;
+pub(crate) const C3H2: f64 =
+    3.0 * C::Twelve.relative_atomic_mass().value + 2.0 * H::One.relative_atomic_mass().value;
+pub(crate) const H: f64 = H::One.relative_atomic_mass().value;
+pub(crate) const LI: f64 = Li::Seven.relative_atomic_mass().value;
+pub(crate) const NA: f64 = Na.relative_atomic_mass().value;
+pub(crate) const NH4: f64 =
+    N::Fourteen.relative_atomic_mass().value + 4.0 * H::One.relative_atomic_mass().value;
+
+// pub(crate) const OLEIC: Counter = counter! {
+//     C::Twelve => 18,
+//     H::One => 34,
+// };
+// pub(crate) const ELAIDIC: Counter = counter! {
+//     C::Twelve => 18,
+//     H::One => 34,
+// };
+// pub(crate) const LINOLEIC: Counter = counter! {
+//     C::Twelve => 18,
+//     H::One => 32,
+// };
+
+pub mod atoms {
+    use molecule::atom::isotopes::*;
+
+    pub const C: C = C::Twelve;
+}
+
+pub const R: f64 = 8.314_462_618_153_24;
+
+// Triglyceride Property Calculator
+pub mod polymorphism {
+    pub mod alpha {
+        pub const H: f64 = 2.7;
+        pub const H0: f64 = -31.95;
+        pub const H_XY: f64 = -13.28;
+
+        pub const S: f64 = 6.79;
+        pub const S0: f64 = -19.09;
+        pub const S_XY: f64 = -36.7;
+
+        pub const K: f64 = 4.39;
+        pub const K_X: f64 = K;
+        pub const K_Y: f64 = K;
+
+        pub const X0: f64 = 1.25;
+    }
+
+    pub mod beta_prime {
+        pub const H: f64 = 3.86;
+        pub const H0: f64 = -35.86;
+        pub const H_XY: f64 = -19.35;
+
+        pub const S: f64 = 10.13;
+        pub const S0: f64 = -39.59;
+        pub const S_XY: f64 = -52.51;
+
+        pub const K: f64 = 1.99;
+        pub const K_X: f64 = K;
+        pub const K_Y: f64 = K;
+
+        pub const X0: f64 = 2.46;
+    }
+
+    pub mod beta {
+        pub const H: f64 = 3.89;
+        pub const H0: f64 = -17.16;
+        pub const H_XY: f64 = -22.29;
+        pub const H_ODD: f64 = 2.29;
+
+        pub const S: f64 = 9.83;
+        pub const S0: f64 = 31.04;
+        pub const S_XY: f64 = -64.58;
+
+        pub const K: f64 = 2.88;
+        pub const K_X: f64 = K;
+        pub const K_Y: f64 = K;
+
+        pub const X0: f64 = 0.77;
+    }
+}

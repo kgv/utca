@@ -1,4 +1,4 @@
-use molecule::Counter;
+use crate::fatty_acid::FattyAcid;
 use serde::{Deserialize, Serialize};
 use std::{mem::take, str::FromStr};
 use toml_edit::{
@@ -28,37 +28,6 @@ impl FromStr for Parsed {
     fn from_str(value: &str) -> Result<Self> {
         from_str(value)
     }
-}
-
-/// Fatty acid
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub struct FattyAcid {
-    pub label: String,
-    #[serde(with = "formula")]
-    pub formula: Counter,
-    pub data: Data,
-}
-
-impl FattyAcid {
-    pub fn new(label: String, formula: Counter, tag123: f64, dag1223: f64, mag2: f64) -> Self {
-        Self {
-            label,
-            formula,
-            data: Data {
-                tag123,
-                dag1223,
-                mag2,
-            },
-        }
-    }
-}
-
-/// Data
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub struct Data {
-    pub tag123: f64,
-    pub dag1223: f64,
-    pub mag2: f64,
 }
 
 /// Visitor
@@ -102,26 +71,6 @@ impl VisitMut for Visitor {
 
 /// Result
 type Result<T, E = Error> = std::result::Result<T, E>;
-
-mod formula {
-    use molecule::Counter;
-    use serde::{de::Error, Deserialize, Deserializer, Serializer};
-
-    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Counter, D::Error> {
-        String::deserialize(deserializer)?
-            .parse()
-            .map_err(Error::custom)
-    }
-
-    pub(super) fn serialize<S: Serializer>(
-        counter: &Counter,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&counter.to_string())
-    }
-}
 
 #[test]
 fn test() -> Result<()> {

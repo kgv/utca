@@ -1,4 +1,5 @@
-pub(crate) use self::{float::FloatExt, normalize::Normalize};
+pub(crate) use self::{egui::RightAlignColumn, float::FloatExt, normalize::Normalize};
 
+mod egui;
 mod float;
 mod normalize;

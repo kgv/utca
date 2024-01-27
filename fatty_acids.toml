@@ -1,0 +1,356 @@
+[["4:0"]]
+systematic_name = "Butanoic acid"
+common_name = "Butyric acid"
+abbreviation = "Bu"
+
+[["5:0"]]
+systematic_name = "Pentanoic acid"
+common_name = "Valeric acid"
+abbreviation = "V"
+
+[["6:0"]]
+systematic_name = "Hexanoic acid"
+common_name = "Caproic acid"
+abbreviation = "Co"
+
+[["7:0"]]
+systematic_name = "Heptanoic acid"
+common_name = "Enanthic acid"
+abbreviation = "En"
+
+[["8:0"]]
+systematic_name = "Octanoic acid"
+common_name = "Caprylic acid"
+abbreviation = "Cy"
+
+[["9:0"]]
+systematic_name = "Nonanoic acid"
+common_name = "Pelargonic acid"
+
+[["10:0"]]
+systematic_name = "Decanoic acid"
+common_name = "Capric acid"
+abbreviation = "Ca"
+
+[["11:0"]]
+systematic_name = "Hendecanoic acid"
+common_name = "Undecylic acid"
+
+[["12:0"]]
+systematic_name = "Dodecanoic acid"
+common_name = "Lauric acid"
+abbreviation = "La"
+
+[["13:0"]]
+systematic_name = "Tridecanoic acid"
+common_name = "Tridecylic acid"
+
+[["14:0"]]
+systematic_name = "Tetradecanoic acid"
+common_name = "Myristic acid"
+abbreviation = "M"
+
+[["15:0"]]
+systematic_name = "Pentadecanoic acid"
+common_name = "Pentadecylic acid"
+
+[["16:0"]]
+systematic_name = "Hexadecanoic acid"
+common_name = "Palmitic acid"
+abbreviation = "P"
+
+[["16:1"]]
+systematic_name = "c-9-Hexadecenoic acid"
+common_name = "Palmitoleic acid (n-7)"
+abbreviation = "Po"
+
+[["16:1"]]
+systematic_name = "t-9-Hexadecenoic acid"
+common_name = "Palmitelaidic acid (n-7)"
+abbreviation = "Pe"
+
+[["17:0"]]
+systematic_name = "Heptadecanoic acid"
+common_name = "Margaric acid"
+
+[["18:0"]]
+systematic_name = "Octadecanoic acid"
+common_name = "Stearic acid"
+abbreviation = "S"
+
+[["18:1"]]
+systematic_name = "c-9-Octadecenoic acid"
+common_name = "Oleic acid (n-9)"
+abbreviation = "O"
+
+[["18:1"]]
+systematic_name = "t-9-Octadecenoic acid"
+common_name = "Elaidic acid (n-9)"
+abbreviation = "El"
+
+[["18:2"]]
+systematic_name = "c-9,12-Octadecadienoic acid"
+common_name = "Linoleic acid (w-6)"
+abbreviation = "L"
+
+[["18:3"]]
+systematic_name = "c-9,12,15-Octadecatrienoic acid"
+common_name = "a-Linolenic acid (w-3)"
+abbreviation = "Ln"
+
+[["18:3"]]
+systematic_name = "c-6,9,12-Octadecatrienoic acid"
+common_name = "g-Linolenic acid (w-6)  =  GLA"
+abbreviation = "g-Ln"
+
+[["18:3"]]
+systematic_name = "9c,11t,13t-Octadecatrienoic  acid"
+common_name = "a-Eleostearic acid"
+abbreviation = "Eo"
+
+[["18:3"]]
+systematic_name = "9t,11t,13t-Octadecatrienoic  acid"
+common_name = "b-Eleostearic acid"
+
+[["18:3"]]
+systematic_name = "8c,10t,12c-Octadecatrienoic  acid"
+common_name = "Jacaric acid"
+abbreviation = "Ja"
+
+[["18:3"]]
+systematic_name = "9t,11t,13c-Octadecatrienoic  acid"
+common_name = "Catalpic acid"
+abbreviation = "Ct"
+
+[["18:4"]]
+systematic_name = "c-6,9,12,15-Octadecatetraenoic acid"
+common_name = "Stearidonic acid (w-3)"
+abbreviation = "St"
+
+[["19:0"]]
+systematic_name = "Nonadecanoic acid"
+common_name = "Nonadecylic acid"
+
+[["20:0"]]
+systematic_name = "Eicosanoic acid"
+common_name = "Arachidic acid"
+abbreviation = "A"
+
+[["20:1"]]
+systematic_name = "c-9-Eicosenoic acid"
+common_name = "Gadoleic acid (n-11)"
+abbreviation = "G"
+
+[["20:1"]]
+systematic_name = "c-11-Eicosenoic acid"
+common_name = "Gondoic acid (n-9)"
+abbreviation = "Go"
+
+[["20:2"]]
+systematic_name = "c-11,14-Eicosadienoic acid"
+common_name = "DihomoLinoleic acid (w-6)"
+
+[["20:3"]]
+systematic_name = "c-11,14,17-Eicosatrienoic acid"
+common_name = "Bis-homo-a-Linolenic acid (w-3), ETA"
+
+[["20:3"]]
+systematic_name = "c-8,11,14-Eicosatrienoic acid"
+common_name = "Bis-homo-g-Linolenic acid (w-6)"
+
+[["20:3"]]
+systematic_name = "c-5,8,11-Eicosatrienoic acid"
+common_name = "Mead Acid"
+
+[["20:4"]]
+systematic_name = "c-5,8,11,14-Eicosatetraenoic acid"
+common_name = "Arachidonic acid (w-6)"
+abbreviation = "Ao"
+
+[["20:4"]]
+systematic_name = "c-8,11,14,17-Eicosatetraenoic acid"
+common_name = "Eicosatetraenoic acid (w-3)"
+
+[["20:5"]]
+systematic_name = "c-5,8,11,14,17-EicosaPentaenoic acid"
+common_name = "EPA  (w-3)"
+abbreviation = "Ep"
+
+[["21:0"]]
+systematic_name = "Heneicosanoic acid"
+common_name = "Heneicosylic acid"
+
+[["22:0"]]
+systematic_name = "Docosanoic acid"
+common_name = "Behenic acid"
+abbreviation = "B"
+
+[["22:1"]]
+systematic_name = "c-13-Docosenoic acid"
+common_name = "Erucic acid (n-9)"
+abbreviation = "E"
+
+[["22:2"]]
+systematic_name = "c-13,16-Docosadienoic acid"
+common_name = "Docosadienoic acid (w-6)"
+
+[["22:3"]]
+systematic_name = "c-5,13,16-Docosatrienoic acid"
+common_name = "Eranthic acid (w-6)"
+
+[["22:4"]]
+systematic_name = "c-7,10,13,16-Docosatetraenoic acid"
+common_name = "Adrenic acid (w-6)"
+
+[["22:5"]]
+systematic_name = "c-7,10,13,16,19-DocosaPentaenoic acid"
+common_name = "DPA (w-3)"
+abbreviation = "Dp"
+
+[["22:6"]]
+systematic_name = "c-4,7,10,13,16,19-DocosaHexaenoic acid"
+common_name = "DHA (w-3)"
+abbreviation = "Dh"
+
+[["23:0"]]
+systematic_name = "Tricosanoic acid"
+common_name = "Tricosylic acid"
+
+[["24:0"]]
+systematic_name = "Tetracosanoic acid"
+common_name = "Lignoceric acid"
+abbreviation = "Lg"
+
+[["24:1"]]
+systematic_name = "c-15-Tetracosenoic acid"
+common_name = "Nervonic acid (n-9)"
+abbreviation = "N"
+
+[["24:2"]]
+systematic_name = "c-15,18-Tetracosadienoic acid"
+common_name = "Tetracosadienoic acid (w-6)"
+
+[["24:3"]]
+systematic_name = "c-12,15,18-Tetracosatrienoic acid"
+common_name = "Tetracosatrienylic acid"
+
+[["24:4"]]
+systematic_name = "c-9,12,15,18-Tetracosatetraenoic acid"
+common_name = "Tetracosatetraenylic acid"
+
+[["24:5"]]
+systematic_name = "c-6,9,12,15,18-Tetracosapentaenoic acid (or 21)"
+common_name = "Tetracosapentaenylic acid"
+
+[["24:6"]]
+systematic_name = "c-6,9,12,15,18,21-Tetracosahexaenoic acid"
+common_name = "Tetracosahexaenylic acid (w-3)"
+
+[["25:0"]]
+systematic_name = "Pentacosanoic acid"
+common_name = "Hyenic acid"
+
+[["26:0"]]
+systematic_name = "Hexacosanoic acid"
+common_name = "Cerotic acid"
+abbreviation = "Ce"
+
+[["26:1"]]
+systematic_name = "c-17-Hexacosenoic acid"
+common_name = "Ximenic acid"
+abbreviation = "Xi"
+
+[["26:2"]]
+systematic_name = "Hexacosadienoic acid"
+common_name = "Hexacosadienylic acid"
+
+[["26:3"]]
+systematic_name = "Hexacosatrienoic acid"
+common_name = "Hexacosatrienylic acid"
+
+[["26:4"]]
+systematic_name = "Hexacosatetraenoic acid"
+common_name = "Hexacosatetraenylic acid"
+
+[["26:5"]]
+systematic_name = "Hexacosapentaenoic acid"
+common_name = "Hexacosapentaenylic acid"
+
+[["26:6"]]
+systematic_name = "Hexacosahexaenoic acid"
+common_name = "Hexacosahexaenylic acid"
+
+[["27:0"]]
+systematic_name = "Heptacosanoic acid"
+common_name = "Carboceric acid"
+
+[["28:0"]]
+systematic_name = "Octacosanoic acid"
+common_name = "Montanic acid"
+abbreviation = "Mo"
+
+[["28:1"]]
+systematic_name = "Octacosenoic acid"
+common_name = "Octacosenylic acid"
+
+[["28:2"]]
+systematic_name = "Octacosadienoic acid"
+
+[["29:0"]]
+systematic_name = "Nonacosanoic acid"
+common_name = "Nonacosylic acid"
+
+[["30:0"]]
+systematic_name = "Triacontanoic acid"
+common_name = "Melissic acid"
+
+[["30:1"]]
+systematic_name = "c-21-Triacontenoic acid"
+common_name = "Lumequeic acid"
+
+[["30:2"]]
+
+[["31:0"]]
+systematic_name = "Henatriacontanoic acid"
+common_name = "Henatriacontylic acid"
+
+[["32:0"]]
+systematic_name = "Dotriacontanoic acid"
+common_name = "Lacceroic acid"
+
+[["32:1"]]
+systematic_name = "Dotriacontenoic acid"
+common_name = "Dotriacontenylic acid"
+
+[["32:2"]]
+systematic_name = "Dotriacontadienoic acid"
+
+[["33:0"]]
+systematic_name = "Triatriacontanoic acid"
+common_name = "Psyllic acid"
+
+[["34:0"]]
+systematic_name = "Tetratriacontanoic acid"
+common_name = "Gheddic acid"
+
+[["34:1"]]
+systematic_name = "Tetratriacontenoic acid"
+common_name = "Tetratriacontenylic acid"
+
+[["34:2"]]
+systematic_name = "Tetratriacontadienoic acid"
+
+[["35:0"]]
+systematic_name = "Pentatriacontanoic acid"
+common_name = "Ceroplastic acid"
+
+[["36:0"]]
+systematic_name = "Hexatriacontanoic acid"
+common_name = "Hexatriacontylic acid"
+
+[["36:1"]]
+systematic_name = "Hexatriacontenoic acid"
+common_name = "Hexatriacontenylic acid"
+
+[["36:2"]]
+systematic_name = "Hexatriacontadienoic acid"

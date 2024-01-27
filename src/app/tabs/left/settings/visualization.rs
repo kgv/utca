@@ -1,10 +1,13 @@
 use crate::app::{
-    context::{settings::visualization::Source, Context},
+    context::{
+        settings::visualization::{Comparison, Source, X},
+        Context,
+    },
     tabs::CentralTab,
     view::View,
     MAX_PRECISION,
 };
-use egui::{ComboBox, RichText, Slider, Ui};
+use egui::{ComboBox, DragValue, RichText, Slider, TextStyle, Ui};
 
 /// Left visualization tab
 pub(super) struct Visualization<'a> {
@@ -65,6 +68,45 @@ impl View for Visualization<'_> {
                     ));
                 });
                 ui.horizontal(|ui| {
+                    ui.label("Text:");
+                    ui.checkbox(&mut context.settings.visualization.text.show, "")
+                        .on_hover_text("show text");
+                    if context.settings.visualization.text.show {
+                        ui.add(
+                            DragValue::new(&mut context.settings.visualization.text.min)
+                                .clamp_range(0.0..=f64::MAX)
+                                .speed(0.1),
+                        );
+                        ui.add(Slider::new(
+                            &mut context.settings.visualization.text.size,
+                            ui.text_style_height(&TextStyle::Small)
+                                ..=ui.text_style_height(&TextStyle::Heading),
+                        ));
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("X:");
+                    ComboBox::from_id_source("x")
+                        .selected_text(context.settings.visualization.axes.x.text())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut context.settings.visualization.axes.x,
+                                X::Mass,
+                                X::Mass.text(),
+                            )
+                            .on_hover_text(Comparison::One.hover_text());
+                            ui.selectable_value(
+                                &mut context.settings.visualization.axes.x,
+                                X::EquivalentCarbonNumber,
+                                X::EquivalentCarbonNumber.text(),
+                            )
+                            .on_hover_text(X::EquivalentCarbonNumber.hover_text());
+                        })
+                        .response
+                        .on_hover_text(context.settings.visualization.axes.x.hover_text());
+                });
+                ui.horizontal(|ui| {
                     ui.label("Source:");
                     ComboBox::from_id_source("source")
                         .selected_text(context.settings.visualization.source.text())
@@ -86,24 +128,53 @@ impl View for Visualization<'_> {
                         .on_hover_text(context.settings.visualization.source.hover_text());
                 });
                 ui.separator();
-                if context.settings.visualization.source == Source::Comparison {
-                    ui.horizontal(|ui| {
-                        ui.label("Links:");
+                match context.settings.visualization.source {
+                    Source::Composition => {}
+                    Source::Comparison => {
+                        ComboBox::from_id_source("comparison")
+                            .selected_text(context.settings.visualization.comparison.text())
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut context.settings.visualization.comparison,
+                                    Comparison::One,
+                                    Comparison::One.text(),
+                                )
+                                .on_hover_text(Comparison::One.hover_text());
+                                ui.selectable_value(
+                                    &mut context.settings.visualization.comparison,
+                                    Comparison::Many,
+                                    Comparison::Many.text(),
+                                )
+                                .on_hover_text(Comparison::Many.hover_text());
+                            })
+                            .response
+                            .on_hover_text(context.settings.visualization.comparison.hover_text());
                         ui.horizontal(|ui| {
-                            ui.label("Axis:");
-                            ui.checkbox(&mut context.settings.visualization.links.axis.x, "")
-                                .on_hover_text("x");
-                            ui.checkbox(&mut context.settings.visualization.links.axis.y, "")
-                                .on_hover_text("y");
+                            ui.label("Links:");
+                            ui.horizontal(|ui| {
+                                ui.label("Axis:");
+                                ui.checkbox(&mut context.settings.visualization.links.axis.x, "")
+                                    .on_hover_text("x");
+                                ui.checkbox(&mut context.settings.visualization.links.axis.y, "")
+                                    .on_hover_text("y");
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label("Cursor:");
+                                ui.checkbox(&mut context.settings.visualization.links.cursor.x, "")
+                                    .on_hover_text("x");
+                                ui.checkbox(&mut context.settings.visualization.links.cursor.y, "")
+                                    .on_hover_text("y");
+                            });
                         });
                         ui.horizontal(|ui| {
-                            ui.label("Cursor:");
-                            ui.checkbox(&mut context.settings.visualization.links.cursor.x, "")
-                                .on_hover_text("x");
-                            ui.checkbox(&mut context.settings.visualization.links.cursor.y, "")
-                                .on_hover_text("y");
+                            ui.label("Plots height de:");
+                            ui.add(Slider::new(
+                                &mut context.settings.visualization.height,
+                                1.0..=10.0,
+                            ))
+                            .on_hover_text("Plot's height");
                         });
-                    });
+                    }
                 }
             },
         );

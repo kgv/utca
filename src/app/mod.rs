@@ -313,6 +313,7 @@ impl App {
                     }
                 }
                 ui.separator();
+                // About
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if ui
                         .add(Button::new(RichText::new("ℹ")))

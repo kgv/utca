@@ -1,12 +1,12 @@
-use maplit::btreemap;
+use egui::epaint::util::FloatOrd;
 use molecule::{
     atom::{isotopes::*, Isotope},
     counter, Counter,
 };
+use serde::{Deserialize, Serialize};
 use std::{
-    cell::LazyCell,
-    collections::BTreeMap,
     fmt::{self, Display, Formatter},
+    hash::{Hash, Hasher},
     num::NonZeroUsize,
 };
 
@@ -31,6 +31,66 @@ pub(crate) macro fatty_acid {
 const H: Isotope = Isotope::H(H::One);
 const C: Isotope = Isotope::C(C::Twelve);
 const O: Isotope = Isotope::O(O::Sixteen);
+
+/// Fatty acid
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct FattyAcid {
+    pub label: String,
+    #[serde(with = "formula")]
+    pub formula: Counter,
+    pub data: Data,
+}
+
+/// Fatty acid mut
+#[derive(Debug, PartialEq, Serialize)]
+pub struct FattyAcidMut<'a, M = Meta, D = Data> {
+    pub meta: &'a mut M,
+    pub data: &'a mut D,
+}
+
+/// Meta
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct Meta {
+    pub label: String,
+    #[serde(with = "formula")]
+    pub formula: Counter,
+}
+
+/// Data
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct Data {
+    pub tag123: f64,
+    pub dag1223: f64,
+    pub mag2: f64,
+}
+
+impl Hash for Data {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.tag123.ord().hash(state);
+        self.dag1223.ord().hash(state);
+        self.mag2.ord().hash(state);
+    }
+}
+
+mod formula {
+    use molecule::Counter;
+    use serde::{de::Error, Deserialize, Deserializer, Serializer};
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Counter, D::Error> {
+        String::deserialize(deserializer)?
+            .parse()
+            .map_err(Error::custom)
+    }
+
+    pub(super) fn serialize<S: Serializer>(
+        counter: &Counter,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&counter.to_string())
+    }
+}
 
 // const SUPERSCRIPTS: LazyCell<BTreeMap<u8, &str>> = LazyCell::new(|| {
 //     btreemap! {

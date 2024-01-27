@@ -1,4 +1,5 @@
 use egui::epaint::util::FloatOrd;
+use molecule::{Saturable, Saturation};
 use serde::{Deserialize, Serialize};
 use std::{
     array::IntoIter,
@@ -9,13 +10,13 @@ use std::{
     slice::Iter,
 };
 
-// /// Acylglycerol
-// #[derive(Clone, Copy, Debug)]
-// pub enum Acylglycerol<T> {
-//     Mono(Mag<T>),
-//     Di(Dag<T>),
-//     Tri(Tag<T>),
-// }
+/// Acylglycerol
+#[derive(Clone, Copy, Debug)]
+pub enum Acylglycerol<T> {
+    Mono(Mag<T>),
+    Di(Dag<T>),
+    Tri(Tag<T>),
+}
 
 // impl<T> Deref for Acylglycerol<T> {
 //     type Target = [T];
@@ -46,6 +47,10 @@ pub struct Tag<T>(pub [T; 3]);
 impl<T> Tag<T> {
     pub fn map<U>(self, f: impl FnMut(T) -> U) -> Tag<U> {
         Tag(self.0.map(f))
+    }
+
+    pub fn filter(self, f: impl FnMut(&T) -> bool) -> impl Iterator<Item = T> {
+        self.0.into_iter().filter(f)
     }
 }
 

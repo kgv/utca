@@ -2,7 +2,7 @@ use crate::{
     acylglycerol::Tag,
     app::context::{
         settings::{
-            comparison::{Group, CMN, ECN, PTC},
+            comparison::{Group, CMN, ECN, M, PTC, STC, TC},
             Order::{Ascending, Descending},
             Sort,
         },
@@ -13,12 +13,13 @@ use crate::{
                 Meta,
             },
             composition::{
-                Group::{Ecn, Ptc},
+                Group::{Ecn, Mass, Ptc, Stc, Tc},
                 Merge, Rounded,
             },
         },
         Context,
     },
+    r#const::C3H2,
     tree::{Branch, Leaf, Node, Tree},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
@@ -49,7 +50,12 @@ impl ComputerMut<Key<'_>, Arc<Value>> for Comparator {
         let length = context.state.entries.len();
         let mut ungrouped = HashMap::new();
         for (index, entry) in context.state.entries.iter().enumerate() {
-            for Leaf { data } in entry.data.composed.leafs() {
+            for Leaf { data } in entry
+                .data
+                .composed
+                .composition(context.settings.composition.method)
+                .leafs()
+            {
                 ungrouped.entry(data.tag).or_insert(vec![None; length])[index] = Some(data.value);
             }
         }
@@ -96,9 +102,15 @@ fn grouped(
             let children = ungrouped
                 .into_iter()
                 .into_group_map_by(|&(tag, _)| match *group {
-                    ECN => Composition(Ecn(context.ecn(tag).sum())),
-                    PTC => Composition(Ptc(context.ptc(tag))),
                     CMN => Cmn(context.cmn(tag)),
+                    ECN => Composition(Ecn(context.ecn(tag).sum())),
+                    M => Composition(Mass(
+                        (C3H2 + context.mass(tag).sum() + context.settings.composition.adduct.0)
+                            .round() as _,
+                    )),
+                    PTC => Composition(Ptc(context.r#type(tag).into())),
+                    STC => Composition(Stc(context.r#type(tag).into())),
+                    TC => Composition(Tc(context.r#type(tag).into())),
                 })
                 .into_iter()
                 .filter_map(|(group, ungrouped)| {
