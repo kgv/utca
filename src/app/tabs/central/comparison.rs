@@ -44,6 +44,7 @@ impl View for Comparison<'_> {
             .header(height, |mut row| {
                 row.col(|ui| {
                     ui.clicked_heading("TAG")
+                        .on_hover_text("Triacylglycerol")
                         .context_menu(|ui| {
                             if !context.settings.comparison.groups.is_empty() {
                                 if ui
@@ -117,8 +118,7 @@ impl View for Comparison<'_> {
                                 });
                                 ui.close_menu();
                             }
-                        })
-                        .on_hover_text("Triacylglycerol");
+                        });
                 });
                 for entry in &context.state.entries {
                     row.col(|ui| {

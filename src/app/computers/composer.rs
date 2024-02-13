@@ -23,12 +23,11 @@ use itertools::{
 };
 use molecule::{
     Saturable,
-    Saturation::{self, Saturated, Unsaturated},
+    Saturation::{Saturated, Unsaturated},
 };
 use ordered_float::OrderedFloat;
 use std::{
     cmp::{max, min, Reverse},
-    fmt::{Display, Formatter, Result},
     hash::{Hash, Hasher},
     iter::{repeat, zip},
     sync::Arc,

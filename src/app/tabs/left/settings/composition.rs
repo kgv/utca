@@ -14,13 +14,13 @@ use crate::{
     r#const::{H, LI, NA, NH4},
 };
 use egui::{
-    epaint::util::FloatOrd, Color32, ComboBox, DragValue, Id, Key, KeyboardShortcut, Modifiers,
-    RichText, ScrollArea, Slider, Ui, Window,
+    epaint::util::FloatOrd, ComboBox, DragValue, Id, Key, KeyboardShortcut, Modifiers, RichText,
+    ScrollArea, Slider, Ui, Window,
 };
 use egui_animation::animate_eased;
 use egui_dnd::dnd;
 use egui_ext::{color, ClickedLabel};
-use egui_plot::{Line, LineStyle, Plot, PlotBounds, PlotPoints};
+use egui_plot::{Line, Plot, PlotBounds, PlotPoints};
 use simple_easing::linear;
 use std::hash::{Hash, Hasher};
 
@@ -313,7 +313,7 @@ impl<'a> Composition<'a> {
                     s3.k1 = animate_eased(ui.ctx(), id.with("k1"), s3.k1 as _, 1.0, linear) as _;
 
                     ui.vertical_centered_justified(|ui| {
-                        let mut plot = Plot::new("plot");
+                        let plot = Plot::new("plot");
                         plot.show(ui, |ui| {
                             ui.set_plot_bounds(PlotBounds::from_min_max([0.0, 0.0], [1.0, 1.0]));
                             ui.line({

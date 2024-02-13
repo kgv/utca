@@ -122,7 +122,7 @@ impl View for Calculation<'_> {
                                     if !dag1223.is_experimental() {
                                         ui.colored_label(
                                             Color32::YELLOW,
-                                            format!("⚠ Warning: it's a theoretical value"),
+                                            "⚠ Warning: it's a theoretical value",
                                         );
                                         ui.label(dag1223.theoretical.normalized.to_string());
                                     } else {
@@ -171,7 +171,7 @@ impl View for Calculation<'_> {
                                     if !mag2.is_experimental() {
                                         ui.colored_label(
                                             Color32::YELLOW,
-                                            format!("⚠ Warning: it's a theoretical value"),
+                                            "⚠ Warning: it's a theoretical value",
                                         );
                                         ui.label(mag2.theoretical.normalized.to_string());
                                     } else {

@@ -3,23 +3,11 @@ use self::{
     state::{Data, Entry, Meta, State},
 };
 use super::computers::{calculator::Calculated, comparator::Compared, composer::Composed};
-use crate::{
-    acylglycerol::Tag,
-    ecn::Ecn,
-    parsers::toml::Parsed,
-    r#const::{
-        atoms::C,
-        polymorphism::{alpha, beta},
-        R,
-    },
-};
+use crate::{acylglycerol::Tag, ecn::Ecn, parsers::toml::Parsed};
 use egui::Ui;
 use molecule::{Counter, Saturable, Saturation};
 use serde::{Deserialize, Serialize};
-use std::{
-    cmp::{max, min},
-    f64::consts::LN_2,
-};
+use std::cmp::{max, min};
 
 /// Context
 #[derive(Debug, Default, Deserialize, Hash, Serialize)]

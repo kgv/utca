@@ -173,70 +173,6 @@ impl View for Configuration<'_> {
                                     let formula = &context.state.entry().meta.formulas[index];
                                     ui.label(formula.to_string());
                                     ui.label(format!("Mass: {}", formula.weight()));
-                                })
-                                .context_menu(|ui| {
-                                    ui.text_edit_singleline(
-                                        &mut context.state.entry_mut().meta.labels[index],
-                                    );
-                                    let formula =
-                                        &mut context.state.entry_mut().meta.formulas[index];
-                                    let mut c = formula.count(C);
-                                    let mut u = formula.unsaturated();
-                                    ui.horizontal(|ui| {
-                                        // C
-                                        ui.label("C:");
-                                        if ui
-                                            .add(DragValue::new(&mut c).clamp_range(
-                                                context.settings.configuration.c.start
-                                                    ..=context.settings.configuration.c.end,
-                                            ))
-                                            .changed()
-                                        {
-                                            let formula =
-                                                &mut context.state.entry_mut().meta.formulas[index];
-                                            if let Some(c) = NonZeroUsize::new(c) {
-                                                formula.insert(C, c);
-                                                let h = 2 * (c.get() - u);
-                                                if let Some(h) = NonZeroUsize::new(h) {
-                                                    formula.insert(H, h);
-                                                }
-                                            }
-                                        }
-                                        // U
-                                        ui.label("U:");
-                                        if ui
-                                            .add(DragValue::new(&mut u).clamp_range(
-                                                0..=U::max(c).min(context.settings.configuration.u),
-                                            ))
-                                            .changed()
-                                        {
-                                            let formula =
-                                                &mut context.state.entry_mut().meta.formulas[index];
-                                            if let Some(h) = NonZeroUsize::new(2 * (c - u)) {
-                                                formula.insert(H, h);
-                                            }
-                                        }
-                                    });
-                                    ui.horizontal(|ui| {
-                                        ui.label("Correction factor:");
-                                        ui.add(
-                                            DragValue::new(
-                                                &mut context
-                                                    .settings
-                                                    .configuration
-                                                    .correction_factor,
-                                            )
-                                            .clamp_range(f64::MIN..=f64::MAX)
-                                            .speed(0.01),
-                                        )
-                                        .on_hover_text(
-                                            context
-                                                .settings
-                                                .configuration
-                                                .correction_factor
-                                                .to_string(),
-                                        );
-                                    });
                                 });
                             ui.allocate_ui_at_rect(response.rect, |ui| {
                                 ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
@@ -273,7 +209,7 @@ impl View for Configuration<'_> {
                             if context.settings.configuration.names {
                                 if let Some(item) = FATTY_ACIDS.get(&format!("{c}:{u}")) {
                                     if let Some(array_of_tables) = item.as_array_of_tables() {
-                                        response.on_hover_ui(|ui| {
+                                        response = response.on_hover_ui(|ui| {
                                             TableBuilder::new(ui)
                                                 .striped(true)
                                                 .column(Column::exact(3.0 * width))
@@ -333,6 +269,66 @@ impl View for Configuration<'_> {
                                     }
                                 }
                             }
+                            response.context_menu(|ui| {
+                                ui.text_edit_singleline(
+                                    &mut context.state.entry_mut().meta.labels[index],
+                                );
+                                let formula = &mut context.state.entry_mut().meta.formulas[index];
+                                let mut c = formula.count(C);
+                                let mut u = formula.unsaturated();
+                                ui.horizontal(|ui| {
+                                    // C
+                                    ui.label("C:");
+                                    if ui
+                                        .add(DragValue::new(&mut c).clamp_range(
+                                            context.settings.configuration.c.start
+                                                ..=context.settings.configuration.c.end,
+                                        ))
+                                        .changed()
+                                    {
+                                        let formula =
+                                            &mut context.state.entry_mut().meta.formulas[index];
+                                        if let Some(c) = NonZeroUsize::new(c) {
+                                            formula.insert(C, c);
+                                            let h = 2 * (c.get() - u);
+                                            if let Some(h) = NonZeroUsize::new(h) {
+                                                formula.insert(H, h);
+                                            }
+                                        }
+                                    }
+                                    // U
+                                    ui.label("U:");
+                                    if ui
+                                        .add(DragValue::new(&mut u).clamp_range(
+                                            0..=U::max(c).min(context.settings.configuration.u),
+                                        ))
+                                        .changed()
+                                    {
+                                        let formula =
+                                            &mut context.state.entry_mut().meta.formulas[index];
+                                        if let Some(h) = NonZeroUsize::new(2 * (c - u)) {
+                                            formula.insert(H, h);
+                                        }
+                                    }
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("Correction factor:");
+                                    ui.add(
+                                        DragValue::new(
+                                            &mut context.settings.configuration.correction_factor,
+                                        )
+                                        .clamp_range(f64::MIN..=f64::MAX)
+                                        .speed(0.01),
+                                    )
+                                    .on_hover_text(
+                                        context
+                                            .settings
+                                            .configuration
+                                            .correction_factor
+                                            .to_string(),
+                                    );
+                                });
+                            });
                         });
                         let data = &mut context.state.entry_mut().data.configured[index];
                         // Tag123

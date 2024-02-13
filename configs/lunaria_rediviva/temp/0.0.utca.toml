@@ -1,115 +1,115 @@
 name = "Lunaria 1.1"
 
 [[fatty_acids]]
-label = "P"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 132906.363 }
 description = "Methyl tetradecanoate"
 formula = "H30C15O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 132906.363 }
+label = "P"
 
 [[fatty_acids]]
-label = "H"
+data = { mag2 = 160056.901, dag1223 = 1206585.242, tag123 = 11274419.872 }
 description = "Hexadecanoic acid, methyl ester"
 formula = "H32C16O2"
-data = { mag2 = 160056.901, dag1223 = 1206585.242, tag123 = 11274419.872 }
+label = "H"
 
 [[fatty_acids]]
-label = "Hm7"
+data = { mag2 = 0.0, dag1223 = 17064.358, tag123 = 539840.431 }
 description = "7-Hexadecenoic acid, methyl ester, (Z)"
 formula = "H30C16O2"
-data = { mag2 = 0.0, dag1223 = 17064.358, tag123 = 539840.431 }
+label = "Hm7"
 
 [[fatty_acids]]
-label = "Hm9"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 118753.632 }
 description = "9-Hexadecenoic acid, methyl ester, (Z)"
 formula = "H30C16O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 118753.632 }
+label = "Hm9"
 
 [[fatty_acids]]
-label = "Ht"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 141611.249 }
 description = "7,10,13-Hexadecatrienoic acid (ZZZ)"
 formula = "H26C16O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 141611.249 }
+label = "Ht"
 
 [[fatty_acids]]
-label = "O"
+data = { mag2 = 0.0, dag1223 = 354063.374, tag123 = 578215.174 }
 description = "Methyl stearate"
 formula = "H36C18O2"
-data = { mag2 = 0.0, dag1223 = 354063.374, tag123 = 578215.174 }
+label = "O"
 
 [[fatty_acids]]
-label = "Om9"
+data = { mag2 = 5523348.106, dag1223 = 10433836.352, tag123 = 153164714.095 }
 description = "9-Octadecenoic acid, methyl ester"
 formula = "H34C18O2"
-data = { mag2 = 5523348.106, dag1223 = 10433836.352, tag123 = 153164714.095 }
+label = "Om9"
 
 [[fatty_acids]]
-label = "Om11"
+data = { mag2 = 0.0, dag1223 = 111315.052, tag123 = 3217637.386 }
 description = "11-Octadecenoic acid, methyl ester"
 formula = "H34C18O2"
-data = { mag2 = 0.0, dag1223 = 111315.052, tag123 = 3217637.386 }
+label = "Om11"
 
 [[fatty_acids]]
-label = "Od"
+data = { mag2 = 3938684.811, dag1223 = 7289965.31, tag123 = 105565236.047 }
 description = "9,12-Octadecadienoic acid, methyl ester"
 formula = "H32C18O2"
-data = { mag2 = 3938684.811, dag1223 = 7289965.31, tag123 = 105565236.047 }
+label = "Od"
 
 [[fatty_acids]]
-label = "Ot"
+data = { mag2 = 614974.569, dag1223 = 1126897.687, tag123 = 13990826.565 }
 description = "9,12,15-Octadecatrienoic acid, methyl ester, (Z.Z.Z)"
 formula = "H30C18O2"
-data = { mag2 = 614974.569, dag1223 = 1126897.687, tag123 = 13990826.565 }
+label = "Ot"
 
 [[fatty_acids]]
-label = "E"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 329851.648 }
 description = "Eicosanoic acid, methyl ester"
 formula = "H40C20O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 329851.648 }
+label = "E"
 
 [[fatty_acids]]
-label = "Em11"
+data = { mag2 = 0.0, dag1223 = 2307124.554, tag123 = 79506670.523 }
 description = "cis-Methyl 11-eicosenoate"
 formula = "H38C20O2"
-data = { mag2 = 0.0, dag1223 = 2307124.554, tag123 = 79506670.523 }
+label = "Em11"
 
 [[fatty_acids]]
-label = "Em13"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 1170415.213 }
 description = "cis-13-Eicosenoic acid, methyl ester"
 formula = "H38C20O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 1170415.213 }
+label = "Em13"
 
 [[fatty_acids]]
-label = "Ed11,14"
-description = "11,14-Eicosadienoic acid, methyl ester"
-formula = "H36C20O2"
 data = { mag2 = 0.0, dag1223 = 24518.061, tag123 = 1217501.691 }
-
-[[fatty_acids]]
-label = "Ed"
 description = "11,14-Eicosadienoic acid, methyl ester"
 formula = "H36C20O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 226972.494 }
+label = "Ed11,14"
 
 [[fatty_acids]]
-label = "Dm11"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 226972.494 }
+description = "11,14-Eicosadienoic acid, methyl ester"
+formula = "H36C20O2"
+label = "Ed"
+
+[[fatty_acids]]
+data = { mag2 = 0.0, dag1223 = 8925117.791, tag123 = 3336463.905 }
 description = "Methyl 11-docosenoate"
 formula = "H42C22O2"
-data = { mag2 = 0.0, dag1223 = 8925117.791, tag123 = 3336463.905 }
+label = "Dm11"
 
 [[fatty_acids]]
-label = "Dm13"
+data = { mag2 = 0.0, dag1223 = 39030.157, tag123 = 399938020.17 }
 description = "13-Docosenoic acid, methyl ester"
 formula = "H42C22O2"
-data = { mag2 = 0.0, dag1223 = 39030.157, tag123 = 399938020.17 }
+label = "Dm13"
 
 [[fatty_acids]]
-label = "Dd"
+data = { mag2 = 0.0, dag1223 = 20439.132, tag123 = 1804511.634 }
 description = "cis-13,16-Docasadienoic acid"
 formula = "H40C22O2"
-data = { mag2 = 0.0, dag1223 = 20439.132, tag123 = 1804511.634 }
+label = "Dd"
 
 [[fatty_acids]]
-label = "Tm"
+data = { mag2 = 0.0, dag1223 = 1217751.984, tag123 = 56883069.216 }
 description = "15-Tetracosenoic acid, methyl ester"
 formula = "H46C24O2"
-data = { mag2 = 0.0, dag1223 = 1217751.984, tag123 = 56883069.216 }
+label = "Tm"

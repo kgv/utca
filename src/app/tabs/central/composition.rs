@@ -59,7 +59,7 @@ impl View for Composition<'_> {
             .striped(true)
             .header(height, |mut row| {
                 row.col(|ui| {
-                    ui.clicked_heading("TAG")
+                    ui.clicked_heading("TAG").on_hover_text("Triacylglycerol")
                         .context_menu(|ui| {
                             if !context.settings.composition.groups.is_empty() {
                                 if ui
@@ -116,8 +116,7 @@ impl View for Composition<'_> {
                                     ui.close_menu();
                                 }
                             });
-                        })
-                        .on_hover_text("Triacylglycerol");
+                        });
                 });
                 row.col(|ui| {
                     ui.clicked_heading("Value").context_menu(|ui| {

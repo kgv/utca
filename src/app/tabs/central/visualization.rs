@@ -49,7 +49,7 @@ impl View for Visualization<'_> {
                         .allow_drag(context.settings.visualization.drag)
                         .allow_scroll(context.settings.visualization.scroll)
                         .y_axis_formatter(move |y, _, _| {
-                            let rounded = round_to_decimals(y, 5).to_string();
+                            let rounded = round_to_decimals(y.value, 5).to_string();
                             if percent {
                                 format!("{rounded}%")
                             } else {

@@ -94,27 +94,27 @@ impl Display for Group {
 /// Stereo type composition
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub(in crate::app) enum StereoTypeComposition {
-    SSS,
-    SSU,
-    SUS,
-    SUU,
-    USS,
-    USU,
-    UUS,
-    UUU,
+    Sss,
+    Ssu,
+    Sus,
+    Suu,
+    Uss,
+    Usu,
+    Uus,
+    Uuu,
 }
 
 impl Display for StereoTypeComposition {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            Self::SSS => write!(f, "SSS"),
-            Self::SSU => write!(f, "SSU"),
-            Self::SUS => write!(f, "SUS"),
-            Self::SUU => write!(f, "SUU"),
-            Self::USS => write!(f, "USS"),
-            Self::USU => write!(f, "USU"),
-            Self::UUS => write!(f, "UUS"),
-            Self::UUU => write!(f, "UUU"),
+            Self::Sss => write!(f, "SSS"),
+            Self::Ssu => write!(f, "SSU"),
+            Self::Sus => write!(f, "SUS"),
+            Self::Suu => write!(f, "SUU"),
+            Self::Uss => write!(f, "USS"),
+            Self::Usu => write!(f, "USU"),
+            Self::Uus => write!(f, "UUS"),
+            Self::Uuu => write!(f, "UUU"),
         }
     }
 }
@@ -122,14 +122,14 @@ impl Display for StereoTypeComposition {
 impl From<Tag<Saturation>> for StereoTypeComposition {
     fn from(value: Tag<Saturation>) -> Self {
         match value.0 {
-            [Saturated, Saturated, Saturated] => Self::SSS,
-            [Saturated, Saturated, Unsaturated] => Self::SSU,
-            [Unsaturated, Saturated, Saturated] => Self::USS,
-            [Saturated, Unsaturated, Saturated] => Self::SUS,
-            [Unsaturated, Saturated, Unsaturated] => Self::USU,
-            [Saturated, Unsaturated, Unsaturated] => Self::SUU,
-            [Unsaturated, Unsaturated, Saturated] => Self::UUS,
-            [Unsaturated, Unsaturated, Unsaturated] => Self::UUU,
+            [Saturated, Saturated, Saturated] => Self::Sss,
+            [Saturated, Saturated, Unsaturated] => Self::Ssu,
+            [Unsaturated, Saturated, Saturated] => Self::Uss,
+            [Saturated, Unsaturated, Saturated] => Self::Sus,
+            [Unsaturated, Saturated, Unsaturated] => Self::Usu,
+            [Saturated, Unsaturated, Unsaturated] => Self::Suu,
+            [Unsaturated, Unsaturated, Saturated] => Self::Uus,
+            [Unsaturated, Unsaturated, Unsaturated] => Self::Uuu,
         }
     }
 }
@@ -137,23 +137,23 @@ impl From<Tag<Saturation>> for StereoTypeComposition {
 /// Positional type composition
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub(in crate::app) enum PositionalTypeComposition {
-    SSS,
-    SSU,
-    SUS,
-    USU,
-    SUU,
-    UUU,
+    Sss,
+    SsuUss,
+    Sus,
+    Usu,
+    SuuUus,
+    Uuu,
 }
 
 impl Display for PositionalTypeComposition {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            Self::SSS => write!(f, "SSS"),
-            Self::SSU => write!(f, "SSU"),
-            Self::SUS => write!(f, "SUS"),
-            Self::USU => write!(f, "USU"),
-            Self::SUU => write!(f, "SUU"),
-            Self::UUU => write!(f, "UUU"),
+            Self::Sss => write!(f, "SSS"),
+            Self::SsuUss => write!(f, "SSU/USS"),
+            Self::Sus => write!(f, "SUS"),
+            Self::Usu => write!(f, "USU"),
+            Self::SuuUus => write!(f, "SUU/UUS"),
+            Self::Uuu => write!(f, "UUU"),
         }
     }
 }
@@ -161,14 +161,16 @@ impl Display for PositionalTypeComposition {
 impl From<Tag<Saturation>> for PositionalTypeComposition {
     fn from(value: Tag<Saturation>) -> Self {
         match value.0 {
-            [Saturated, Saturated, Saturated] => Self::SSS,
-            [Saturated, Saturated, Unsaturated] | [Unsaturated, Saturated, Saturated] => Self::SSU,
-            [Saturated, Unsaturated, Saturated] => Self::SUS,
-            [Unsaturated, Saturated, Unsaturated] => Self::USU,
-            [Saturated, Unsaturated, Unsaturated] | [Unsaturated, Unsaturated, Saturated] => {
-                Self::SUU
+            [Saturated, Saturated, Saturated] => Self::Sss,
+            [Saturated, Saturated, Unsaturated] | [Unsaturated, Saturated, Saturated] => {
+                Self::SsuUss
             }
-            [Unsaturated, Unsaturated, Unsaturated] => Self::UUU,
+            [Saturated, Unsaturated, Saturated] => Self::Sus,
+            [Unsaturated, Saturated, Unsaturated] => Self::Usu,
+            [Saturated, Unsaturated, Unsaturated] | [Unsaturated, Unsaturated, Saturated] => {
+                Self::SuuUus
+            }
+            [Unsaturated, Unsaturated, Unsaturated] => Self::Uuu,
         }
     }
 }
@@ -185,10 +187,10 @@ pub(in crate::app) enum TypeComposition {
 impl Display for TypeComposition {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            Self::S3 => write!(f, "S3"),
-            Self::S2U => write!(f, "S2U"),
-            Self::SU2 => write!(f, "SU2"),
-            Self::U3 => write!(f, "U3"),
+            Self::S3 => write!(f, "S₃"),
+            Self::S2U => write!(f, "S₂U"),
+            Self::SU2 => write!(f, "SU₂"),
+            Self::U3 => write!(f, "U₃"),
         }
     }
 }
