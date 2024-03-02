@@ -138,7 +138,7 @@ impl From<Tag<Saturation>> for StereoTypeComposition {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub(in crate::app) enum PositionalTypeComposition {
     Sss,
-    SsuUss,
+    SsuUss, // SuUSu
     Sus,
     Usu,
     SuuUus,
@@ -300,7 +300,9 @@ impl From<Rounded<OrderedFloat<f64>>> for Value {
 }
 
 /// Value
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, Serialize)]
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, PartialOrd, Ord, Eq, Hash, PartialEq, Serialize,
+)]
 pub(in crate::app) struct Value {
     pub(in crate::app) rounded: OrderedFloat<f64>,
     pub(in crate::app) unrounded: OrderedFloat<f64>,
@@ -317,14 +319,6 @@ impl Merge<Rounded<OrderedFloat<f64>>> for Value {
     fn merge(&mut self, other: Rounded<OrderedFloat<f64>>) {
         self.rounded += other.rounded();
         self.unrounded += other.unrounded;
-    }
-}
-
-impl PartialOrd for Value {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.rounded
-            .partial_cmp(&other.rounded)
-            .and(self.unrounded.partial_cmp(&other.unrounded))
     }
 }
 

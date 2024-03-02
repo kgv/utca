@@ -1,12 +1,9 @@
-use crate::{
-    app::{
-        context::{settings::calculation::From, Context},
-        view::View,
-    },
-    utils::RightAlignColumn,
+use crate::app::{
+    context::{settings::calculation::From, Context},
+    view::View,
 };
 use egui::{Color32, Direction, Layout, Ui};
-use egui_ext::TableBodyExt;
+use egui_ext::{TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
 
 const COLUMNS: usize = 4;
@@ -75,7 +72,9 @@ impl View for Calculation<'_> {
                                 tag123.theoretical.normalized *= 100.0;
                             }
                             let response = ui
+                                // TODO: theoretical
                                 .label(format!("{:.p$}", tag123.experimental.normalized))
+                                // .label(format!("{:.p$}", tag123.theoretical.normalized))
                                 .on_hover_ui(|ui| {
                                     ui.vertical(|ui| {
                                         if context.settings.calculation.theoretical {
@@ -117,7 +116,9 @@ impl View for Calculation<'_> {
                                 dag1223.theoretical.normalized *= 100.0;
                             }
                             let response = ui
+                                // TODO: theoretical
                                 .label(format!("{:.p$}", dag1223.value().normalized))
+                                // .label(format!("{:.p$}", dag1223.theoretical.normalized))
                                 .on_hover_ui(|ui| {
                                     if !dag1223.is_experimental() {
                                         ui.colored_label(
@@ -166,7 +167,9 @@ impl View for Calculation<'_> {
                                 mag2.theoretical.normalized *= 100.0;
                             }
                             let response = ui
+                                // TODO: theoretical
                                 .label(format!("{:.p$}", mag2.value().normalized))
+                                // .label(format!("{:.p$}", mag2.theoretical.normalized))
                                 .on_hover_ui(|ui| {
                                     if !mag2.is_experimental() {
                                         ui.colored_label(

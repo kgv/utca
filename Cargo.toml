@@ -1,14 +1,14 @@
 [package]
 edition = "2021"
 name = "utca"
-version = "0.4.0"
+version = "0.4.1"
 
 [dependencies]
 anyhow = "1.0.79"
-eframe = { version = "0.26.1", features = [
+eframe = { version = "0.26.1", default-features = false, features = [
     "default_fonts",
     "persistence",
-    # "wgpu",
+    "wgpu",
 ] }
 egui = "0.26.1"
 egui-notify = "0.13.0"

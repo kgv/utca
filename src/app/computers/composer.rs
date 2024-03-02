@@ -17,6 +17,7 @@ use crate::{
     tree::{Branch, Leaf, Node, Tree},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
+use indexmap::IndexMap;
 use itertools::{
     Either::{Left, Right},
     Itertools,
@@ -28,10 +29,12 @@ use molecule::{
 use ordered_float::OrderedFloat;
 use std::{
     cmp::{max, min, Reverse},
+    collections::BTreeMap,
     hash::{Hash, Hasher},
     iter::{repeat, zip},
     sync::Arc,
 };
+use tracing::trace;
 
 /// Composed
 pub(in crate::app) type Composed = FrameCache<Arc<Value>, Composer>;
@@ -58,6 +61,7 @@ impl Composer {
             })
             .sum();
         let u = 1.0 - s;
+        trace!(s, u);
         // PTC
         let s3;
         let s2u;
@@ -74,6 +78,7 @@ impl Composer {
             su2 = 0.0;
             u3 = 0.0;
         };
+        trace!(s3, s2u, su2, u3);
         let ungrouped = repeat(0..context.state.entry().len())
             .take(3)
             .multi_cartesian_product()
@@ -86,18 +91,72 @@ impl Composer {
                         max(indices[0], indices[2]),
                     ]),
                 };
-                let factor = match context.r#type(tag).into() {
-                    TypeComposition::S3 => s3 / s.powi(3),
-                    TypeComposition::S2U => s2u / (s.powi(2) * u) / 3.0,
-                    TypeComposition::SU2 => su2 / (s * u.powi(2)) / 3.0,
-                    TypeComposition::U3 => u3 / u.powi(3),
+                let mut value = tags123[indices[0]] * tags123[indices[1]] * tags123[indices[2]];
+                value = match context.r#type(tag).into() {
+                    TypeComposition::S3 => s3 * value / s.powi(3),
+                    TypeComposition::S2U => s2u * value / (s.powi(2) * u) / 3.0, // [SSU], [USS], [SUS]
+                    TypeComposition::SU2 => su2 * value / (s * u.powi(2)) / 3.0, // [SUU], [USU], [UUS]
+                    TypeComposition::U3 => u3 * value / u.powi(3),
                 };
-                let value =
-                    tags123[indices[0]] * tags123[indices[1]] * tags123[indices[2]] * factor;
                 (tag, value.into())
             })
             .into_grouping_map()
             .sum();
+        const I: usize = 6;
+        let _2 = context
+            .state
+            .entry()
+            .meta
+            .labels
+            .iter()
+            .map(|label| {
+                (
+                    label,
+                    ungrouped
+                        .iter()
+                        .filter(|(&tag, _)| {
+                            let tag = context.species(tag);
+                            // tag[0] == label || tag[2] == label
+                            tag[1] == label
+                        })
+                        .map(|(_, &value)| value)
+                        .sum::<OrderedFloat<f64>>(),
+                )
+            })
+            .collect::<IndexMap<_, _>>();
+        let sum = _2.values().sum::<OrderedFloat<f64>>();
+        println!("_2");
+        for (&label, value) in &_2 {
+            println!("{label}: {}", value / sum);
+        }
+        let any = ungrouped
+            .iter()
+            .filter(|(&tag, _)| tag[0] == I || tag[1] == I || tag[2] == I)
+            .collect::<Vec<_>>();
+        let second = ungrouped
+            .iter()
+            .filter(|(&tag, _)| tag[1] == I)
+            .collect::<Vec<_>>();
+        let first_or_third = ungrouped
+            .iter()
+            .filter(|(&tag, _)| tag[0] == I || tag[2] == I)
+            .collect::<Vec<_>>();
+        // println!("ANY");
+        // for (&tag, value) in any {
+        //     let tag = context.species(tag);
+        //     println!("{tag}: {value}");
+        // }
+        // println!("2");
+        // for (&tag, value) in second {
+        //     let tag = context.species(tag);
+        //     println!("{tag}: {value}");
+        // }
+        // println!("1,3");
+        // for (&tag, value) in first_or_third {
+        //     let tag = context.species(tag);
+        //     println!("{tag}: {value}");
+        // }
+        // trace!(?any, ?first, ?second);
         Tree::from(grouped(
             ungrouped,
             &context.settings.composition.groups,
@@ -131,7 +190,7 @@ impl Composer {
             .mags2
             .value()
             .normalized;
-        tracing::error!("KAZAKOV:");
+        // tracing::error!("KAZAKOV:");
 
         let s: f64 = zip(tags123, &context.state.entry().meta.formulas)
             .filter_map(|(value, formula)| match formula.saturation() {
@@ -158,8 +217,8 @@ impl Composer {
         };
         // s3=0.0 s2u=0.1202991147938708 su2=0.45308502606679923 u3=0.42661585913932976
         // tracing::error!(s3, s2u, su2, u3);
-        tracing::error!(s3=?s3 / s.powi(3), s2u=?s2u / (s.powi(2) * u), su2=?su2 / 2.0 / (s * u.powi(2)), u3=?u3 / u.powi(3));
-        tracing::error!(s3=?s3 * 100.0, s2u=?s2u * 100.0, su2=?su2 * 100.0, u3=?u3 * 100.0);
+        // tracing::error!(s3=?s3 / s.powi(3), s2u=?s2u / (s.powi(2) * u), su2=?su2 / 2.0 / (s * u.powi(2)), u3=?u3 / u.powi(3));
+        // tracing::error!(s3=?s3 * 100.0, s2u=?s2u * 100.0, su2=?su2 * 100.0, u3=?u3 * 100.0);
         let ungrouped = repeat(0..context.state.entry().len())
             .take(3)
             .multi_cartesian_product()

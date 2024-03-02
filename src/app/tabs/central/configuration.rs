@@ -4,7 +4,6 @@ use crate::{
         view::View,
     },
     properties::{density::Hammond, viscosity::Rabelo},
-    utils::RightAlignColumn,
 };
 use egui::{Align, Direction, DragValue, Layout, RichText, Ui};
 use egui_ext::{ClickedLabel, TableBodyExt, TableRowExt};
@@ -165,7 +164,7 @@ impl View for Configuration<'_> {
                         row.left_align_col(|ui| {
                             let entry = context.state.entry();
                             let formula = &entry.meta.formulas[index];
-                            let c = formula.count(C);
+                            let c = formula.count(C).saturating_sub(1);
                             let u = formula.unsaturated();
                             let mut response = ui
                                 .clicked_heading(entry.meta.labels[index].to_string())

@@ -27,3 +27,5 @@ image:https://img.shields.io/badge/bevy%20tracking-main-yellow[bevy tracking, li
 * https://byrdwell.com/Triacylglycerols/TAGbyMass1.htm[byrdwell.com]
 * https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl[nist.gov, title=Atomic Weights and Isotopic Compositions for All Elements]
 * https://tableconvert.com[tableconvert.com, title=Table converter]
+
+$env:RUST_LOG="utca=trace"

@@ -18,6 +18,8 @@ impl Ecn for Counter {
         let c = self.count(C);
         let h = self.count(H);
         assert!(h >= c, "Invalid fatty acid for ECN calculation {self}");
-        h - c
+        // TODO: необходимо переделать хранимую формулу. В Configuration
+        // участвуют метиловые эфиры, а в ecn - ацилы жирных кислот.
+        h - c - 1
     }
 }
