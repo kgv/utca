@@ -1,6 +1,6 @@
 use crate::{
     app::{
-        context::{state::composition::Value, Context},
+        context::{settings::composition::Stereospecificity, state::composition::Value, Context},
         view::View,
     },
     tree::{Hierarchized, Hierarchy, Item},
@@ -35,7 +35,7 @@ impl View for Comparison<'_> {
         let height = ui.spacing().interact_size.y;
         let mut open = None;
         TableBuilder::new(ui)
-            .auto_shrink([false; 2])
+            .auto_shrink(false)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
             .columns(Column::auto(), context.state.entries.len() + 1)
             .max_scroll_height(f32::NAN)

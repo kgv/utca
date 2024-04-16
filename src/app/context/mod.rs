@@ -1,5 +1,5 @@
 use self::{
-    settings::{composition::Type, Settings},
+    settings::{composition::Stereospecificity, Settings},
     state::{Data, Entry, Meta, State},
 };
 use super::computers::{calculator::Calculated, comparator::Compared, composer::Composed};
@@ -71,20 +71,35 @@ impl Context {
         tag.map(|index| self.state.entry().meta.formulas[index].weight())
     }
 
+    // self.settings.composition.stereospecificity
     pub(super) fn r#type(&self, tag: Tag<usize>) -> Tag<Saturation> {
         let formulas = &self.state.entry().meta.formulas;
-        match self.settings.composition.r#type {
-            Type::Stereo => Tag([
-                formulas[tag[0]].saturation(),
-                formulas[tag[1]].saturation(),
-                formulas[tag[2]].saturation(),
-            ]),
-            Type::Positional => Tag([
-                min(formulas[tag[0]].saturation(), formulas[tag[2]].saturation()),
-                formulas[tag[1]].saturation(),
-                max(formulas[tag[0]].saturation(), formulas[tag[2]].saturation()),
-            ]),
-        }
+        Tag([
+            formulas[tag[0]].saturation(),
+            formulas[tag[1]].saturation(),
+            formulas[tag[2]].saturation(),
+        ])
+        // match stereospecificity {
+        //     None => {
+        //         let mut tag = Tag([
+        //             formulas[tag[0]].saturation(),
+        //             formulas[tag[1]].saturation(),
+        //             formulas[tag[2]].saturation(),
+        //         ]);
+        //         tag.sort();
+        //         tag
+        //     }
+        //     Some(Stereospecificity::Stereo) => Tag([
+        //         formulas[tag[0]].saturation(),
+        //         formulas[tag[1]].saturation(),
+        //         formulas[tag[2]].saturation(),
+        //     ]),
+        //     Some(Stereospecificity::Positional) => Tag([
+        //         min(formulas[tag[0]].saturation(), formulas[tag[2]].saturation()),
+        //         formulas[tag[1]].saturation(),
+        //         max(formulas[tag[0]].saturation(), formulas[tag[2]].saturation()),
+        //     ]),
+        // }
     }
 
     pub(super) fn species(&self, tag: Tag<usize>) -> Tag<&str> {

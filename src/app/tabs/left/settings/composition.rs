@@ -1,8 +1,12 @@
 use crate::{
+    acylglycerol::Sn,
     app::{
         context::{
             settings::{
-                composition::{Method, ECN, M, PTC, STC, TC},
+                composition::{
+                    Discrimination, Method, Scope, Stereospecificity, GROUPS, PSC, PTC, SC, SSC,
+                    STC, TC,
+                },
                 Order, Sort,
             },
             Context,
@@ -12,15 +16,17 @@ use crate::{
         MAX_PRECISION,
     },
     r#const::{H, LI, NA, NH4},
+    utils::UiExt as _,
 };
 use egui::{
-    epaint::util::FloatOrd, ComboBox, DragValue, Id, Key, KeyboardShortcut, Modifiers, RichText,
-    ScrollArea, Slider, Ui, Window,
+    epaint::util::FloatOrd, text::LayoutJob, CollapsingHeader, ComboBox, DragValue, Id, Key,
+    KeyboardShortcut, Modifiers, RichText, ScrollArea, Slider, TextStyle, Ui, Window,
 };
 use egui_animation::animate_eased;
 use egui_dnd::dnd;
 use egui_ext::{color, ClickedLabel};
-use egui_plot::{Line, Plot, PlotBounds, PlotPoints};
+use egui_extras::{Column, TableBuilder};
+use egui_plot::{Line, Plot, PlotBounds, PlotItem, PlotPoints};
 use simple_easing::linear;
 use std::hash::{Hash, Hasher};
 
@@ -37,16 +43,16 @@ impl<'a> Composition<'a> {
     fn windows(self, ui: &mut Ui) {
         let Self { context } = self;
         Window::new("📊 Method")
-            .open(&mut context.settings.composition.temp)
+            .open(&mut context.settings.composition.window)
             .show(ui.ctx(), |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
                     ui.ctx().request_repaint();
                     let id = Id::new("method");
                     let mut u3: Parameters =
                         ui.data_mut(|data| *data.get_temp_mut_or_default(id.with("u3")));
-                    let mut su2: Parameters =
+                    let mut su2: [Parameters; 2] =
                         ui.data_mut(|data| *data.get_temp_mut_or_default(id.with("su2")));
-                    let mut s2u: Parameters =
+                    let mut s2u: [Parameters; 2] =
                         ui.data_mut(|data| *data.get_temp_mut_or_default(id.with("s2u")));
                     let mut s3: Parameters =
                         ui.data_mut(|data| *data.get_temp_mut_or_default(id.with("s3")));
@@ -61,22 +67,47 @@ impl<'a> Composition<'a> {
                                     k0: 0.0,
                                     k1: 1.0,
                                 };
-                                su2 = Parameters {
-                                    x0: 0.0,
-                                    x1: 1.0 / 3.0,
-                                    y0: 1.0,
-                                    y1: 0.0,
-                                    k0: 1.0,
-                                    k1: 0.0,
-                                };
-                                s2u = Parameters {
-                                    x0: 1.0 / 3.0,
-                                    x1: 2.0 / 3.0,
-                                    y0: 1.0,
-                                    y1: 1.0,
-                                    k0: 0.0,
-                                    k1: 1.0,
-                                };
+                                // y0 * (((x - x0) / (x1 - x0)).abs().powf(k0) * (1.0 - (x - x0) / (x1 - x0)).abs().powf(k1) - y1)
+                                // (x-(1)/(3))/((2)/(3)-(1)/(3))
+
+                                // (x-(1)/(3))/((2)/(3)-(1)/(3))
+                                // (x-(2)/(3))/((1)/(3)-(2)/(3))
+                                su2 = [
+                                    Parameters {
+                                        x0: 0.0,
+                                        x1: 1.0 / 3.0,
+                                        y0: 1.0,
+                                        y1: 1.0,
+                                        k0: 0.0,
+                                        k1: 1.0,
+                                    },
+                                    Parameters {
+                                        x0: 1.0 / 3.0,
+                                        x1: 2.0 / 3.0,
+                                        y0: 1.0,
+                                        y1: 1.0,
+                                        k0: 1.0,
+                                        k1: 0.0,
+                                    },
+                                ];
+                                s2u = [
+                                    Parameters {
+                                        x0: 1.0 / 3.0,
+                                        x1: 2.0 / 3.0,
+                                        y0: 1.0,
+                                        y1: 1.0,
+                                        k0: 0.0,
+                                        k1: 1.0,
+                                    },
+                                    Parameters {
+                                        x0: 2.0 / 3.0,
+                                        x1: 1.0,
+                                        y0: 1.0,
+                                        y1: 1.0,
+                                        k0: 1.0,
+                                        k1: 0.0,
+                                    },
+                                ];
                                 s3 = Parameters {
                                     x0: 2.0 / 3.0,
                                     x1: 1.0,
@@ -95,22 +126,42 @@ impl<'a> Composition<'a> {
                                     k0: 0.0,
                                     k1: 2.0,
                                 };
-                                su2 = Parameters {
-                                    x0: 0.0,
-                                    x1: 2.0 / 3.0,
-                                    y0: 2.0,
-                                    y1: 0.0,
-                                    k0: 1.0,
-                                    k1: 1.0,
-                                };
-                                s2u = Parameters {
-                                    x0: 0.0,
-                                    x1: 2.0 / 3.0,
-                                    y0: -1.0,
-                                    y1: 0.0,
-                                    k0: 2.0,
-                                    k1: 0.0,
-                                };
+                                su2 = [
+                                    Parameters {
+                                        x0: 0.0,
+                                        x1: 1.0 / 3.0,
+                                        y0: 0.5,
+                                        y1: 1.0,
+                                        k0: 0.0,
+                                        k1: 2.0,
+                                    },
+                                    Parameters {
+                                        x0: 1.0 / 3.0,
+                                        x1: 2.0 / 3.0,
+                                        y0: 0.5,
+                                        y1: 1.0,
+                                        k0: 2.0,
+                                        k1: 0.0,
+                                    },
+                                ];
+                                s2u = [
+                                    Parameters {
+                                        x0: 0.0,
+                                        x1: 2.0 / 3.0,
+                                        y0: -1.0,
+                                        y1: 0.0,
+                                        k0: 2.0,
+                                        k1: 0.0,
+                                    },
+                                    Parameters {
+                                        x0: 2.0 / 3.0,
+                                        x1: 1.0,
+                                        y0: 1.0,
+                                        y1: 1.0,
+                                        k0: 1.0,
+                                        k1: 0.0,
+                                    },
+                                ];
                                 s3 = Parameters {
                                     x0: 2.0 / 3.0,
                                     x1: 1.0,
@@ -129,22 +180,42 @@ impl<'a> Composition<'a> {
                                     k0: 0.0,
                                     k1: 3.0,
                                 };
-                                su2 = Parameters {
-                                    x0: 0.0,
-                                    x1: 1.0,
-                                    y0: 3.0,
-                                    y1: 0.0,
-                                    k0: 1.0,
-                                    k1: 2.0,
-                                };
-                                s2u = Parameters {
-                                    x0: 0.0,
-                                    x1: 1.0,
-                                    y0: -3.0,
-                                    y1: 0.0,
-                                    k0: 2.0,
-                                    k1: 1.0,
-                                };
+                                su2 = [
+                                    Parameters {
+                                        x0: 0.0,
+                                        x1: 1.0,
+                                        y0: -3.0,
+                                        y1: 0.0,
+                                        k0: 1.0,
+                                        k1: 2.0,
+                                    },
+                                    Parameters {
+                                        x0: 0.0,
+                                        x1: 1.0,
+                                        y0: -3.0,
+                                        y1: 0.0,
+                                        k0: 1.0,
+                                        k1: 2.0,
+                                    },
+                                ];
+                                s2u = [
+                                    Parameters {
+                                        x0: 0.0,
+                                        x1: 1.0,
+                                        y0: -3.0,
+                                        y1: 0.0,
+                                        k0: 2.0,
+                                        k1: 1.0,
+                                    },
+                                    Parameters {
+                                        x0: 0.0,
+                                        x1: 1.0,
+                                        y0: -3.0,
+                                        y1: 0.0,
+                                        k0: 2.0,
+                                        k1: 1.0,
+                                    },
+                                ];
                                 s3 = Parameters {
                                     x0: 0.0,
                                     x1: 1.0,
@@ -155,7 +226,7 @@ impl<'a> Composition<'a> {
                                 };
                             }
                         });
-                        ui.columns(4, |ui| {
+                        ui.columns(6, |ui| {
                             ui[0].vertical(|ui| {
                                 ui.label("U3");
                                 ui.horizontal(|ui| {
@@ -187,17 +258,17 @@ impl<'a> Composition<'a> {
                                 });
                             });
                             ui[1].vertical(|ui| {
-                                ui.label("SU2");
+                                ui.label("SU2[0]");
                                 ui.horizontal(|ui| {
                                     ui.label("x:");
-                                    ui.add(DragValue::new(&mut su2.x0).speed(0.1));
-                                    ui.add(DragValue::new(&mut su2.x1).speed(0.1));
+                                    ui.add(DragValue::new(&mut su2[0].x0).speed(0.1));
+                                    ui.add(DragValue::new(&mut su2[0].x1).speed(0.1));
                                 });
                                 ui.horizontal(|ui| {
                                     ui.label("y:");
-                                    ui.add(DragValue::new(&mut su2.y0).speed(0.1));
+                                    ui.add(DragValue::new(&mut su2[0].y0).speed(0.1));
                                     ui.add(
-                                        DragValue::new(&mut su2.y1)
+                                        DragValue::new(&mut su2[0].y1)
                                             .clamp_range(0.0..=1.0)
                                             .speed(0.1),
                                     );
@@ -205,29 +276,29 @@ impl<'a> Composition<'a> {
                                 ui.horizontal(|ui| {
                                     ui.label("k:");
                                     ui.add(
-                                        DragValue::new(&mut su2.k0)
+                                        DragValue::new(&mut su2[0].k0)
                                             .clamp_range(0.0..=f64::MAX)
                                             .speed(0.01),
                                     );
                                     ui.add(
-                                        DragValue::new(&mut su2.k1)
+                                        DragValue::new(&mut su2[0].k1)
                                             .clamp_range(0.0..=f64::MAX)
                                             .speed(0.01),
                                     );
                                 });
                             });
                             ui[2].vertical(|ui| {
-                                ui.label("S2U");
+                                ui.label("SU2[1]");
                                 ui.horizontal(|ui| {
                                     ui.label("x:");
-                                    ui.add(DragValue::new(&mut s2u.x0).speed(0.1));
-                                    ui.add(DragValue::new(&mut s2u.x1).speed(0.1));
+                                    ui.add(DragValue::new(&mut su2[1].x0).speed(0.1));
+                                    ui.add(DragValue::new(&mut su2[1].x1).speed(0.1));
                                 });
                                 ui.horizontal(|ui| {
                                     ui.label("y:");
-                                    ui.add(DragValue::new(&mut s2u.y0).speed(0.1));
+                                    ui.add(DragValue::new(&mut su2[1].y0).speed(0.1));
                                     ui.add(
-                                        DragValue::new(&mut s2u.y1)
+                                        DragValue::new(&mut su2[1].y1)
                                             .clamp_range(0.0..=1.0)
                                             .speed(0.1),
                                     );
@@ -235,18 +306,78 @@ impl<'a> Composition<'a> {
                                 ui.horizontal(|ui| {
                                     ui.label("k:");
                                     ui.add(
-                                        DragValue::new(&mut s2u.k0)
+                                        DragValue::new(&mut su2[1].k0)
                                             .clamp_range(0.0..=f64::MAX)
                                             .speed(0.01),
                                     );
                                     ui.add(
-                                        DragValue::new(&mut s2u.k1)
+                                        DragValue::new(&mut su2[1].k1)
                                             .clamp_range(0.0..=f64::MAX)
                                             .speed(0.01),
                                     );
                                 });
                             });
                             ui[3].vertical(|ui| {
+                                ui.label("S2U");
+                                ui.horizontal(|ui| {
+                                    ui.label("x:");
+                                    ui.add(DragValue::new(&mut s2u[0].x0).speed(0.1));
+                                    ui.add(DragValue::new(&mut s2u[0].x1).speed(0.1));
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("y:");
+                                    ui.add(DragValue::new(&mut s2u[0].y0).speed(0.1));
+                                    ui.add(
+                                        DragValue::new(&mut s2u[0].y1)
+                                            .clamp_range(0.0..=1.0)
+                                            .speed(0.1),
+                                    );
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("k:");
+                                    ui.add(
+                                        DragValue::new(&mut s2u[0].k0)
+                                            .clamp_range(0.0..=f64::MAX)
+                                            .speed(0.01),
+                                    );
+                                    ui.add(
+                                        DragValue::new(&mut s2u[0].k1)
+                                            .clamp_range(0.0..=f64::MAX)
+                                            .speed(0.01),
+                                    );
+                                });
+                            });
+                            ui[4].vertical(|ui| {
+                                ui.label("S2U");
+                                ui.horizontal(|ui| {
+                                    ui.label("x:");
+                                    ui.add(DragValue::new(&mut s2u[1].x0).speed(0.1));
+                                    ui.add(DragValue::new(&mut s2u[1].x1).speed(0.1));
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("y:");
+                                    ui.add(DragValue::new(&mut s2u[1].y0).speed(0.1));
+                                    ui.add(
+                                        DragValue::new(&mut s2u[1].y1)
+                                            .clamp_range(0.0..=1.0)
+                                            .speed(0.1),
+                                    );
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("k:");
+                                    ui.add(
+                                        DragValue::new(&mut s2u[1].k0)
+                                            .clamp_range(0.0..=f64::MAX)
+                                            .speed(0.01),
+                                    );
+                                    ui.add(
+                                        DragValue::new(&mut s2u[1].k1)
+                                            .clamp_range(0.0..=f64::MAX)
+                                            .speed(0.01),
+                                    );
+                                });
+                            });
+                            ui[5].vertical(|ui| {
                                 ui.label("S3");
                                 ui.horizontal(|ui| {
                                     ui.label("x:");
@@ -283,34 +414,52 @@ impl<'a> Composition<'a> {
                     ui.data_mut(|data| data.insert_temp(id.with("s2u"), s2u));
                     ui.data_mut(|data| data.insert_temp(id.with("s3"), s3));
 
-                    let id = Id::new("u3");
-                    u3.x0 = animate_eased(ui.ctx(), id.with("x0"), u3.x0 as _, 1.0, linear) as _;
-                    u3.x1 = animate_eased(ui.ctx(), id.with("x1"), u3.x1 as _, 1.0, linear) as _;
-                    u3.y0 = animate_eased(ui.ctx(), id.with("y0"), u3.y0 as _, 1.0, linear) as _;
-                    u3.y1 = animate_eased(ui.ctx(), id.with("y1"), u3.y1 as _, 1.0, linear) as _;
-                    u3.k0 = animate_eased(ui.ctx(), id.with("k0"), u3.k0 as _, 1.0, linear) as _;
-                    u3.k1 = animate_eased(ui.ctx(), id.with("k1"), u3.k1 as _, 1.0, linear) as _;
-                    let id = Id::new("su2");
-                    su2.x0 = animate_eased(ui.ctx(), id.with("x0"), su2.x0 as _, 1.0, linear) as _;
-                    su2.x1 = animate_eased(ui.ctx(), id.with("x1"), su2.x1 as _, 1.0, linear) as _;
-                    su2.y0 = animate_eased(ui.ctx(), id.with("y0"), su2.y0 as _, 1.0, linear) as _;
-                    su2.y1 = animate_eased(ui.ctx(), id.with("y1"), su2.y1 as _, 1.0, linear) as _;
-                    su2.k0 = animate_eased(ui.ctx(), id.with("k0"), su2.k0 as _, 1.0, linear) as _;
-                    su2.k1 = animate_eased(ui.ctx(), id.with("k1"), su2.k1 as _, 1.0, linear) as _;
-                    let id = Id::new("s2u");
-                    s2u.x0 = animate_eased(ui.ctx(), id.with("x0"), s2u.x0 as _, 1.0, linear) as _;
-                    s2u.x1 = animate_eased(ui.ctx(), id.with("x1"), s2u.x1 as _, 1.0, linear) as _;
-                    s2u.y0 = animate_eased(ui.ctx(), id.with("y0"), s2u.y0 as _, 1.0, linear) as _;
-                    s2u.y1 = animate_eased(ui.ctx(), id.with("y1"), s2u.y1 as _, 1.0, linear) as _;
-                    s2u.k0 = animate_eased(ui.ctx(), id.with("k0"), s2u.k0 as _, 1.0, linear) as _;
-                    s2u.k1 = animate_eased(ui.ctx(), id.with("k1"), s2u.k1 as _, 1.0, linear) as _;
-                    let id = Id::new("s3");
-                    s3.x0 = animate_eased(ui.ctx(), id.with("x0"), s3.x0 as _, 1.0, linear) as _;
-                    s3.x1 = animate_eased(ui.ctx(), id.with("x1"), s3.x1 as _, 1.0, linear) as _;
-                    s3.y0 = animate_eased(ui.ctx(), id.with("y0"), s3.y0 as _, 1.0, linear) as _;
-                    s3.y1 = animate_eased(ui.ctx(), id.with("y1"), s3.y1 as _, 1.0, linear) as _;
-                    s3.k0 = animate_eased(ui.ctx(), id.with("k0"), s3.k0 as _, 1.0, linear) as _;
-                    s3.k1 = animate_eased(ui.ctx(), id.with("k1"), s3.k1 as _, 1.0, linear) as _;
+                    // let id = Id::new("u3");
+                    // u3.x0 = animate_eased(ui.ctx(), id.with("x0"), u3.x0 as _, 1.0, linear) as _;
+                    // u3.x1 = animate_eased(ui.ctx(), id.with("x1"), u3.x1 as _, 1.0, linear) as _;
+                    // u3.y0 = animate_eased(ui.ctx(), id.with("y0"), u3.y0 as _, 1.0, linear) as _;
+                    // u3.y1 = animate_eased(ui.ctx(), id.with("y1"), u3.y1 as _, 1.0, linear) as _;
+                    // u3.k0 = animate_eased(ui.ctx(), id.with("k0"), u3.k0 as _, 1.0, linear) as _;
+                    // u3.k1 = animate_eased(ui.ctx(), id.with("k1"), u3.k1 as _, 1.0, linear) as _;
+                    // let id = Id::new("su2");
+                    // su2[0].x0 =
+                    //     animate_eased(ui.ctx(), id.with("x0"), su2[0].x0 as _, 1.0, linear) as _;
+                    // su2[0].x1 =
+                    //     animate_eased(ui.ctx(), id.with("x1"), su2[0].x1 as _, 1.0, linear) as _;
+                    // su2[0].y0 =
+                    //     animate_eased(ui.ctx(), id.with("y0"), su2[0].y0 as _, 1.0, linear) as _;
+                    // su2[0].y1 =
+                    //     animate_eased(ui.ctx(), id.with("y1"), su2[0].y1 as _, 1.0, linear) as _;
+                    // su2[0].k0 =
+                    //     animate_eased(ui.ctx(), id.with("k0"), su2[0].k0 as _, 1.0, linear) as _;
+                    // su2[0].k1 =
+                    //     animate_eased(ui.ctx(), id.with("k1"), su2[0].k1 as _, 1.0, linear) as _;
+                    // su2[1].x0 =
+                    //     animate_eased(ui.ctx(), id.with("x0"), su2[1].x0 as _, 1.0, linear) as _;
+                    // su2[1].x1 =
+                    //     animate_eased(ui.ctx(), id.with("x1"), su2[1].x1 as _, 1.0, linear) as _;
+                    // su2[1].y0 =
+                    //     animate_eased(ui.ctx(), id.with("y0"), su2[1].y0 as _, 1.0, linear) as _;
+                    // su2[1].y1 =
+                    //     animate_eased(ui.ctx(), id.with("y1"), su2[1].y1 as _, 1.0, linear) as _;
+                    // su2[1].k0 =
+                    //     animate_eased(ui.ctx(), id.with("k0"), su2[1].k0 as _, 1.0, linear) as _;
+                    // su2[1].k1 =
+                    //     animate_eased(ui.ctx(), id.with("k1"), su2[1].k1 as _, 1.0, linear) as _;
+                    // let id = Id::new("s2u");
+                    // s2u.x0 = animate_eased(ui.ctx(), id.with("x0"), s2u.x0 as _, 1.0, linear) as _;
+                    // s2u.x1 = animate_eased(ui.ctx(), id.with("x1"), s2u.x1 as _, 1.0, linear) as _;
+                    // s2u.y0 = animate_eased(ui.ctx(), id.with("y0"), s2u.y0 as _, 1.0, linear) as _;
+                    // s2u.y1 = animate_eased(ui.ctx(), id.with("y1"), s2u.y1 as _, 1.0, linear) as _;
+                    // s2u.k0 = animate_eased(ui.ctx(), id.with("k0"), s2u.k0 as _, 1.0, linear) as _;
+                    // s2u.k1 = animate_eased(ui.ctx(), id.with("k1"), s2u.k1 as _, 1.0, linear) as _;
+                    // let id = Id::new("s3");
+                    // s3.x0 = animate_eased(ui.ctx(), id.with("x0"), s3.x0 as _, 1.0, linear) as _;
+                    // s3.x1 = animate_eased(ui.ctx(), id.with("x1"), s3.x1 as _, 1.0, linear) as _;
+                    // s3.y0 = animate_eased(ui.ctx(), id.with("y0"), s3.y0 as _, 1.0, linear) as _;
+                    // s3.y1 = animate_eased(ui.ctx(), id.with("y1"), s3.y1 as _, 1.0, linear) as _;
+                    // s3.k0 = animate_eased(ui.ctx(), id.with("k0"), s3.k0 as _, 1.0, linear) as _;
+                    // s3.k1 = animate_eased(ui.ctx(), id.with("k1"), s3.k1 as _, 1.0, linear) as _;
 
                     ui.vertical_centered_justified(|ui| {
                         let plot = Plot::new("plot");
@@ -345,12 +494,12 @@ impl<'a> Composition<'a> {
                                     y1,
                                     k0,
                                     k1,
-                                } = su2;
+                                } = su2[0];
                                 Line::new(PlotPoints::from_explicit_callback(
                                     move |x| {
-                                        y0 * (((x - x0) / (x1 - x0)).abs().powf(k0)
-                                            * (1.0 - (x - x0) / (x1 - x0)).abs().powf(k1)
-                                            - y1)
+                                        y0 * (y1
+                                            - ((x - x0) / (x1 - x0)).powf(k0)
+                                                * (1.0 - (x - x0) / (x1 - x0)).powf(k1))
                                     },
                                     x0.min(x1)..=x0.max(x1),
                                     256,
@@ -366,14 +515,56 @@ impl<'a> Composition<'a> {
                                     y1,
                                     k0,
                                     k1,
-                                } = s2u;
+                                } = su2[1];
                                 Line::new(PlotPoints::from_explicit_callback(
                                     move |x| {
                                         y0 * (y1
-                                            - ((x - x0) / (x1 - x0)).abs().powf(k0)
-                                                * (1.0 - (x - x0) / (x1 - x0)).abs().powf(k1))
+                                            - ((x - x0) / (x1 - x0)).powf(k0)
+                                                * (1.0 - (x - x0) / (x1 - x0)).powf(k1))
                                     },
-                                    0.0..1.0,
+                                    x0.min(x1)..=x0.max(x1),
+                                    256,
+                                ))
+                                .color(color(1))
+                                .name("SU2")
+                            });
+                            ui.line({
+                                let Parameters {
+                                    x0,
+                                    x1,
+                                    y0,
+                                    y1,
+                                    k0,
+                                    k1,
+                                } = s2u[0];
+                                Line::new(PlotPoints::from_explicit_callback(
+                                    move |x| {
+                                        y0 * (y1
+                                            - ((x - x0) / (x1 - x0)).powf(k0)
+                                                * (1.0 - (x - x0) / (x1 - x0)).powf(k1))
+                                    },
+                                    x0.min(x1)..=x0.max(x1),
+                                    256,
+                                ))
+                                .color(color(2))
+                                .name("S2U")
+                            });
+                            ui.line({
+                                let Parameters {
+                                    x0,
+                                    x1,
+                                    y0,
+                                    y1,
+                                    k0,
+                                    k1,
+                                } = s2u[1];
+                                Line::new(PlotPoints::from_explicit_callback(
+                                    move |x| {
+                                        y0 * (y1
+                                            - ((x - x0) / (x1 - x0)).powf(k0)
+                                                * (1.0 - (x - x0) / (x1 - x0)).powf(k1))
+                                    },
+                                    x0.min(x1)..=x0.max(x1),
                                     256,
                                 ))
                                 .color(color(2))
@@ -483,42 +674,125 @@ impl View for Composition<'_> {
                         });
                 });
                 ui.separator();
-                ui.clicked_label("Group:").context_menu(|ui| {
-                    for group in [ECN, M, STC, PTC, TC] {
-                        let contains = context.settings.composition.groups.contains(&group);
-                        let mut checked = contains;
-                        ui.checkbox(&mut checked, group.text());
-                        if !contains && checked {
-                            context.settings.composition.groups.push(group);
-                        } else if contains && !checked {
-                            context
-                                .settings
-                                .composition
-                                .groups
-                                .retain(|&item| item != group);
-                        }
-                    }
-                });
-                let mut unchecked = None;
-                dnd(ui, Id::new("dnd").with("composition")).show_vec(
-                    &mut context.settings.composition.groups,
-                    |ui, group, handle, state| {
-                        ui.horizontal(|ui| {
-                            handle.ui(ui, |ui| {
-                                let _ = ui.button(if state.dragged { "👊" } else { "✋" });
-                            });
-                            let mut checked = true;
-                            ui.checkbox(&mut checked, "");
-                            if !checked {
-                                unchecked = Some(state.index);
+                ui.horizontal(|ui| {
+                    ui.label("Tree:");
+                    ui.menu_button("Branches", |ui| {
+                        let response = dnd(ui, Id::new("dnd").with("branches")).show(
+                            context.settings.composition.tree.branches.iter_mut(),
+                            |ui, (scope, compositions), handle, state| {
+                                ui.horizontal(|ui| {
+                                    handle.ui(ui, |ui| {
+                                        let _ =
+                                            ui.button(if state.dragged { "👊" } else { "✋" });
+                                    });
+                                    ui.label(scope.text());
+                                });
+                            },
+                        );
+                        if let Some(mut update) = response.final_update() {
+                            let branches = &mut context.settings.composition.tree.branches;
+                            if let Some((key, value)) = branches.shift_remove_index(update.from) {
+                                if update.to > update.from {
+                                    update.to -= 1;
+                                }
+                                branches.shift_insert(update.to, key, value);
                             }
-                            ui.label(group.text()).on_hover_text(group.hover_text());
-                        });
-                    },
-                );
-                if let Some(index) = unchecked {
-                    context.settings.composition.groups.remove(index);
-                }
+                        }
+                        // ui.collapsing(scope.text(), |ui| {
+                        //     for composition in &GROUPS[scope] {
+                        //         let contains = compositions.contains(composition);
+                        //         if *composition
+                        //             >= context.settings.composition.tree.leafs
+                        //         {
+                        //             ui.set_enabled(false);
+                        //         }
+                        //         if ui
+                        //             .selectable_label(contains, composition.text())
+                        //             .on_hover_text(composition.hover_text())
+                        //             .clicked()
+                        //         {
+                        //             if contains {
+                        //                 compositions.remove(composition);
+                        //             } else {
+                        //                 compositions.insert(*composition);
+                        //             }
+                        //         }
+                        //     }
+                        // });
+                    });
+                    // ui.menu_button("Branches", |ui| {
+                    //     let response = dnd(ui, Id::new("dnd").with("branches")).show(
+                    //         context.settings.composition.tree.branches.iter_mut(),
+                    //         |ui, (scope, compositions), handle, state| {
+                    //             ui.horizontal(|ui| {
+                    //                 handle.ui(ui, |ui| {
+                    //                     let _ =
+                    //                         ui.button(if state.dragged { "👊" } else { "✋" });
+                    //                 });
+                    //                 ui.collapsing(scope.text(), |ui| {
+                    //                     for composition in &GROUPS[scope] {
+                    //                         let contains = compositions.contains(composition);
+                    //                         if *composition
+                    //                             >= context.settings.composition.tree.leafs
+                    //                         {
+                    //                             ui.set_enabled(false);
+                    //                         }
+                    //                         if ui
+                    //                             .selectable_label(contains, composition.text())
+                    //                             .on_hover_text(composition.hover_text())
+                    //                             .clicked()
+                    //                         {
+                    //                             if contains {
+                    //                                 compositions.remove(composition);
+                    //                             } else {
+                    //                                 compositions.insert(*composition);
+                    //                             }
+                    //                         }
+                    //                     }
+                    //                 });
+                    //             });
+                    //         },
+                    //     );
+                    //     if let Some(mut update) = response.final_update() {
+                    //         let branches = &mut context.settings.composition.tree.branches;
+                    //         if let Some((key, value)) = branches.shift_remove_index(update.from) {
+                    //             if update.to > update.from {
+                    //                 update.to -= 1;
+                    //             }
+                    //             branches.shift_insert(update.to, key, value);
+                    //         }
+                    //     }
+                    // });
+                    ui.menu_button("Leafs", |ui| {
+                        ui.selectable_value(
+                            &mut context.settings.composition.tree.leafs,
+                            SC,
+                            SC.text(),
+                        )
+                        .on_hover_text(SC.hover_text());
+                        ui.selectable_value(
+                            &mut context.settings.composition.tree.leafs,
+                            PSC,
+                            PSC.text(),
+                        )
+                        .on_hover_text(PSC.hover_text());
+                        ui.selectable_value(
+                            &mut context.settings.composition.tree.leafs,
+                            SSC,
+                            SSC.text(),
+                        )
+                        .on_hover_text(SSC.hover_text());
+                        // if context.settings.composition.leafs == SSC {
+                        //     let psc = Checkable::new(PSC);
+                        //     if !context.settings.composition.branches.contains(&psc) {
+                        //         context.settings.composition.branches.push(psc);
+                        //     }
+                        // } else if context.settings.composition.leafs == PSC {
+                        //     // context.settings.composition.branches.
+                        //     // context.settings.composition.branches.remove(PSC);
+                        // }
+                    });
+                });
                 ui.horizontal(|ui| {
                     ui.label("Sort:");
                     ComboBox::from_id_source("sort")
@@ -568,12 +842,7 @@ impl View for Composition<'_> {
                         context.settings.composition.method = Method::Gunstone;
                     }
                     if ui.input_mut(|input| {
-                        input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::K))
-                    }) {
-                        context.settings.composition.method = Method::KazakovSidorov;
-                    }
-                    if ui.input_mut(|input| {
-                        input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::V))
+                        input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::W))
                     }) {
                         context.settings.composition.method = Method::VanderWal;
                     }
@@ -589,12 +858,6 @@ impl View for Composition<'_> {
                             .on_hover_text(Method::Gunstone.hover_text());
                             ui.selectable_value(
                                 &mut context.settings.composition.method,
-                                Method::KazakovSidorov,
-                                Method::KazakovSidorov.text(),
-                            )
-                            .on_hover_text(Method::KazakovSidorov.hover_text());
-                            ui.selectable_value(
-                                &mut context.settings.composition.method,
                                 Method::VanderWal,
                                 Method::VanderWal.text(),
                             )
@@ -603,11 +866,117 @@ impl View for Composition<'_> {
                         .response
                         .on_hover_text(context.settings.composition.method.hover_text());
                     if ui.button("📊").clicked() {
-                        context.settings.composition.temp ^= true;
+                        context.settings.composition.window ^= true;
                     }
                 });
+                if let Method::Gunstone = context.settings.composition.method {
+                    ui.horizontal(|ui| {
+                        ui.label("Discrimination:");
+                        // ui.spacing_mut().combo_width = 0.75 * ui.spacing().combo_width;
+                        ui.discrimination_menu(context, Sn::One);
+                        ui.discrimination_menu(context, Sn::Two);
+                        ui.discrimination_menu(context, Sn::Three);
+                    });
+                }
             },
         );
         Self { context }.windows(ui);
+    }
+}
+
+/// Extension methods for [`Ui`]
+trait UiExt {
+    fn discrimination_menu(&mut self, context: &mut Context, sn: Sn);
+}
+
+impl UiExt for Ui {
+    fn discrimination_menu(&mut self, context: &mut Context, sn: Sn) {
+        let Discrimination { sn1, sn2, sn3 } = &mut context.settings.composition.discrimination;
+        let psc = context.settings.composition.tree.leafs == PSC;
+        let mut changed = false;
+        self.menu_button(self.subscripted_widget("SN", sn.text()), |ui| {
+            for (index, label) in context.state.entry().meta.labels.iter().enumerate() {
+                let mut checked = match sn {
+                    Sn::One => !sn1.contains(&index),
+                    Sn::Two => !sn2.contains(&index),
+                    Sn::Three => !sn3.contains(&index),
+                };
+                if ui.checkbox(&mut checked, label).changed() {
+                    changed |= true;
+                    if !checked {
+                        match sn {
+                            Sn::One | Sn::Three if psc => {
+                                sn1.insert(index);
+                                sn3.insert(index);
+                            }
+                            Sn::One => {
+                                sn1.insert(index);
+                            }
+                            Sn::Two => {
+                                sn2.insert(index);
+                            }
+                            Sn::Three => {
+                                sn3.insert(index);
+                            }
+                        }
+                    } else {
+                        match sn {
+                            Sn::One | Sn::Three if psc => {
+                                sn1.remove(&index);
+                                sn3.remove(&index);
+                            }
+                            Sn::One => {
+                                sn1.remove(&index);
+                            }
+                            Sn::Two => {
+                                sn2.remove(&index);
+                            }
+                            Sn::Three => {
+                                sn3.remove(&index);
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        .response
+        .context_menu(|ui| {
+            if ui.button("Check all").clicked() {
+                match sn {
+                    Sn::One | Sn::Three if psc => {
+                        sn1.clear();
+                        sn3.clear();
+                    }
+                    Sn::One => {
+                        sn1.clear();
+                    }
+                    Sn::Two => {
+                        sn2.clear();
+                    }
+                    Sn::Three => {
+                        sn3.clear();
+                    }
+                }
+                ui.close_menu();
+            } else if ui.button("Uncheck all").clicked() {
+                let all = (0..context.state.entry().meta.labels.len()).collect();
+                match sn {
+                    Sn::One | Sn::Three if psc => {
+                        *sn1 = all;
+                        *sn3 = sn1.clone();
+                    }
+                    Sn::One => {
+                        *sn1 = all;
+                    }
+                    Sn::Two => {
+                        *sn2 = all;
+                    }
+                    Sn::Three => {
+                        *sn3 = all;
+                    }
+                }
+                ui.close_menu();
+            }
+        });
     }
 }

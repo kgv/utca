@@ -10,10 +10,6 @@
 //! [Determination of the Positional-Species Composition of Plant Reserve
 //! Triacylglycerols by Partial Chemical
 //! Deacylation](https://sci-hub.ru/10.1023/A:1016732708350)
-//!
-//! TODO:
-//!
-//! - Сделать PieChart как BarChart + legend
 
 #![feature(anonymous_lifetime_in_impl_trait)]
 #![feature(associated_type_defaults)]
@@ -26,9 +22,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use app::App;
-
-// Stereospecific numbering: [1,2,3-TAGs; 1,2/2,3-DAGs; 2-MAGs; 1,3-DAGs].
-// ℹ🔎🔍🔧📝⚙🛠⬇🔃🔄 📋🖹🗐🗑
 
 // When compiling natively
 #[cfg(not(target_arch = "wasm32"))]

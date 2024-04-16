@@ -30,17 +30,16 @@ impl View for Settings<'_> {
         if tree.tabs().contains(&CentralTab::Calculation) {
             Calculation::new(self.context).view(ui);
         }
-        let mut filtration = false;
+        if tree.tabs().contains(&CentralTab::Composition)
+            || tree.tabs().contains(&CentralTab::Comparison)
+        {
+            Filtration::new(self.context).view(ui);
+        }
         if tree.tabs().contains(&CentralTab::Composition) {
             Composition::new(self.context).view(ui);
-            filtration = true;
         }
         if tree.tabs().contains(&CentralTab::Comparison) {
             Comparison::new(self.context).view(ui);
-            filtration = true;
-        }
-        if filtration {
-            Filtration::new(self.context).view(ui);
         }
         if tree.tabs().contains(&CentralTab::Visualization) {
             Visualization::new(self.context).view(ui);

@@ -1,4 +1,11 @@
-use crate::{acylglycerol::Tag, app::context::settings::composition::Method, tree::Tree};
+use crate::{
+    acylglycerol::Tag,
+    app::context::settings::composition::{
+        Method,
+        Stereospecificity::{self, Positional},
+    },
+    tree::Tree,
+};
 use molecule::{
     Saturation,
     Saturation::{Saturated, Unsaturated},
@@ -6,7 +13,8 @@ use molecule::{
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::{
-    cmp::Ordering,
+    borrow::Borrow,
+    cmp::{max, min, Ordering},
     fmt::{Display, Formatter, Result},
     hash::{Hash, Hasher},
 };
@@ -15,7 +23,6 @@ use std::{
 #[derive(Clone, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) struct Composed {
     pub(in crate::app) gunstone: Tree<Meta, Data>,
-    pub(in crate::app) kazakov_sidorov: Tree<Meta, Data>,
     pub(in crate::app) vander_wal: Tree<Meta, Data>,
 }
 
@@ -23,17 +30,10 @@ impl Composed {
     pub(in crate::app) fn composition(&self, method: Method) -> &Tree<Meta, Data> {
         match method {
             Method::Gunstone => &self.gunstone,
-            Method::KazakovSidorov => &self.kazakov_sidorov,
             Method::VanderWal => &self.vander_wal,
         }
     }
 }
-
-/// Gunstone
-pub(in crate::app) type Gunstone = Tree<Meta, Data>;
-
-/// Vander Wal
-pub(in crate::app) type VanderWal = Tree<Meta, Data>;
 
 /// Data
 #[derive(Clone, Copy, Debug, Default, Deserialize, Hash, PartialEq, PartialOrd, Serialize)]
@@ -60,11 +60,16 @@ impl Merge for Meta {
 /// Group
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub(in crate::app) enum Group {
-    Ecn(usize),
+    Ec(usize),
+    Pec(Tag<usize>),
+    Sec(Tag<usize>),
     Mass(usize),
-    Tc(TypeComposition),
-    Ptc(PositionalTypeComposition),
-    Stc(StereoTypeComposition),
+    Tc(Tag<Saturation>),
+    Ptc(Tag<Saturation>),
+    Stc(Tag<Saturation>),
+    Sc(Tag<usize>),
+    Psc(Tag<usize>),
+    Ssc(Tag<usize>),
 }
 
 // impl Statable for Group {
@@ -81,14 +86,33 @@ pub(in crate::app) enum Group {
 
 impl Display for Group {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        match self {
-            Self::Ecn(ecn) => Display::fmt(ecn, f),
-            Self::Mass(mass) => Display::fmt(mass, f),
-            Self::Ptc(ptc) => Display::fmt(ptc, f),
-            Self::Stc(stc) => Display::fmt(stc, f),
-            Self::Tc(tc) => Display::fmt(tc, f),
+        match *self {
+            Self::Ec(ecn) => Display::fmt(&ecn, f),
+            Self::Pec(ecn) => Display::fmt(&ecn, f),
+            Self::Sec(ecn) => Display::fmt(&ecn, f),
+            Self::Mass(mass) => Display::fmt(&mass, f),
+            Self::Tc(mut r#type) => Display::fmt(compose(&mut r#type, None), f),
+            Self::Ptc(mut r#type) => Display::fmt(compose(&mut r#type, Some(Positional)), f),
+            Self::Stc(r#type) => Display::fmt(&r#type, f),
+            Self::Sc(mut species) => Display::fmt(compose(&mut species, None), f),
+            Self::Psc(mut species) => Display::fmt(compose(&mut species, Some(Positional)), f),
+            Self::Ssc(species) => Display::fmt(&species, f),
         }
     }
+}
+
+pub(in crate::app) fn compose<T: Ord>(
+    tag: &mut Tag<T>,
+    stereospecificity: Option<Stereospecificity>,
+) -> &mut Tag<T> {
+    if let None = stereospecificity {
+        tag.sort();
+    } else if let Some(Stereospecificity::Positional) = stereospecificity {
+        if tag[0] > tag[2] {
+            tag.swap(0, 2);
+        }
+    }
+    tag
 }
 
 /// Stereo type composition
@@ -138,7 +162,7 @@ impl From<Tag<Saturation>> for StereoTypeComposition {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub(in crate::app) enum PositionalTypeComposition {
     Sss,
-    SsuUss, // SuUSu
+    SsuUss,
     Sus,
     Usu,
     SuuUus,

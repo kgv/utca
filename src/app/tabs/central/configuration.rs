@@ -4,6 +4,8 @@ use crate::{
         view::View,
     },
     properties::{density::Hammond, viscosity::Rabelo},
+    r#const::CH2,
+    utils::UiExt,
 };
 use egui::{Align, Direction, DragValue, Layout, RichText, Ui};
 use egui_ext::{ClickedLabel, TableBodyExt, TableRowExt};
@@ -13,7 +15,7 @@ use molecule::{
     Saturable,
 };
 use std::{num::NonZeroUsize, sync::LazyLock};
-use toml_edit::Document;
+use toml_edit::DocumentMut;
 use uom::{
     fmt::DisplayStyle::Abbreviation,
     si::{
@@ -28,9 +30,9 @@ use uom::{
 const H: Isotope = Isotope::H(H::One);
 const C: Isotope = Isotope::C(C::Twelve);
 
-static FATTY_ACIDS: LazyLock<Document> = LazyLock::new(|| {
+static FATTY_ACIDS: LazyLock<DocumentMut> = LazyLock::new(|| {
     include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/fatty_acids.toml"))
-        .parse::<Document>()
+        .parse::<DocumentMut>()
         .unwrap()
 });
 
@@ -74,7 +76,7 @@ impl View for Configuration<'_> {
             builder = builder.column(Column::exact(width));
         }
         builder
-            .auto_shrink([false; 2])
+            .auto_shrink(false)
             .resizable(context.settings.configuration.resizable)
             .striped(true)
             .header(height, |mut row| {
@@ -161,23 +163,267 @@ impl View for Configuration<'_> {
                         //             ui.label(format!("Mass: {}", formula.weight()));
                         //         });
                         // });
+                        // row.left_align_col(|ui| {
+                        //     let entry = context.state.entry();
+                        //     let formula = &entry.meta.formulas[index];
+                        //     let c = formula.count(C);
+                        //     let u = formula.unsaturated();
+                        //     let mut response = ui
+                        //         .clicked_heading(entry.meta.labels[index].to_string())
+                        //         .on_hover_ui(|ui| {
+                        //             ui.heading("Fatty acid");
+                        //             let formula = &context.state.entry().meta.formulas[index];
+                        //             ui.label(format!("Formula: {}", formula));
+                        //             ui.label(format!("Mass: {}", formula.weight()));
+                        //             ui.label(format!(
+                        //                 "Methyl ester mass: {}",
+                        //                 formula.weight() + CH2,
+                        //             ));
+                        //         });
+                        //     ui.allocate_ui_at_rect(response.rect, |ui| {
+                        //         ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
+                        //             ui.label(RichText::new(format!("{c}:{u}")).small());
+                        //         });
+                        //     });
+                        //     if context.settings.configuration.properties {
+                        //         response = response.on_hover_ui(|ui| {
+                        //             ui.heading("Properties");
+                        //             let formula = &context.state.entry().meta.formulas[index];
+                        //             let t = ThermodynamicTemperature::new::<degree_celsius>(40.0);
+                        //             ui.label(format!(
+                        //                 "Molar volume: {}",
+                        //                 formula.molar_volume(t).into_format_args(
+                        //                     cubic_centimeter_per_mole,
+                        //                     Abbreviation
+                        //                 ),
+                        //             ));
+                        //             ui.label(format!(
+                        //                 "Density: {}",
+                        //                 formula.density(t).into_format_args(
+                        //                     gram_per_cubic_centimeter,
+                        //                     Abbreviation
+                        //                 ),
+                        //             ));
+                        //             ui.label(format!(
+                        //                 "Dynamic viscosity: {}",
+                        //                 formula
+                        //                     .dynamic_viscosity(t)
+                        //                     .into_format_args(millipascal_second, Abbreviation),
+                        //             ));
+                        //         });
+                        //     }
+                        //     if context.settings.configuration.names {
+                        //         if let Some(item) = FATTY_ACIDS.get(&format!("{c}:{u}")) {
+                        //             if let Some(array_of_tables) = item.as_array_of_tables() {
+                        //                 response = response.on_hover_ui(|ui| {
+                        //                     TableBuilder::new(ui)
+                        //                         .striped(true)
+                        //                         .column(Column::exact(3.0 * width))
+                        //                         .column(Column::exact(6.0 * width))
+                        //                         .column(Column::remainder())
+                        //                         .header(height, |mut header| {
+                        //                             header.col(|ui| {
+                        //                                 ui.heading("Abbreviation");
+                        //                             });
+                        //                             header.col(|ui| {
+                        //                                 ui.heading("Common name");
+                        //                             });
+                        //                             header.col(|ui| {
+                        //                                 ui.heading("Systematic name");
+                        //                             });
+                        //                         })
+                        //                         .body(|mut body| {
+                        //                             for table in array_of_tables {
+                        //                                 body.row(height, |mut row| {
+                        //                                     if let Some(abbreviation) =
+                        //                                         table.get("abbreviation")
+                        //                                     {
+                        //                                         row.col(|ui| {
+                        //                                             ui.label(
+                        //                                                 abbreviation.to_string(),
+                        //                                             );
+                        //                                         });
+                        //                                     } else {
+                        //                                         row.col(|_| {});
+                        //                                     }
+                        //                                     if let Some(common_name) =
+                        //                                         table.get("common_name")
+                        //                                     {
+                        //                                         row.col(|ui| {
+                        //                                             ui.label(
+                        //                                                 common_name.to_string(),
+                        //                                             );
+                        //                                         });
+                        //                                     } else {
+                        //                                         row.col(|_| {});
+                        //                                     }
+                        //                                     if let Some(systematic_name) =
+                        //                                         table.get("systematic_name")
+                        //                                     {
+                        //                                         row.col(|ui| {
+                        //                                             ui.label(
+                        //                                                 systematic_name.to_string(),
+                        //                                             );
+                        //                                         });
+                        //                                     } else {
+                        //                                         row.col(|_| {});
+                        //                                     }
+                        //                                 });
+                        //                             }
+                        //                         });
+                        //                 });
+                        //             }
+                        //         }
+                        //     }
+                        //     response.context_menu(|ui| {
+                        //         ui.text_edit_singleline(
+                        //             &mut context.state.entry_mut().meta.labels[index],
+                        //         );
+                        //         let formula = &mut context.state.entry_mut().meta.formulas[index];
+                        //         let mut c = formula.count(C);
+                        //         let mut u = formula.unsaturated();
+                        //         ui.horizontal(|ui| {
+                        //             // C
+                        //             ui.label("C:");
+                        //             if ui
+                        //                 .add(DragValue::new(&mut c).clamp_range(
+                        //                     context.settings.configuration.c.start
+                        //                         ..=context.settings.configuration.c.end,
+                        //                 ))
+                        //                 .changed()
+                        //             {
+                        //                 let formula =
+                        //                     &mut context.state.entry_mut().meta.formulas[index];
+                        //                 if let Some(c) = NonZeroUsize::new(c) {
+                        //                     formula.insert(C, c);
+                        //                     let h = 2 * (c.get() - u);
+                        //                     if let Some(h) = NonZeroUsize::new(h) {
+                        //                         formula.insert(H, h);
+                        //                     }
+                        //                 }
+                        //             }
+                        //             // U
+                        //             ui.label("U:");
+                        //             if ui
+                        //                 .add(DragValue::new(&mut u).clamp_range(
+                        //                     0..=U::max(c).min(context.settings.configuration.u),
+                        //                 ))
+                        //                 .changed()
+                        //             {
+                        //                 let formula =
+                        //                     &mut context.state.entry_mut().meta.formulas[index];
+                        //                 if let Some(h) = NonZeroUsize::new(2 * (c - u)) {
+                        //                     formula.insert(H, h);
+                        //                 }
+                        //             }
+                        //         });
+                        //         ui.horizontal(|ui| {
+                        //             ui.label("Correction factor:");
+                        //             ui.add(
+                        //                 DragValue::new(
+                        //                     &mut context.settings.configuration.correction_factor,
+                        //                 )
+                        //                 .clamp_range(f64::MIN..=f64::MAX)
+                        //                 .speed(0.01),
+                        //             )
+                        //             .on_hover_text(
+                        //                 context
+                        //                     .settings
+                        //                     .configuration
+                        //                     .correction_factor
+                        //                     .to_string(),
+                        //             );
+                        //         });
+                        //     });
+                        // });
                         row.left_align_col(|ui| {
                             let entry = context.state.entry();
                             let formula = &entry.meta.formulas[index];
-                            let c = formula.count(C).saturating_sub(1);
+                            let c = formula.count(C);
                             let u = formula.unsaturated();
+                            let title = ui
+                                .subscripted_widget(&entry.meta.labels[index], &format!("{c}:{u}"));
                             let mut response = ui
-                                .clicked_heading(entry.meta.labels[index].to_string())
+                                .menu_button(title, |ui| {
+                                    ui.text_edit_singleline(
+                                        &mut context.state.entry_mut().meta.labels[index],
+                                    );
+                                    let formula =
+                                        &mut context.state.entry_mut().meta.formulas[index];
+                                    let mut c = formula.count(C);
+                                    let mut u = formula.unsaturated();
+                                    ui.horizontal(|ui| {
+                                        // C
+                                        ui.label("C:");
+                                        if ui
+                                            .add(DragValue::new(&mut c).clamp_range(
+                                                context.settings.configuration.c.start
+                                                    ..=context.settings.configuration.c.end,
+                                            ))
+                                            .changed()
+                                        {
+                                            let formula =
+                                                &mut context.state.entry_mut().meta.formulas[index];
+                                            if let Some(c) = NonZeroUsize::new(c) {
+                                                formula.insert(C, c);
+                                                let h = 2 * (c.get() - u);
+                                                if let Some(h) = NonZeroUsize::new(h) {
+                                                    formula.insert(H, h);
+                                                }
+                                            }
+                                        }
+                                        // U
+                                        ui.label("U:");
+                                        if ui
+                                            .add(DragValue::new(&mut u).clamp_range(
+                                                0..=U::max(c).min(context.settings.configuration.u),
+                                            ))
+                                            .changed()
+                                        {
+                                            let formula =
+                                                &mut context.state.entry_mut().meta.formulas[index];
+                                            if let Some(h) = NonZeroUsize::new(2 * (c - u)) {
+                                                formula.insert(H, h);
+                                            }
+                                        }
+                                    });
+                                    ui.horizontal(|ui| {
+                                        ui.label("Correction factor:");
+                                        ui.add(
+                                            DragValue::new(
+                                                &mut context
+                                                    .settings
+                                                    .configuration
+                                                    .correction_factor,
+                                            )
+                                            .clamp_range(f64::MIN..=f64::MAX)
+                                            .speed(0.01),
+                                        )
+                                        .on_hover_text(
+                                            context
+                                                .settings
+                                                .configuration
+                                                .correction_factor
+                                                .to_string(),
+                                        );
+                                    });
+                                })
+                                .response
                                 .on_hover_ui(|ui| {
+                                    ui.heading("Fatty acid");
                                     let formula = &context.state.entry().meta.formulas[index];
-                                    ui.label(formula.to_string());
+                                    ui.label(format!("Formula: {}", formula));
                                     ui.label(format!("Mass: {}", formula.weight()));
+                                    ui.label(format!(
+                                        "Methyl ester mass: {}",
+                                        formula.weight() + CH2,
+                                    ));
                                 });
-                            ui.allocate_ui_at_rect(response.rect, |ui| {
-                                ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
-                                    ui.label(RichText::new(format!("{c}:{u}")).small());
-                                });
-                            });
+                            // ui.allocate_ui_at_rect(response.rect, |ui| {
+                            //     ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
+                            //         ui.label(RichText::new(format!("{c}:{u}")).small());
+                            //     });
+                            // });
                             if context.settings.configuration.properties {
                                 response = response.on_hover_ui(|ui| {
                                     ui.heading("Properties");
@@ -268,66 +514,6 @@ impl View for Configuration<'_> {
                                     }
                                 }
                             }
-                            response.context_menu(|ui| {
-                                ui.text_edit_singleline(
-                                    &mut context.state.entry_mut().meta.labels[index],
-                                );
-                                let formula = &mut context.state.entry_mut().meta.formulas[index];
-                                let mut c = formula.count(C);
-                                let mut u = formula.unsaturated();
-                                ui.horizontal(|ui| {
-                                    // C
-                                    ui.label("C:");
-                                    if ui
-                                        .add(DragValue::new(&mut c).clamp_range(
-                                            context.settings.configuration.c.start
-                                                ..=context.settings.configuration.c.end,
-                                        ))
-                                        .changed()
-                                    {
-                                        let formula =
-                                            &mut context.state.entry_mut().meta.formulas[index];
-                                        if let Some(c) = NonZeroUsize::new(c) {
-                                            formula.insert(C, c);
-                                            let h = 2 * (c.get() - u);
-                                            if let Some(h) = NonZeroUsize::new(h) {
-                                                formula.insert(H, h);
-                                            }
-                                        }
-                                    }
-                                    // U
-                                    ui.label("U:");
-                                    if ui
-                                        .add(DragValue::new(&mut u).clamp_range(
-                                            0..=U::max(c).min(context.settings.configuration.u),
-                                        ))
-                                        .changed()
-                                    {
-                                        let formula =
-                                            &mut context.state.entry_mut().meta.formulas[index];
-                                        if let Some(h) = NonZeroUsize::new(2 * (c - u)) {
-                                            formula.insert(H, h);
-                                        }
-                                    }
-                                });
-                                ui.horizontal(|ui| {
-                                    ui.label("Correction factor:");
-                                    ui.add(
-                                        DragValue::new(
-                                            &mut context.settings.configuration.correction_factor,
-                                        )
-                                        .clamp_range(f64::MIN..=f64::MAX)
-                                        .speed(0.01),
-                                    )
-                                    .on_hover_text(
-                                        context
-                                            .settings
-                                            .configuration
-                                            .correction_factor
-                                            .to_string(),
-                                    );
-                                });
-                            });
                         });
                         let data = &mut context.state.entry_mut().data.configured[index];
                         // Tag123

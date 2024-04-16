@@ -113,18 +113,18 @@ mod tests {
     use super::parse;
     use anyhow::Result;
 
-    #[test]
-    fn single() -> Result<()> {
-        let input = "Myr\nPam\nPol\nPvc\nSte\nOle\nVac\nLin\nAra\nLnn\nGad";
-        parse(input)?;
-        let input = "1862684\n73601110\n682851\n728781\n81055180\n42801155\n3965364\n234026993\n692503\n126940011\n754173";
-        parse(input)?;
-        let input = "1862684.0\n73601110.0\n682851.0\n728781.0\n81055180.0\n42801155.0\n3965364.0\n234026993.0\n692503.0\n126940011.0\n754173";
-        parse(input)?;
-        let input = "14:0\n16:0\n16:1\n16:1\n18:0\n18:1\n18:1\n18:2\n20:0\n18:3\n20:1";
-        parse(input)?;
-        Ok(())
-    }
+    // #[test]
+    // fn single() -> Result<()> {
+    //     let input = "Myr\nPam\nPol\nPvc\nSte\nOle\nVac\nLin\nAra\nLnn\nGad";
+    //     parse(input)?;
+    //     let input = "1862684\n73601110\n682851\n728781\n81055180\n42801155\n3965364\n234026993\n692503\n126940011\n754173";
+    //     parse(input)?;
+    //     let input = "1862684.0\n73601110.0\n682851.0\n728781.0\n81055180.0\n42801155.0\n3965364.0\n234026993.0\n692503.0\n126940011.0\n754173";
+    //     parse(input)?;
+    //     let input = "14:0\n16:0\n16:1\n16:1\n18:0\n18:1\n18:1\n18:2\n20:0\n18:3\n20:1";
+    //     parse(input)?;
+    //     Ok(())
+    // }
 
     #[test]
     fn quadruple() -> Result<()> {

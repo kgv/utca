@@ -2,13 +2,14 @@ use crate::{
     acylglycerol::Sn,
     app::{
         context::{
-            settings::composition::{Filter, Type},
+            settings::composition::{Filter, PSC, SSC},
             Context,
         },
         view::View,
     },
+    utils::UiExt as _,
 };
-use egui::{ComboBox, Id, RichText, Slider, Ui};
+use egui::{RichText, ScrollArea, Slider, TextStyle, Ui};
 
 /// Left filtration tab
 pub(super) struct Filtration<'a> {
@@ -26,15 +27,21 @@ impl View for Filtration<'_> {
         let Self { context } = self;
         ui.collapsing(RichText::new("🔎 Filtration").heading(), |ui| {
             ui.horizontal(|ui| {
-                ui.spacing_mut().combo_width = 0.75 * ui.spacing().combo_width;
-                ui.label("SN:").on_hover_text("Stereochemical number");
-                ui.filter_combobox(context, Sn::One);
-                ui.filter_combobox(context, Sn::Two);
-                ui.filter_combobox(context, Sn::Three);
+                ui.label("Species composition:");
+                ui.label(context.settings.composition.tree.leafs.text())
+                    .on_hover_text(context.settings.composition.tree.leafs.hover_text());
+            });
+            ui.horizontal(|ui| {
+                // ui.spacing_mut().combo_width = 0.75 * ui.spacing().combo_width;
+                ui.horizontal(|ui| {
+                    ui.label("Key:");
+                    for sn in [Sn::One, Sn::Two, Sn::Three] {
+                        ui.filter_menu(context, sn);
+                    }
+                });
                 if ui.button("🗑").on_hover_text("Clear filter").clicked() {
                     context.settings.composition.filter = Default::default();
-                    context.settings.composition.r#type = Type::Positional;
-                    context.settings.composition.symmetrical = false;
+                    context.settings.composition.filter.symmetrical = false;
                 }
             });
             ui.horizontal(|ui| {
@@ -60,63 +67,26 @@ impl View for Filtration<'_> {
                 );
             });
             ui.horizontal(|ui| {
-                ui.label("Modifications:");
-                ComboBox::from_id_source("composition")
-                    .selected_text(context.settings.composition.r#type.text())
-                    .show_ui(ui, |ui| {
-                        if ui
-                            .selectable_value(
-                                &mut context.settings.composition.r#type,
-                                Type::Stereo,
-                                Type::Stereo.text(),
-                            )
-                            .on_hover_text(Type::Stereo.hover_text())
-                            .clicked()
-                        {
-                            context.settings.composition.filter.sn1 = context
-                                .settings
-                                .composition
-                                .filter
-                                .sn1
-                                .union(&context.settings.composition.filter.sn3)
-                                .copied()
-                                .collect();
-                        }
-                        if ui
-                            .selectable_value(
-                                &mut context.settings.composition.r#type,
-                                Type::Positional,
-                                Type::Positional.text(),
-                            )
-                            .on_hover_text(Type::Positional.hover_text())
-                            .clicked()
-                        {
-                            context.settings.composition.filter.sn3 =
-                                context.settings.composition.filter.sn1.clone();
-                        }
-                    })
-                    .response
-                    .on_hover_text(context.settings.composition.r#type.hover_text());
-                if let Type::Positional = context.settings.composition.r#type {
-                    ui.checkbox(&mut context.settings.composition.symmetrical, "Symmetrical");
-                }
+                ui.label("Symmetrical:");
+                ui.checkbox(&mut context.settings.composition.filter.symmetrical, "")
+                    .on_hover_text("Show only symmetrical species");
             });
         });
     }
 }
 
-/// Filter combobox
-trait FilterCombobox {
-    fn filter_combobox(&mut self, context: &mut Context, sn: Sn);
+/// Extension methods for [`Ui`]
+trait UiExt {
+    fn filter_menu(&mut self, context: &mut Context, sn: Sn);
 }
 
-impl FilterCombobox for Ui {
-    fn filter_combobox(&mut self, context: &mut Context, sn: Sn) {
+impl UiExt for Ui {
+    fn filter_menu(&mut self, context: &mut Context, sn: Sn) {
+        let psc = context.settings.composition.tree.leafs == PSC;
         let Filter { sn1, sn2, sn3, .. } = &mut context.settings.composition.filter;
         let mut changed = false;
-        ComboBox::from_id_source(sn)
-            .selected_text(sn.text())
-            .show_ui(self, |ui| {
+        self.menu_button(self.subscripted_widget("SN", sn.text()), |ui| {
+            ScrollArea::vertical().show(ui, |ui| {
                 for (index, label) in context.state.entry().meta.labels.iter().enumerate() {
                     let mut checked = match sn {
                         Sn::One => !sn1.contains(&index),
@@ -127,9 +97,7 @@ impl FilterCombobox for Ui {
                         changed |= true;
                         if !checked {
                             match sn {
-                                Sn::One | Sn::Three
-                                    if context.settings.composition.r#type == Type::Positional =>
-                                {
+                                Sn::One | Sn::Three if psc => {
                                     sn1.insert(index);
                                     sn3.insert(index);
                                 }
@@ -145,9 +113,7 @@ impl FilterCombobox for Ui {
                             }
                         } else {
                             match sn {
-                                Sn::One | Sn::Three
-                                    if context.settings.composition.r#type == Type::Positional =>
-                                {
+                                Sn::One | Sn::Three if psc => {
                                     sn1.remove(&index);
                                     sn3.remove(&index);
                                 }
@@ -164,53 +130,47 @@ impl FilterCombobox for Ui {
                         }
                     }
                 }
-            })
-            .response
-            .context_menu(|ui| {
-                if ui.button("Check all").clicked() {
-                    match sn {
-                        Sn::One | Sn::Three
-                            if context.settings.composition.r#type == Type::Positional =>
-                        {
-                            sn1.clear();
-                            sn3.clear();
-                        }
-                        Sn::One => {
-                            sn1.clear();
-                        }
-                        Sn::Two => {
-                            sn2.clear();
-                        }
-                        Sn::Three => {
-                            sn3.clear();
-                        }
-                    }
-                    ui.close_menu();
-                } else if ui.button("Uncheck all").clicked() {
-                    let all = (0..context.state.entry().meta.labels.len()).collect();
-                    match sn {
-                        Sn::One | Sn::Three
-                            if context.settings.composition.r#type == Type::Positional =>
-                        {
-                            *sn1 = all;
-                            *sn3 = sn1.clone();
-                        }
-                        Sn::One => {
-                            *sn1 = all;
-                        }
-                        Sn::Two => {
-                            *sn2 = all;
-                        }
-                        Sn::Three => {
-                            *sn3 = all;
-                        }
-                    }
-                    ui.close_menu();
-                }
             });
-        if changed {
-            let popup_id = self.make_persistent_id(Id::new(sn)).with("popup");
-            self.memory_mut(|memory| memory.open_popup(popup_id));
-        }
+        })
+        .response
+        .on_hover_text(format!("Stereochemical number {}", sn.text()))
+        .context_menu(|ui| {
+            if ui.button("Check all").clicked() {
+                match sn {
+                    Sn::One | Sn::Three if psc => {
+                        sn1.clear();
+                        sn3.clear();
+                    }
+                    Sn::One => {
+                        sn1.clear();
+                    }
+                    Sn::Two => {
+                        sn2.clear();
+                    }
+                    Sn::Three => {
+                        sn3.clear();
+                    }
+                }
+                ui.close_menu();
+            } else if ui.button("Uncheck all").clicked() {
+                let all = (0..context.state.entry().meta.labels.len()).collect();
+                match sn {
+                    Sn::One | Sn::Three if psc => {
+                        *sn1 = all;
+                        *sn3 = sn1.clone();
+                    }
+                    Sn::One => {
+                        *sn1 = all;
+                    }
+                    Sn::Two => {
+                        *sn2 = all;
+                    }
+                    Sn::Three => {
+                        *sn3 = all;
+                    }
+                }
+                ui.close_menu();
+            }
+        });
     }
 }

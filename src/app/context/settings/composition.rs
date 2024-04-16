@@ -1,17 +1,76 @@
 use super::{Order, Sort};
 use egui::epaint::util::FloatOrd;
+use indexmap::{indexmap, IndexMap};
+use maplit::{btreeset, hashmap};
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeSet, HashMap},
     hash::{Hash, Hasher},
+    sync::LazyLock,
 };
 
-pub(in crate::app) const ECN: Group = Group::Structure(Structure::EquivalentCarbonNumber);
-pub(in crate::app) const M: Group = Group::Structure(Structure::Mass);
-pub(in crate::app) const STC: Group = Group::Type(Saturation::StereoComposition);
-pub(in crate::app) const PTC: Group = Group::Type(Saturation::PositionalComposition);
-pub(in crate::app) const TC: Group = Group::Type(Saturation::Composition);
+// pub(in crate::app) static GROUPS: LazyLock<HashMap<Scope, Vec<Composition>>> =
+//     LazyLock::new(|| {
+//         hashmap! {
+//             Scope::EquivalentCarbonNumber => vec![ECNC, PECNC, SECNC],
+//             Scope::Mass => vec![MC, PMC, SMC],
+//             Scope::Type => vec![TC, PTC, STC],
+//             Scope::Species => vec![SC, PSC],
+//         }
+//     });
+
+// pub(in crate::app) const MC: Composition = Composition {
+//     stereospecificity: None,
+//     scope: Scope::Mass,
+// };
+// pub(in crate::app) const PMC: Composition = Composition {
+//     stereospecificity: Some(Stereospecificity::Positional),
+//     scope: Scope::Mass,
+// };
+// pub(in crate::app) const SMC: Composition = Composition {
+//     stereospecificity: Some(Stereospecificity::Stereo),
+//     scope: Scope::Mass,
+// };
+
+// pub(in crate::app) const ECNC: Composition = Composition {
+//     stereospecificity: None,
+//     scope: Scope::EquivalentCarbonNumber,
+// };
+// pub(in crate::app) const PECNC: Composition = Composition {
+//     stereospecificity: Some(Stereospecificity::Positional),
+//     scope: Scope::EquivalentCarbonNumber,
+// };
+// pub(in crate::app) const SECNC: Composition = Composition {
+//     stereospecificity: Some(Stereospecificity::Stereo),
+//     scope: Scope::EquivalentCarbonNumber,
+// };
+
+// pub(in crate::app) const SC: Composition = Composition {
+//     stereospecificity: None,
+//     scope: Scope::Species,
+// };
+// pub(in crate::app) const PSC: Composition = Composition {
+//     stereospecificity: Some(Stereospecificity::Positional),
+//     scope: Scope::Species,
+// };
+// pub(in crate::app) const SSC: Composition = Composition {
+//     stereospecificity: Some(Stereospecificity::Stereo),
+//     scope: Scope::Species,
+// };
+
+// pub(in crate::app) const TC: Composition = Composition {
+//     stereospecificity: None,
+//     scope: Scope::Type,
+// };
+// pub(in crate::app) const PTC: Composition = Composition {
+//     stereospecificity: Some(Stereospecificity::Positional),
+//     scope: Scope::Type,
+// };
+// pub(in crate::app) const STC: Composition = Composition {
+//     stereospecificity: Some(Stereospecificity::Stereo),
+//     scope: Scope::Type,
+// };
 
 /// Composition settings
 #[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
@@ -22,17 +81,22 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) precision: usize,
 
     pub(in crate::app) adduct: OrderedFloat<f64>,
-    pub(in crate::app) r#type: Type,
-    pub(in crate::app) symmetrical: bool,
-
+    // pub(in crate::app) composition: Scope,
     pub(in crate::app) method: Method,
-    pub(in crate::app) temp: bool,
+    pub(in crate::app) window: bool,
 
-    pub(in crate::app) groups: Vec<Group>,
+    pub(in crate::app) tree: Tree,
     pub(in crate::app) sort: Sort,
     pub(in crate::app) order: Order,
 
+    pub(in crate::app) discrimination: Discrimination,
     pub(in crate::app) filter: Filter,
+}
+
+impl Settings {
+    pub(in crate::app) fn compositions(&self) -> Vec<Composition> {
+        self.tree.branches.values().flatten().copied().collect()
+    }
 }
 
 impl Default for Settings {
@@ -44,98 +108,181 @@ impl Default for Settings {
             precision: 1,
 
             adduct: OrderedFloat(0.0),
-            r#type: Type::Positional,
-            symmetrical: false,
-
             method: Method::VanderWal,
-            temp: false,
+            window: false,
 
-            groups: Vec::new(),
+            tree: Default::default(),
             sort: Sort::Value,
             order: Order::Descending,
 
+            discrimination: Default::default(),
             filter: Default::default(),
         }
     }
 }
 
-/// Checkable
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(in crate::app) struct Checkable<T> {
-    pub(in crate::app) value: T,
-    pub(in crate::app) checked: bool,
+/// Tree
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(in crate::app) struct Tree {
+    pub(in crate::app) branches: Vec<Scope>,
+    pub(in crate::app) stereospecificity: Option<Stereospecificity>,
+    pub(in crate::app) group: Group,
+    pub(in crate::app) leafs: Option<Stereospecificity>,
 }
 
-impl<T> Checkable<T> {
-    pub(in crate::app) fn new(value: T) -> Self {
+impl Default for Tree {
+    fn default() -> Self {
         Self {
-            value,
-            checked: false,
+            branches: indexmap! {
+                Scope::EquivalentCarbonNumber => btreeset!{},
+                Scope::Mass => btreeset!{},
+                Scope::Type => btreeset!{},
+                Scope::Species => btreeset!{},
+            },
+            leafs: PSC,
         }
     }
 }
 
-impl<T> From<Checkable<T>> for Option<T> {
-    fn from(Checkable { value, checked }: Checkable<T>) -> Self {
-        if checked {
-            Some(value)
-        } else {
-            None
-        }
+impl Hash for Tree {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.branches.as_slice().hash(state);
+        self.leafs.hash(state);
     }
 }
 
 /// Group
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub(in crate::app) enum Group {
-    Structure(Structure),
-    Type(Saturation),
-}
-
-impl Group {
-    pub(in crate::app) fn text(self) -> &'static str {
-        match self {
-            ECN => "ECN",
-            M => "M",
-            PTC => "PTC",
-            STC => "STC",
-            TC => "TC",
-        }
-    }
-
-    pub(in crate::app) fn hover_text(self) -> &'static str {
-        match self {
-            ECN => "Group by ECN (Equivalent Carbon Number)",
-            M => "Group by M (Mass)",
-            PTC => "Group by PTC (Positional-Type Composition)",
-            STC => "Group by STC (Stereo-Type Composition)",
-            TC => "Group by TC (Type Composition)",
-        }
-    }
-}
-
-/// Saturation
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub(in crate::app) enum Saturation {
-    StereoComposition,
-    PositionalComposition,
     Composition,
+    Sum,
 }
 
-/// Structure
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub(in crate::app) enum Structure {
+// /// Branch
+// #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+// pub(in crate::app) struct Branch {
+//     pub(in crate::app) group: Group,
+//     pub(in crate::app) scope: Vec<Scope>,
+//     pub(in crate::app) stereospecificity: Option<Stereospecificity>,
+
+//     pub(in crate::app) scope: Scope,
+//     pub(in crate::app) stereospecificity: Option<Stereospecificity>,
+// }
+
+// impl Composition {
+//     pub(in crate::app) fn text(&self) -> &'static str {
+//         match *self {
+//             ECNC => "ECNC",
+//             PECNC => "PECNC",
+//             SECNC => "SECNC",
+
+//             MC => "MC",
+//             PMC => "PMC",
+//             SMC => "SMC",
+
+//             TC => "TC",
+//             PTC => "PTC",
+//             STC => "STC",
+
+//             SC => "SC",
+//             PSC => "PSC",
+//             SSC => "SSC",
+//         }
+//     }
+
+//     pub(in crate::app) fn hover_text(&self) -> &'static str {
+//         match *self {
+//             ECNC => "Equivalent carbon number composition",
+//             PECNC => "Positional equivalent carbon number composition",
+//             SECNC => "Stereo equivalent carbon number composition",
+
+//             MC => "Mass composition",
+//             PMC => "Positional mass composition",
+//             SMC => "Stereo mass composition",
+
+//             TC => "Type composition",
+//             PTC => "Positional type composition",
+//             STC => "Stereo type composition",
+
+//             SC => "Species composition",
+//             PSC => "Positional species composition",
+//             SSC => "Stereo species composition",
+//         }
+//     }
+// }
+
+/// Stereospecificity
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub(in crate::app) enum Stereospecificity {
+    Positional,
+    Stereo,
+}
+
+/// Scope
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub(in crate::app) enum Scope {
     EquivalentCarbonNumber,
     Mass,
+    Type,
+    Species,
+}
+
+impl Scope {
+    pub(in crate::app) fn text(&self) -> &'static str {
+        match self {
+            Self::EquivalentCarbonNumber => "Equivalent carbon number",
+            Self::Mass => "Mass",
+            Self::Species => "Species",
+            Self::Type => "Type",
+        }
+    }
+
+    pub(in crate::app) fn hover_text(&self) -> &'static str {
+        match self {
+            Self::EquivalentCarbonNumber => "ECN",
+            Self::Mass => "M",
+            Self::Species => "S",
+            Self::Type => "T",
+        }
+    }
+}
+
+// Desecrimination
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub(in crate::app) struct Discrimination {
+    pub(in crate::app) sn1: BTreeSet<usize>,
+    pub(in crate::app) sn2: BTreeSet<usize>,
+    pub(in crate::app) sn3: BTreeSet<usize>,
+}
+
+impl Hash for Discrimination {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.sn1.hash(state);
+        self.sn2.hash(state);
+        self.sn3.hash(state);
+    }
 }
 
 /// Filter
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub(in crate::app) struct Filter {
+    pub(in crate::app) symmetrical: bool,
     pub(in crate::app) sn1: BTreeSet<usize>,
     pub(in crate::app) sn2: BTreeSet<usize>,
     pub(in crate::app) sn3: BTreeSet<usize>,
     pub(in crate::app) value: f64,
+}
+
+impl Default for Filter {
+    fn default() -> Self {
+        Self {
+            symmetrical: false,
+            sn1: Default::default(),
+            sn2: Default::default(),
+            sn3: Default::default(),
+            value: Default::default(),
+        }
+    }
 }
 
 impl Hash for Filter {
@@ -152,46 +299,20 @@ impl Hash for Filter {
 pub(in crate::app) enum Method {
     Gunstone,
     VanderWal,
-    KazakovSidorov,
 }
 
 impl Method {
-    pub(in crate::app) fn text(self) -> &'static str {
+    pub(in crate::app) fn text(&self) -> &'static str {
         match self {
             Self::Gunstone => "Gunstone",
-            Self::KazakovSidorov => "Kazakov-Sidorov",
             Self::VanderWal => "Vander Wal",
         }
     }
 
-    pub(in crate::app) fn hover_text(self) -> &'static str {
+    pub(in crate::app) fn hover_text(&self) -> &'static str {
         match self {
             Self::Gunstone => "Calculate by Gunstone's theory",
-            Self::KazakovSidorov => "Calculate by Kazakov-Sidorov's theory",
             Self::VanderWal => "Calculate by Vander Wal's theory",
-        }
-    }
-}
-
-/// Type
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(in crate::app) enum Type {
-    Stereo,
-    Positional,
-}
-
-impl Type {
-    pub(in crate::app) fn text(self) -> &'static str {
-        match self {
-            Self::Stereo => "Stereo",
-            Self::Positional => "Positional",
-        }
-    }
-
-    pub(in crate::app) fn hover_text(self) -> &'static str {
-        match self {
-            Self::Stereo => "Stereo composition",
-            Self::Positional => "Positional composition",
         }
     }
 }

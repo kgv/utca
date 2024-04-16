@@ -1,4 +1,5 @@
-pub(crate) use self::{float::FloatExt, normalize::Normalize};
+pub(crate) use self::{normalize::Normalize, ui::UiExt};
 
 mod float;
 mod normalize;
+mod ui;

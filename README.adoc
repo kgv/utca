@@ -29,3 +29,5 @@ image:https://img.shields.io/badge/bevy%20tracking-main-yellow[bevy tracking, li
 * https://tableconvert.com[tableconvert.com, title=Table converter]
 
 $env:RUST_LOG="utca=trace"
+
+ℹ🔎🔍🔧📝⚙🛠⬇🔃🔄 📋🖹🗐🗑

@@ -1,6 +1,6 @@
 use crate::app::{
     context::{
-        settings::{composition::Checkable, Order, Sort},
+        settings::{Order, Sort},
         Context,
     },
     tabs::CentralTab,
@@ -52,26 +52,26 @@ impl View for Comparison<'_> {
                 });
                 ui.separator();
                 ui.label("Group:");
-                ui.group(|ui| {
-                    dnd(ui, Id::new("dnd").with("comparison")).show_vec(
-                        &mut context.settings.comparison.groups,
-                        |ui,
-                         Checkable {
-                             value: group,
-                             checked,
-                         },
-                         handle,
-                         state| {
-                            ui.horizontal(|ui| {
-                                handle.ui(ui, |ui| {
-                                    let _ = ui.button(if state.dragged { "👊" } else { "✋" });
-                                });
-                                ui.checkbox(checked, "");
-                                ui.label(group.text()).on_hover_text(group.hover_text());
-                            });
-                        },
-                    );
-                });
+                // ui.group(|ui| {
+                //     dnd(ui, Id::new("dnd").with("comparison")).show_vec(
+                //         &mut context.settings.comparison.groups,
+                //         |ui,
+                //          Checkable {
+                //              value: group,
+                //              checked,
+                //          },
+                //          handle,
+                //          state| {
+                //             ui.horizontal(|ui| {
+                //                 handle.ui(ui, |ui| {
+                //                     let _ = ui.button(if state.dragged { "👊" } else { "✋" });
+                //                 });
+                //                 ui.checkbox(checked, "");
+                //                 ui.label(group.text()).on_hover_text(group.hover_text());
+                //             });
+                //         },
+                //     );
+                // });
                 ui.horizontal(|ui| {
                     ui.label("Sort:");
                     ComboBox::from_id_source("sort")

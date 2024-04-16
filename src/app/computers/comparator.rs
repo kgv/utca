@@ -2,7 +2,7 @@ use crate::{
     acylglycerol::Tag,
     app::context::{
         settings::{
-            comparison::{Group, CMN, ECN, M, PTC, STC, TC},
+            comparison::{Group, CMN, MC, NC, PSC, PTC, SC, SSC, STC, TC},
             Order::{Ascending, Descending},
             Sort,
         },
@@ -13,7 +13,8 @@ use crate::{
                 Meta,
             },
             composition::{
-                Group::{Ecn, Mass, Ptc, Stc, Tc},
+                compose,
+                Group::{Ec, Mass, Psc, Ptc, Sc, Ssc, Stc, Tc},
                 Merge, Rounded,
             },
         },
@@ -46,7 +47,8 @@ pub(in crate::app) struct Comparator;
 impl ComputerMut<Key<'_>, Arc<Value>> for Comparator {
     fn compute(&mut self, key: Key) -> Arc<Value> {
         let Key { context } = key;
-        let groups = &context.settings.comparison.groups.map(Into::into);
+        // let groups = &context.settings.comparison.groups.map(Into::into);
+        let groups = &vec![];
         let length = context.state.entries.len();
         let mut ungrouped = HashMap::new();
         for (index, entry) in context.state.entries.iter().enumerate() {
@@ -102,15 +104,19 @@ fn grouped(
             let children = ungrouped
                 .into_iter()
                 .into_group_map_by(|&(tag, _)| match *group {
-                    CMN => Cmn(context.cmn(tag)),
-                    ECN => Composition(Ecn(context.ecn(tag).sum())),
-                    M => Composition(Mass(
-                        (C3H2 + context.mass(tag).sum() + context.settings.composition.adduct.0)
-                            .round() as _,
-                    )),
-                    PTC => Composition(Ptc(context.r#type(tag).into())),
-                    STC => Composition(Stc(context.r#type(tag).into())),
-                    TC => Composition(Tc(context.r#type(tag).into())),
+                    // CMN => Cmn(context.cmn(tag)),
+                    // ECN => Composition(Ecn(context.ecn(tag).sum())),
+                    // M => Composition(Mass(
+                    //     (C3H2 + context.mass(tag).sum() + context.settings.composition.adduct.0)
+                    //         .round() as _,
+                    // )),
+                    // TC => Composition(Tc(tc(context.r#type(tag)))),
+                    // PTC => Composition(Ptc(ptc(context.r#type(tag)))),
+                    // STC => Composition(Stc(context.r#type(tag))),
+                    // SC => Composition(Sc(tc(tag))),
+                    // PSC => Composition(Psc(ptc(tag))),
+                    // SSC => Composition(Ssc(tag)),
+                    _ => Cmn(0),
                 })
                 .into_iter()
                 .filter_map(|(group, ungrouped)| {

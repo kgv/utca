@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{
     array::IntoIter,
-    fmt::{Display, Formatter, Result},
+    fmt::{Display, Formatter, Result, Write},
     hash::Hash,
     ops::{Add, Deref, DerefMut},
     slice::Iter,
@@ -42,12 +42,12 @@ pub struct Dag<T>(pub [T; 2]);
 pub struct Tag<T>(pub [T; 3]);
 
 impl<T> Tag<T> {
-    pub fn map<U>(self, f: impl FnMut(T) -> U) -> Tag<U> {
-        Tag(self.0.map(f))
-    }
-
     pub fn filter(self, f: impl FnMut(&T) -> bool) -> impl Iterator<Item = T> {
         self.0.into_iter().filter(f)
+    }
+
+    pub fn map<U>(self, f: impl FnMut(T) -> U) -> Tag<U> {
+        Tag(self.0.map(f))
     }
 }
 
@@ -59,15 +59,17 @@ impl<T: Add<Output = T> + Copy> Tag<T> {
 
 impl<T: Display> Display for Tag<T> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        f.write_char('[')?;
         Display::fmt(&self.0[0], f)?;
         if f.alternate() {
-            f.write_str("/")?;
+            f.write_char('|')?;
         }
         Display::fmt(&self.0[1], f)?;
         if f.alternate() {
-            f.write_str("/")?;
+            f.write_char('|')?;
         }
-        Display::fmt(&self.0[2], f)
+        Display::fmt(&self.0[2], f)?;
+        f.write_char(']')
     }
 }
 
@@ -140,13 +142,3 @@ impl Sn {
         }
     }
 }
-
-// impl Display for Sn {
-//     fn fmt(&self, f: &mut Formatter) -> Result {
-//         match self {
-//             Self::One => f.write_str("1"),
-//             Self::Two => f.write_str("2"),
-//             Self::Three => f.write_str("3"),
-//         }
-//     }
-// }

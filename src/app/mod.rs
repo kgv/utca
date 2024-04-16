@@ -409,7 +409,7 @@ impl App {
     }
 
     fn paste(&mut self, ctx: &egui::Context) {
-        if !ctx.memory(|memory| memory.focus().is_some()) {
+        if !ctx.memory(|memory| memory.focused().is_some()) {
             ctx.input(|input| {
                 for event in &input.raw.events {
                     if let Event::Paste(paste) = event {

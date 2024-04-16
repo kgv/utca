@@ -30,7 +30,7 @@ impl View for Calculation<'_> {
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
             .column(Column::auto_with_initial_suggestion(width))
             .columns(Column::auto(), COLUMNS)
-            .auto_shrink([false; 2])
+            .auto_shrink(false)
             .resizable(context.settings.calculation.resizable)
             .striped(true)
             .header(height, |mut row| {
