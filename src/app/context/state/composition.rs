@@ -1,8 +1,7 @@
 use crate::{
-    acylglycerol::Tag,
+    acylglycerol::{Stereospecificity::Positional, Tag},
     app::context::settings::composition::{
-        Method,
-        Stereospecificity::{self, Positional},
+        Composition, Method, MC, NC, PMC, PNC, PSC, PTC, SC, SMC, SNC, SSC, STC, TC,
     },
     tree::Tree,
 };
@@ -13,8 +12,6 @@ use molecule::{
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Borrow,
-    cmp::{max, min, Ordering},
     fmt::{Display, Formatter, Result},
     hash::{Hash, Hasher},
 };
@@ -60,10 +57,12 @@ impl Merge for Meta {
 /// Group
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub(in crate::app) enum Group {
-    Ec(usize),
-    Pec(Tag<usize>),
-    Sec(Tag<usize>),
-    Mass(usize),
+    Nc(usize),
+    Pnc(Tag<usize>),
+    Snc(Tag<usize>),
+    Mc(usize),
+    Pmc((usize, Tag<usize>, usize)),
+    Smc((usize, Tag<usize>, usize)),
     Tc(Tag<Saturation>),
     Ptc(Tag<Saturation>),
     Stc(Tag<Saturation>),
@@ -72,48 +71,69 @@ pub(in crate::app) enum Group {
     Ssc(Tag<usize>),
 }
 
-// impl Statable for Group {
-//     type Output = [Option<Group>; 2];
-//     fn state(context: &Context, tag: Tag<usize>) -> Self::Output {
-//         context.settings.composition.groups.optional().map(|group| {
-//             Some(match group? {
-//                 ECN => Group::Ecn(context.ecn(tag).sum()),
-//                 PTC => Group::Ptc(context.ptc(tag)),
-//             })
-//         })
-//     }
-// }
+impl Group {
+    pub(in crate::app) fn composition(&self) -> Composition {
+        match self {
+            Self::Nc(_) => NC,
+            Self::Pnc(_) => PNC,
+            Self::Snc(_) => SNC,
+            Self::Mc(_) => MC,
+            Self::Pmc(_) => PMC,
+            Self::Smc(_) => SMC,
+            Self::Tc(_) => TC,
+            Self::Ptc(_) => PTC,
+            Self::Stc(_) => STC,
+            Self::Sc(_) => SC,
+            Self::Psc(_) => PSC,
+            Self::Ssc(_) => SSC,
+        }
+    }
+}
 
 impl Display for Group {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match *self {
-            Self::Ec(ecn) => Display::fmt(&ecn, f),
-            Self::Pec(ecn) => Display::fmt(&ecn, f),
-            Self::Sec(ecn) => Display::fmt(&ecn, f),
-            Self::Mass(mass) => Display::fmt(&mass, f),
-            Self::Tc(mut r#type) => Display::fmt(compose(&mut r#type, None), f),
-            Self::Ptc(mut r#type) => Display::fmt(compose(&mut r#type, Some(Positional)), f),
+            Self::Nc(ecn) => Display::fmt(&ecn, f),
+            Self::Pnc(ecn) => write!(f, "{:#}", ecn.compose(Some(Positional))),
+            Self::Snc(ecn) => write!(f, "{ecn:#}"),
+            Self::Mc(mass) => Display::fmt(&mass, f),
+            Self::Pmc((c3h2, mass, adduct)) => {
+                write!(f, "{c3h2}{:#}", mass.compose(Some(Positional)))?;
+                if adduct > 0 {
+                    write!(f, "{adduct}")?;
+                }
+                Ok(())
+            }
+            Self::Smc((c3h2, mass, adduct)) => {
+                write!(f, "{c3h2}{mass:#}")?;
+                if adduct > 0 {
+                    write!(f, "{adduct}")?;
+                }
+                Ok(())
+            }
+            Self::Tc(r#type) => Display::fmt(&r#type.compose(None), f),
+            Self::Ptc(r#type) => Display::fmt(&r#type.compose(Some(Positional)), f),
             Self::Stc(r#type) => Display::fmt(&r#type, f),
-            Self::Sc(mut species) => Display::fmt(compose(&mut species, None), f),
-            Self::Psc(mut species) => Display::fmt(compose(&mut species, Some(Positional)), f),
+            Self::Sc(species) => Display::fmt(&species.compose(None), f),
+            Self::Psc(species) => Display::fmt(&species.compose(Some(Positional)), f),
             Self::Ssc(species) => Display::fmt(&species, f),
         }
     }
 }
 
-pub(in crate::app) fn compose<T: Ord>(
-    tag: &mut Tag<T>,
-    stereospecificity: Option<Stereospecificity>,
-) -> &mut Tag<T> {
-    if let None = stereospecificity {
-        tag.sort();
-    } else if let Some(Stereospecificity::Positional) = stereospecificity {
-        if tag[0] > tag[2] {
-            tag.swap(0, 2);
-        }
-    }
-    tag
-}
+// pub(in crate::app) fn compose<T: Ord>(
+//     tag: &mut Tag<T>,
+//     stereospecificity: Option<Stereospecificity>,
+// ) -> &mut Tag<T> {
+//     if let None = stereospecificity {
+//         tag.sort();
+//     } else if let Some(Stereospecificity::Positional) = stereospecificity {
+//         if tag[0] > tag[2] {
+//             tag.swap(0, 2);
+//         }
+//     }
+//     tag
+// }
 
 /// Stereo type composition
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]

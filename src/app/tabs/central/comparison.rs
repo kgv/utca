@@ -1,6 +1,6 @@
 use crate::{
     app::{
-        context::{settings::composition::Stereospecificity, state::composition::Value, Context},
+        context::{state::composition::Value, Context},
         view::View,
     },
     tree::{Hierarchized, Hierarchy, Item},

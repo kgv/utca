@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 
 pub(in crate::app) const CMN: Group = Group::Cmn;
 
-pub(in crate::app) const NC: Group = Group::Composition(composition::ECNC);
-pub(in crate::app) const PNC: Group = Group::Composition(composition::PECNC);
-pub(in crate::app) const SNC: Group = Group::Composition(composition::SECNC);
+pub(in crate::app) const NC: Group = Group::Composition(composition::NC);
+pub(in crate::app) const PNC: Group = Group::Composition(composition::PNC);
+pub(in crate::app) const SNC: Group = Group::Composition(composition::SNC);
 
 pub(in crate::app) const MC: Group = Group::Composition(composition::MC);
 pub(in crate::app) const PMC: Group = Group::Composition(composition::PMC);

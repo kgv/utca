@@ -42,6 +42,20 @@ pub struct Dag<T>(pub [T; 2]);
 pub struct Tag<T>(pub [T; 3]);
 
 impl<T> Tag<T> {
+    pub fn compose(mut self, stereospecificity: Option<Stereospecificity>) -> Tag<T>
+    where
+        T: Ord,
+    {
+        if let None = stereospecificity {
+            self.sort();
+        } else if let Some(Stereospecificity::Positional) = stereospecificity {
+            if self[0] > self[2] {
+                self.swap(0, 2);
+            }
+        }
+        self
+    }
+
     pub fn filter(self, f: impl FnMut(&T) -> bool) -> impl Iterator<Item = T> {
         self.0.into_iter().filter(f)
     }
@@ -105,6 +119,13 @@ impl<'a, T> IntoIterator for &'a Tag<T> {
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
     }
+}
+
+/// Stereospecificity
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub enum Stereospecificity {
+    Positional,
+    Stereo,
 }
 
 /// Count

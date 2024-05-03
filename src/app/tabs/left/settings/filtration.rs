@@ -7,7 +7,7 @@ use crate::{
         },
         view::View,
     },
-    utils::UiExt as _,
+    utils::ui::{SubscriptedTextFormat, UiExt as _},
 };
 use egui::{RichText, ScrollArea, Slider, TextStyle, Ui};
 
@@ -85,53 +85,63 @@ impl UiExt for Ui {
         let psc = context.settings.composition.tree.leafs == PSC;
         let Filter { sn1, sn2, sn3, .. } = &mut context.settings.composition.filter;
         let mut changed = false;
-        self.menu_button(self.subscripted_widget("SN", sn.text()), |ui| {
-            ScrollArea::vertical().show(ui, |ui| {
-                for (index, label) in context.state.entry().meta.labels.iter().enumerate() {
-                    let mut checked = match sn {
-                        Sn::One => !sn1.contains(&index),
-                        Sn::Two => !sn2.contains(&index),
-                        Sn::Three => !sn3.contains(&index),
-                    };
-                    if ui.checkbox(&mut checked, label).changed() {
-                        changed |= true;
-                        if !checked {
-                            match sn {
-                                Sn::One | Sn::Three if psc => {
-                                    sn1.insert(index);
-                                    sn3.insert(index);
+        self.menu_button(
+            self.subscripted_text(
+                "SN",
+                sn.text(),
+                SubscriptedTextFormat {
+                    widget: true,
+                    ..Default::default()
+                },
+            ),
+            |ui| {
+                ScrollArea::vertical().show(ui, |ui| {
+                    for (index, label) in context.state.entry().meta.labels.iter().enumerate() {
+                        let mut checked = match sn {
+                            Sn::One => !sn1.contains(&index),
+                            Sn::Two => !sn2.contains(&index),
+                            Sn::Three => !sn3.contains(&index),
+                        };
+                        if ui.checkbox(&mut checked, label).changed() {
+                            changed |= true;
+                            if !checked {
+                                match sn {
+                                    Sn::One | Sn::Three if psc => {
+                                        sn1.insert(index);
+                                        sn3.insert(index);
+                                    }
+                                    Sn::One => {
+                                        sn1.insert(index);
+                                    }
+                                    Sn::Two => {
+                                        sn2.insert(index);
+                                    }
+                                    Sn::Three => {
+                                        sn3.insert(index);
+                                    }
                                 }
-                                Sn::One => {
-                                    sn1.insert(index);
-                                }
-                                Sn::Two => {
-                                    sn2.insert(index);
-                                }
-                                Sn::Three => {
-                                    sn3.insert(index);
-                                }
-                            }
-                        } else {
-                            match sn {
-                                Sn::One | Sn::Three if psc => {
-                                    sn1.remove(&index);
-                                    sn3.remove(&index);
-                                }
-                                Sn::One => {
-                                    sn1.remove(&index);
-                                }
-                                Sn::Two => {
-                                    sn2.remove(&index);
-                                }
-                                Sn::Three => {
-                                    sn3.remove(&index);
+                            } else {
+                                match sn {
+                                    Sn::One | Sn::Three if psc => {
+                                        sn1.remove(&index);
+                                        sn3.remove(&index);
+                                    }
+                                    Sn::One => {
+                                        sn1.remove(&index);
+                                    }
+                                    Sn::Two => {
+                                        sn2.remove(&index);
+                                    }
+                                    Sn::Three => {
+                                        sn3.remove(&index);
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            });
-        })
+                });
+            },
+        )
         .response
         .on_hover_text(format!("Stereochemical number {}", sn.text()))
         .context_menu(|ui| {

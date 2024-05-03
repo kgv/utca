@@ -1,5 +1,4 @@
-use egui::{text::LayoutJob, Align, Color32, Style, TextFormat, TextStyle, Ui, Visuals};
-use std::sync::Arc;
+use egui::{text::LayoutJob, Align, Color32, FontId, TextFormat, TextStyle, Ui, Visuals};
 
 // struct CompositeText {
 //     color: Color32,
@@ -7,109 +6,70 @@ use std::sync::Arc;
 //     style: Arc<Style>,
 // }
 
-// impl CompositeText {
-//     pub fn new(ui: &Ui) -> Self {
-//         let style = ui.style().clone();
-//         let color = if style.visuals.dark_mode {
-//             Visuals::dark().text_color()
-//         } else {
-//             Visuals::light().text_color()
-//         };
-//         let layout_job = LayoutJob::default();
-//         Self {
-//             color,
-//             layout_job,
-//             style,
-//         }
-//     }
-
-//     pub fn widget(&mut self) -> &mut Self {
-//         self.color = if self.style.visuals.dark_mode {
-//             Visuals::dark().widgets.inactive.text_color()
-//         } else {
-//             Visuals::light().widgets.inactive.text_color()
-//         };
-//         self
-//     }
-
-//     pub fn text(&mut self, text: &str, text_style: TextStyle) -> &mut Self {
-//         let font_id = text_style.resolve(&self.style);
-//         self.layout_job.append(
-//             text,
-//             0.0,
-//             TextFormat {
-//                 color: self.color,
-//                 font_id,
-//                 ..Default::default()
-//             },
-//         );
-//         self
-//     }
-
-//     pub fn subscript(&mut self, text: &str) -> &mut Self {
-//         let font_id = TextStyle::Small.resolve(&self.style);
-//         self.layout_job.append(
-//             text,
-//             1.0,
-//             TextFormat {
-//                 color: self.color,
-//                 font_id,
-//                 ..Default::default()
-//             },
-//         );
-//         self
-//     }
-// }
-
 /// Extension methods for [`Ui`]
 pub trait UiExt {
-    fn subscripted_text(&self, text: &str, subscripted_text: &str) -> LayoutJob;
-    fn subscripted_widget(&self, text: &str, subscripted_text: &str) -> LayoutJob;
-    fn subscripted(&self, text: &str, subscripted_text: &str, color: Color32) -> LayoutJob;
+    fn subscripted_text(
+        &self,
+        text: &str,
+        subscription: &str,
+        format: SubscriptedTextFormat,
+    ) -> LayoutJob;
 }
 
 impl UiExt for Ui {
-    fn subscripted_text(&self, text: &str, subscripted_text: &str) -> LayoutJob {
-        let color = if self.visuals().dark_mode {
-            Visuals::dark().text_color()
-        } else {
-            Visuals::light().text_color()
-        };
-        self.subscripted(text, subscripted_text, color)
-    }
-
-    fn subscripted_widget(&self, text: &str, subscripted_text: &str) -> LayoutJob {
-        let color = if self.visuals().dark_mode {
-            Visuals::dark().widgets.inactive.text_color()
-        } else {
-            Visuals::light().widgets.inactive.text_color()
-        };
-        self.subscripted(text, subscripted_text, color)
-    }
-
-    fn subscripted(&self, text: &str, subscripted_text: &str, color: Color32) -> LayoutJob {
-        let body_font_id = TextStyle::Body.resolve(self.style());
-        let small_font_id = TextStyle::Small.resolve(self.style());
+    fn subscripted_text(
+        &self,
+        text: &str,
+        subscription: &str,
+        format: SubscriptedTextFormat,
+    ) -> LayoutJob {
         let mut layout_job = LayoutJob::default();
+        let color = format.color.unwrap_or_else(|| {
+            if format.widget {
+                if self.visuals().dark_mode {
+                    Visuals::dark().widgets.inactive.text_color()
+                } else {
+                    Visuals::light().widgets.inactive.text_color()
+                }
+            } else {
+                if self.visuals().dark_mode {
+                    Visuals::dark().text_color()
+                } else {
+                    Visuals::light().text_color()
+                }
+            }
+        });
+        let font_id = format.font_id.unwrap_or_default();
         layout_job.append(
             text,
             0.0,
             TextFormat {
                 color,
-                // font_id: body_font_id,
+                font_id,
                 ..Default::default()
             },
         );
+        let font_id = format
+            .small_font_id
+            .unwrap_or_else(|| TextStyle::Small.resolve(self.style()));
         layout_job.append(
-            subscripted_text,
+            subscription,
             1.0,
             TextFormat {
                 color,
-                font_id: small_font_id,
+                font_id,
                 valign: Align::BOTTOM,
                 ..Default::default()
             },
         );
         layout_job
     }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct SubscriptedTextFormat {
+    pub color: Option<Color32>,
+    pub font_id: Option<FontId>,
+    pub small_font_id: Option<FontId>,
+    pub widget: bool,
 }

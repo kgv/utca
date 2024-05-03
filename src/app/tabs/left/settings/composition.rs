@@ -3,10 +3,7 @@ use crate::{
     app::{
         context::{
             settings::{
-                composition::{
-                    Discrimination, Method, Scope, Stereospecificity, GROUPS, PSC, PTC, SC, SSC,
-                    STC, TC,
-                },
+                composition::{Discrimination, Method, BRANCHES, PSC, PTC, SC, SSC},
                 Order, Sort,
             },
             Context,
@@ -16,7 +13,7 @@ use crate::{
         MAX_PRECISION,
     },
     r#const::{H, LI, NA, NH4},
-    utils::UiExt as _,
+    utils::ui::{SubscriptedTextFormat, UiExt as _},
 };
 use egui::{
     epaint::util::FloatOrd, text::LayoutJob, CollapsingHeader, ComboBox, DragValue, Id, Key,
@@ -648,6 +645,12 @@ impl View for Composition<'_> {
                     ui.checkbox(&mut context.settings.composition.percent, "");
                     ui.toggle_value(&mut context.settings.link, "🔗");
                 });
+                ui.horizontal(|ui| {
+                    ui.label("Show empty:");
+                    ui.checkbox(&mut context.settings.composition.empty, "");
+                })
+                .response
+                .on_hover_text("Show empty branches");
                 ui.separator();
                 ui.horizontal(|ui| {
                     let adduct = &mut context.settings.composition.adduct;
@@ -674,51 +677,68 @@ impl View for Composition<'_> {
                         });
                 });
                 ui.separator();
+                ui.horizontal_top(|ui| {
+                    let response = dnd(ui, Id::new("dnd").with("branches")).show(
+                        context.settings.composition.tree.branches.iter(),
+                        |ui, composition, handle, _state| {
+                            handle.ui(ui, |ui| {
+                                let _ = ui.button(composition.text());
+                            });
+                        },
+                    );
+                    if let Some(mut update) = response.final_update() {
+                        let branches = &mut context.settings.composition.tree.branches;
+                        if let Some(composition) = branches.shift_remove_index(update.from) {
+                            if update.to > update.from {
+                                update.to -= 1;
+                            }
+                            branches.shift_insert(update.to, composition);
+                        }
+                    }
+                    ui.set_enabled(false);
+                    let _ = ui.button(context.settings.composition.tree.leafs.text());
+                });
                 ui.horizontal(|ui| {
                     ui.label("Tree:");
                     ui.menu_button("Branches", |ui| {
-                        let response = dnd(ui, Id::new("dnd").with("branches")).show(
-                            context.settings.composition.tree.branches.iter_mut(),
-                            |ui, (scope, compositions), handle, state| {
-                                ui.horizontal(|ui| {
-                                    handle.ui(ui, |ui| {
-                                        let _ =
-                                            ui.button(if state.dragged { "👊" } else { "✋" });
-                                    });
-                                    ui.label(scope.text());
-                                });
-                            },
-                        );
-                        if let Some(mut update) = response.final_update() {
-                            let branches = &mut context.settings.composition.tree.branches;
-                            if let Some((key, value)) = branches.shift_remove_index(update.from) {
-                                if update.to > update.from {
-                                    update.to -= 1;
+                        for (scope, compositions) in &*BRANCHES {
+                            ui.collapsing(scope.text(), |ui| {
+                                for composition in compositions {
+                                    let contains = context
+                                        .settings
+                                        .composition
+                                        .tree
+                                        .branches
+                                        .contains(composition);
+                                    if *composition >= context.settings.composition.tree.leafs {
+                                        ui.set_enabled(false);
+                                    }
+                                    if ui
+                                        .selectable_label(contains, composition.text())
+                                        .on_hover_text(composition.hover_text())
+                                        .clicked()
+                                    {
+                                        if contains {
+                                            context
+                                                .settings
+                                                .composition
+                                                .tree
+                                                .branches
+                                                .shift_remove(composition);
+                                        } else {
+                                            context
+                                                .settings
+                                                .composition
+                                                .tree
+                                                .branches
+                                                .insert(*composition);
+                                        }
+                                    }
                                 }
-                                branches.shift_insert(update.to, key, value);
-                            }
+                            })
+                            .header_response
+                            .on_hover_text(scope.hover_text());
                         }
-                        // ui.collapsing(scope.text(), |ui| {
-                        //     for composition in &GROUPS[scope] {
-                        //         let contains = compositions.contains(composition);
-                        //         if *composition
-                        //             >= context.settings.composition.tree.leafs
-                        //         {
-                        //             ui.set_enabled(false);
-                        //         }
-                        //         if ui
-                        //             .selectable_label(contains, composition.text())
-                        //             .on_hover_text(composition.hover_text())
-                        //             .clicked()
-                        //         {
-                        //             if contains {
-                        //                 compositions.remove(composition);
-                        //             } else {
-                        //                 compositions.insert(*composition);
-                        //             }
-                        //         }
-                        //     }
-                        // });
                     });
                     // ui.menu_button("Branches", |ui| {
                     //     let response = dnd(ui, Id::new("dnd").with("branches")).show(
@@ -764,33 +784,37 @@ impl View for Composition<'_> {
                     //     }
                     // });
                     ui.menu_button("Leafs", |ui| {
-                        ui.selectable_value(
-                            &mut context.settings.composition.tree.leafs,
-                            SC,
-                            SC.text(),
-                        )
-                        .on_hover_text(SC.hover_text());
-                        ui.selectable_value(
-                            &mut context.settings.composition.tree.leafs,
-                            PSC,
-                            PSC.text(),
-                        )
-                        .on_hover_text(PSC.hover_text());
-                        ui.selectable_value(
-                            &mut context.settings.composition.tree.leafs,
-                            SSC,
-                            SSC.text(),
-                        )
-                        .on_hover_text(SSC.hover_text());
-                        // if context.settings.composition.leafs == SSC {
-                        //     let psc = Checkable::new(PSC);
-                        //     if !context.settings.composition.branches.contains(&psc) {
-                        //         context.settings.composition.branches.push(psc);
-                        //     }
-                        // } else if context.settings.composition.leafs == PSC {
-                        //     // context.settings.composition.branches.
-                        //     // context.settings.composition.branches.remove(PSC);
-                        // }
+                        let mut response = ui
+                            .selectable_value(
+                                &mut context.settings.composition.tree.leafs,
+                                SC,
+                                SC.text(),
+                            )
+                            .on_hover_text(SC.hover_text());
+                        response |= ui
+                            .selectable_value(
+                                &mut context.settings.composition.tree.leafs,
+                                PSC,
+                                PSC.text(),
+                            )
+                            .on_hover_text(PSC.hover_text());
+                        response |= ui
+                            .selectable_value(
+                                &mut context.settings.composition.tree.leafs,
+                                SSC,
+                                SSC.text(),
+                            )
+                            .on_hover_text(SSC.hover_text());
+                        if response.changed() {
+                            context
+                                .settings
+                                .composition
+                                .tree
+                                .branches
+                                .retain(|&composition| {
+                                    composition < context.settings.composition.tree.leafs
+                                });
+                        }
                     });
                 });
                 ui.horizontal(|ui| {
@@ -894,51 +918,61 @@ impl UiExt for Ui {
         let Discrimination { sn1, sn2, sn3 } = &mut context.settings.composition.discrimination;
         let psc = context.settings.composition.tree.leafs == PSC;
         let mut changed = false;
-        self.menu_button(self.subscripted_widget("SN", sn.text()), |ui| {
-            for (index, label) in context.state.entry().meta.labels.iter().enumerate() {
-                let mut checked = match sn {
-                    Sn::One => !sn1.contains(&index),
-                    Sn::Two => !sn2.contains(&index),
-                    Sn::Three => !sn3.contains(&index),
-                };
-                if ui.checkbox(&mut checked, label).changed() {
-                    changed |= true;
-                    if !checked {
-                        match sn {
-                            Sn::One | Sn::Three if psc => {
-                                sn1.insert(index);
-                                sn3.insert(index);
+        self.menu_button(
+            self.subscripted_text(
+                "SN",
+                sn.text(),
+                SubscriptedTextFormat {
+                    widget: true,
+                    ..Default::default()
+                },
+            ),
+            |ui| {
+                for (index, label) in context.state.entry().meta.labels.iter().enumerate() {
+                    let mut checked = match sn {
+                        Sn::One => !sn1.contains(&index),
+                        Sn::Two => !sn2.contains(&index),
+                        Sn::Three => !sn3.contains(&index),
+                    };
+                    if ui.checkbox(&mut checked, label).changed() {
+                        changed |= true;
+                        if !checked {
+                            match sn {
+                                Sn::One | Sn::Three if psc => {
+                                    sn1.insert(index);
+                                    sn3.insert(index);
+                                }
+                                Sn::One => {
+                                    sn1.insert(index);
+                                }
+                                Sn::Two => {
+                                    sn2.insert(index);
+                                }
+                                Sn::Three => {
+                                    sn3.insert(index);
+                                }
                             }
-                            Sn::One => {
-                                sn1.insert(index);
-                            }
-                            Sn::Two => {
-                                sn2.insert(index);
-                            }
-                            Sn::Three => {
-                                sn3.insert(index);
-                            }
-                        }
-                    } else {
-                        match sn {
-                            Sn::One | Sn::Three if psc => {
-                                sn1.remove(&index);
-                                sn3.remove(&index);
-                            }
-                            Sn::One => {
-                                sn1.remove(&index);
-                            }
-                            Sn::Two => {
-                                sn2.remove(&index);
-                            }
-                            Sn::Three => {
-                                sn3.remove(&index);
+                        } else {
+                            match sn {
+                                Sn::One | Sn::Three if psc => {
+                                    sn1.remove(&index);
+                                    sn3.remove(&index);
+                                }
+                                Sn::One => {
+                                    sn1.remove(&index);
+                                }
+                                Sn::Two => {
+                                    sn2.remove(&index);
+                                }
+                                Sn::Three => {
+                                    sn3.remove(&index);
+                                }
                             }
                         }
                     }
                 }
-            }
-        })
+            },
+        )
         .response
         .context_menu(|ui| {
             if ui.button("Check all").clicked() {

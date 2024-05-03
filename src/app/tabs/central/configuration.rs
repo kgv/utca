@@ -5,9 +5,9 @@ use crate::{
     },
     properties::{density::Hammond, viscosity::Rabelo},
     r#const::CH2,
-    utils::UiExt,
+    utils::ui::{SubscriptedTextFormat, UiExt},
 };
-use egui::{Align, Direction, DragValue, Layout, RichText, Ui};
+use egui::{Direction, DragValue, Layout, RichText, Ui};
 use egui_ext::{ClickedLabel, TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
 use molecule::{
@@ -341,8 +341,14 @@ impl View for Configuration<'_> {
                             let formula = &entry.meta.formulas[index];
                             let c = formula.count(C);
                             let u = formula.unsaturated();
-                            let title = ui
-                                .subscripted_widget(&entry.meta.labels[index], &format!("{c}:{u}"));
+                            let title = ui.subscripted_text(
+                                &entry.meta.labels[index],
+                                &format!("{c}:{u}"),
+                                SubscriptedTextFormat {
+                                    widget: true,
+                                    ..Default::default()
+                                },
+                            );
                             let mut response = ui
                                 .menu_button(title, |ui| {
                                     ui.text_edit_singleline(
@@ -386,26 +392,6 @@ impl View for Configuration<'_> {
                                                 formula.insert(H, h);
                                             }
                                         }
-                                    });
-                                    ui.horizontal(|ui| {
-                                        ui.label("Correction factor:");
-                                        ui.add(
-                                            DragValue::new(
-                                                &mut context
-                                                    .settings
-                                                    .configuration
-                                                    .correction_factor,
-                                            )
-                                            .clamp_range(f64::MIN..=f64::MAX)
-                                            .speed(0.01),
-                                        )
-                                        .on_hover_text(
-                                            context
-                                                .settings
-                                                .configuration
-                                                .correction_factor
-                                                .to_string(),
-                                        );
                                     });
                                 })
                                 .response

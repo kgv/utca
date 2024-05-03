@@ -1,17 +1,14 @@
 use crate::{
-    acylglycerol::{Sn, Tag},
+    acylglycerol::{Sn, Stereospecificity::Positional, Tag},
     app::context::{
         settings::{
-            composition::{
-                Composition, Stereospecificity::Positional, ECNC, MC, PECNC, PMC, PSC, PTC, SC,
-                SECNC, SMC, SSC, STC, TC,
-            },
+            composition::{Composition, MC, NC, PMC, PNC, PSC, PTC, SC, SMC, SNC, SSC, STC, TC},
             Order::{Ascending, Descending},
             Sort,
         },
         state::composition::{
-            compose, Composed as Value, Data,
-            Group::{Ec, Mass, Pec, Psc, Ptc, Sc, Sec, Ssc, Stc, Tc},
+            Composed as Value, Data,
+            Group::{Mc, Nc, Pmc, Pnc, Psc, Ptc, Sc, Smc, Snc, Ssc, Stc, Tc},
             Merge, Meta, Rounded,
             TypeComposition::{S2U, S3, SU2, U3},
         },
@@ -70,7 +67,8 @@ impl Composer {
             .take(3)
             .multi_cartesian_product()
             .map(|indices| {
-                let tag = context.tag(Tag([indices[0], indices[1], indices[2]]));
+                let tag = Tag([indices[0], indices[1], indices[2]])
+                    .compose(context.settings.composition.tree.leafs.stereospecificity);
                 let value = gunstone.factor(context.r#type(tag))
                     * tags1[indices[0]]
                     * tags2[indices[1]]
@@ -79,8 +77,7 @@ impl Composer {
             })
             .into_grouping_map()
             .sum();
-        let groups = context.settings.composition.compositions();
-        Tree::from(grouped(ungrouped, &groups, key))
+        Tree::from(ungrouped.group_by_key(key))
     }
 
     // 1,3-sn 2-sn 1,2,3-sn
@@ -111,14 +108,14 @@ impl Composer {
             .take(3)
             .multi_cartesian_product()
             .map(|indices| {
-                let tag = context.tag(Tag([indices[0], indices[1], indices[2]]));
+                let tag = Tag([indices[0], indices[1], indices[2]])
+                    .compose(context.settings.composition.tree.leafs.stereospecificity);
                 let value = dags13[indices[0]] * mags2[indices[1]] * dags13[indices[2]];
                 (tag, value.into())
             })
             .into_grouping_map()
             .sum();
-        let groups = context.settings.composition.compositions();
-        Tree::from(grouped(ungrouped, &groups, key))
+        Tree::from(ungrouped.group_by_key(key))
     }
 }
 
@@ -156,10 +153,16 @@ impl<'a> From<&'a Context> for Key<'a> {
 
 /// Group by key
 trait GroupByKey {
-    fn group_by_key(&mut self, key: Key);
+    fn group_by_key(self, key: Key) -> (Meta, Vec<Node<Meta, Data>>);
 }
 
-fn grouped(
+impl<T: IntoIterator<Item = (Tag<usize>, OrderedFloat<f64>)>> GroupByKey for T {
+    fn group_by_key(self, key: Key) -> (Meta, Vec<Node<Meta, Data>>) {
+        grouping(self, &key.context.settings.composition.compositions(), key)
+    }
+}
+
+fn grouping(
     ungrouped: impl IntoIterator<Item = (Tag<usize>, OrderedFloat<f64>)>,
     groups: &[Composition],
     key: Key,
@@ -175,29 +178,37 @@ fn grouped(
             let mut meta = Meta::default();
             let children: Vec<_> = ungrouped
                 .into_iter()
-                .into_group_map_by(|&(mut tag, _)| match *group {
-                    ECNC => Ec(context.ecn(tag).sum()),
-                    PECNC => Pec(*compose(&mut context.ecn(tag), Some(Positional))),
-                    SECNC => Sec(context.ecn(tag)),
-                    MC => Mass((C3H2 + context.mass(tag).sum() + adduct).round() as _),
-                    PMC => Mass((C3H2 + context.mass(tag).sum() + adduct).round() as _),
-                    SMC => Mass((C3H2 + context.mass(tag).sum() + adduct).round() as _),
-                    TC => Tc(*compose(&mut context.r#type(tag), None)),
-                    PTC => Ptc(*compose(&mut context.r#type(tag), Some(Positional))),
+                .into_group_map_by(|&(tag, _)| match *group {
+                    NC => Nc(context.ecn(tag).sum()),
+                    PNC => Pnc(context.ecn(tag).compose(Some(Positional))),
+                    SNC => Snc(context.ecn(tag)),
+                    MC => Mc((C3H2 + context.mass(tag).sum() + adduct).round() as _),
+                    PMC => Pmc((
+                        C3H2.round() as _,
+                        context
+                            .mass(tag)
+                            .map(|mass| mass.round() as _)
+                            .compose(Some(Positional)),
+                        adduct.round() as _,
+                    )),
+                    SMC => Smc((
+                        C3H2.round() as _,
+                        context.mass(tag).map(|mass| mass.round() as _),
+                        adduct.round() as _,
+                    )),
+                    TC => Tc(context.r#type(tag).compose(None)),
+                    PTC => Ptc(context.r#type(tag).compose(Some(Positional))),
                     STC => Stc(context.r#type(tag)),
-                    SC => Sc(*compose(&mut tag, None)),
-                    PSC => Psc(*compose(&mut tag, Some(Positional))),
+                    SC => Sc(tag.compose(None)),
+                    PSC => Psc(tag.compose(Some(Positional))),
                     SSC => Ssc(tag),
                 })
                 .into_iter()
-                .filter_map(|(group, ungrouped)| {
-                    let mut branch = Branch::from(grouped(ungrouped, &groups[1..], key));
-                    if !branch.is_empty() {
-                        branch.meta.group = Some(group);
-                        meta.merge(branch.meta);
-                        return Some(Node::Branch(branch));
-                    }
-                    None
+                .map(|(group, ungrouped)| {
+                    let mut branch = Branch::from(grouping(ungrouped, &groups[1..], key));
+                    branch.meta.group = Some(group);
+                    meta.merge(branch.meta);
+                    Node::Branch(branch)
                 })
                 .collect();
             (meta, children)
@@ -267,21 +278,23 @@ impl SortByKey for Vec<Node<Meta, Data>> {
     }
 }
 
-/// Extension methods for [`Context`]
-trait ContextExt {
-    fn tag(&self, tag: Tag<usize>) -> Tag<usize>;
-}
+// /// Extension methods for [`Context`]
+// trait ContextExt {
+//     fn tag(&self, tag: Tag<usize>) -> Tag<usize>;
+// }
 
-impl ContextExt for Context {
-    fn tag(&self, mut tag: Tag<usize>) -> Tag<usize> {
-        if self.settings.composition.tree.leafs == SC {
-            compose(&mut tag, None);
-        } else if self.settings.composition.tree.leafs == PSC {
-            compose(&mut tag, Some(Positional));
-        };
-        tag
-    }
-}
+// impl ContextExt for Context {
+//     fn tag(&self, tag: Tag<usize>) -> Tag<usize> {
+//         tag.compose(self.settings.composition.tree.leafs.stereospecificity)
+//         // if self.settings.composition.tree.leafs == SC {
+//         //     tag.compose(None)
+//         // } else if self.settings.composition.tree.leafs == PSC {
+//         //     tag.compose(Some(Positional))
+//         // } else {
+//         //     tag
+//         // }
+//     }
+// }
 
 /// Gunstone
 struct Gunstone {

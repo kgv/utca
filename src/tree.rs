@@ -33,10 +33,6 @@ pub struct Branch<M, D> {
 }
 
 impl<M, D> Branch<M, D> {
-    pub fn is_empty(&self) -> bool {
-        self.children.is_empty()
-    }
-
     pub fn leafs(&self) -> impl Iterator<Item = Leaf<&D>> {
         self.children
             .iter()

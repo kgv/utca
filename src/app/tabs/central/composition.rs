@@ -1,10 +1,11 @@
 use crate::{
+    acylglycerol::{Stereospecificity::Positional, Tag},
     app::{
         context::{
-            settings::composition::Stereospecificity,
+            settings::composition::{MC, NC, PMC, PNC, PSC, PTC, SC, SMC, SNC, SSC, STC, TC},
             state::composition::{
-                Data,
-                Group::{self, Ec, Mass, Pec, Psc, Ptc, Sc, Sec, Ssc, Stc, Tc},
+                Count, Data,
+                Group::{self, Mc, Nc, Pmc, Pnc, Psc, Ptc, Sc, Smc, Snc, Ssc, Stc, Tc},
                 Meta,
             },
             Context,
@@ -18,6 +19,7 @@ use crate::{
         C3H2,
     },
     tree::{Branch, Hierarchized, Hierarchy, Item, Leaf, Node, Tree},
+    utils::ui::UiExt,
 };
 use egui::{
     collapsing_header::CollapsingState, text::LayoutJob, Align, CollapsingHeader,
@@ -33,6 +35,7 @@ use molecule::{
 };
 use std::{
     cmp::{max, min},
+    collections::HashSet,
     fmt::Display,
 };
 use toml_edit::ser::to_string;
@@ -242,231 +245,33 @@ impl Branch<Meta, Data> {
         path: &mut Vec<Option<Group>>,
         mut open: Option<bool>,
     ) {
+        if self.meta.count.filtered == 0 && !context.settings.composition.empty {
+            return;
+        }
         path.push(self.meta.group);
         let p = context.settings.composition.precision;
-        let mut job = LayoutJob::default();
-        let default_color = if ui.visuals().dark_mode {
-            Visuals::dark().text_color()
+        let text = if let Some(group) = self.meta.group {
+            let text = match group {
+                Nc(ecn) => &ecn.to_string(),
+                Pnc(ecn) => &format!("{:#}", ecn.compose(Some(Positional))),
+                Snc(ecn) => &format!("{ecn:#}"),
+                Mc(mass) => &mass.to_string(),
+                Pmc((c3h2, mass, adduct)) => {
+                    &format!("{c3h2}{:#}{adduct}", mass.compose(Some(Positional)))
+                }
+                Smc((c3h2, mass, adduct)) => &format!("{c3h2}{mass:#}{adduct}"),
+                Tc(r#type) => &r#type.compose(None).to_string(),
+                Ptc(r#type) => &r#type.compose(Some(Positional)).to_string(),
+                Stc(r#type) => &r#type.to_string(),
+                Sc(tag) => &format!("{:#}", context.species(tag).compose(None)),
+                Psc(tag) => &format!("{:#}", context.species(tag).compose(Some(Positional))),
+                Ssc(tag) => &format!("{:#}", context.species(tag)),
+            };
+            let subscription = group.composition().text();
+            ui.subscripted_text(text, subscription, Default::default())
         } else {
-            Visuals::light().text_color()
+            LayoutJob::single_section("∑".to_owned(), Default::default())
         };
-
-        if let Some(group) = self.meta.group {
-            let heading_font_id = TextStyle::Heading.resolve(ui.style());
-            let small_font_id = TextStyle::Small.resolve(ui.style());
-            match group {
-                Ec(ecn) => {
-                    job.append(
-                        &ecn.to_string(),
-                        0.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: heading_font_id,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(
-                        "ECNC",
-                        1.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: small_font_id,
-                            valign: Align::BOTTOM,
-                            ..Default::default()
-                        },
-                    );
-                }
-                Pec(ecn) => {
-                    job.append(
-                        &format!("{ecn:#}"),
-                        0.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: heading_font_id,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(
-                        "PECNC",
-                        1.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: small_font_id,
-                            valign: Align::BOTTOM,
-                            ..Default::default()
-                        },
-                    );
-                }
-                Sec(ecn) => {
-                    job.append(
-                        &format!("{ecn:#}"),
-                        0.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: heading_font_id,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(
-                        "SECNC",
-                        1.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: small_font_id,
-                            valign: Align::BOTTOM,
-                            ..Default::default()
-                        },
-                    );
-                }
-                Mass(mass) => {
-                    job.append(
-                        &mass.to_string(),
-                        0.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: heading_font_id,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(
-                        "M",
-                        1.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: small_font_id,
-                            valign: Align::BOTTOM,
-                            ..Default::default()
-                        },
-                    );
-                }
-                Tc(r#type) => {
-                    job.append(
-                        &r#type.to_string(),
-                        0.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: heading_font_id,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(
-                        "TC",
-                        1.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: small_font_id,
-                            valign: Align::BOTTOM,
-                            ..Default::default()
-                        },
-                    );
-                }
-                Ptc(r#type) => {
-                    job.append(
-                        &r#type.to_string(),
-                        0.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: heading_font_id,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(
-                        "PTC",
-                        1.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: small_font_id,
-                            valign: Align::BOTTOM,
-                            ..Default::default()
-                        },
-                    );
-                }
-                Stc(r#type) => {
-                    job.append(
-                        &r#type.to_string(),
-                        0.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: heading_font_id,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(
-                        "STC",
-                        1.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: small_font_id,
-                            valign: Align::BOTTOM,
-                            ..Default::default()
-                        },
-                    );
-                }
-                Sc(tag) => {
-                    job.append(
-                        &format!("{:#}", context.species(tag)),
-                        0.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: heading_font_id,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(
-                        "SC",
-                        1.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: small_font_id,
-                            valign: Align::BOTTOM,
-                            ..Default::default()
-                        },
-                    );
-                }
-                Psc(tag) => {
-                    job.append(
-                        &format!("{:#}", context.species(tag)),
-                        0.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: heading_font_id,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(
-                        "PSC",
-                        1.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: small_font_id,
-                            valign: Align::BOTTOM,
-                            ..Default::default()
-                        },
-                    );
-                }
-                Ssc(tag) => {
-                    job.append(
-                        &format!("{:#}", context.species(tag)),
-                        0.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: heading_font_id,
-                            ..Default::default()
-                        },
-                    );
-                    job.append(
-                        "SSC",
-                        1.0,
-                        TextFormat {
-                            color: default_color,
-                            font_id: small_font_id,
-                            valign: Align::BOTTOM,
-                            ..Default::default()
-                        },
-                    );
-                }
-            }
-        }
         let collapsing_state =
             CollapsingState::load_with_default_open(ui.ctx(), Id::new(&path), path.len() < 1)
                 .open(open.take());
@@ -481,7 +286,7 @@ impl Branch<Meta, Data> {
                 // let width = ui.spacing().interact_size.x;
                 let response = ui
                     .horizontal(|ui| {
-                        let mut response = ui.label(job);
+                        let mut response = ui.label(text);
                         let value = &self.meta.value;
                         let mut rounded = value.rounded;
                         let mut unrounded = value.unrounded;
@@ -492,6 +297,16 @@ impl Branch<Meta, Data> {
                         response |= ui
                             .label(format!("{rounded:.p$}"))
                             .on_hover_text(format!("Unrounded: {unrounded}"));
+                        let Count {
+                            filtered,
+                            unfiltered,
+                        } = self.meta.count;
+                        response |=
+                            ui.label(format!("{filtered}/{unfiltered}"))
+                                .on_hover_ui(|ui| {
+                                    ui.label(format!("Filtered count: {filtered}"));
+                                    ui.label(format!("Unfiltered count: {unfiltered}"));
+                                });
                         response.sense |= Sense::click();
                         response
                     })
@@ -624,32 +439,13 @@ impl Leaf<Data> {
         ui.horizontal(|ui| {
             let tag = self.data.tag;
             let species = context.species(tag);
-            let default_color = if ui.visuals().dark_mode {
-                Visuals::dark().text_color()
-            } else {
-                Visuals::light().text_color()
-            };
-            let small_font_id = TextStyle::Small.resolve(ui.style());
-            let mut job = LayoutJob::default();
-            job.append(
+            let text = ui.subscripted_text(
                 &format!("{species:#}"),
-                ui.spacing().indent,
-                TextFormat {
-                    color: default_color,
-                    ..Default::default()
-                },
-            );
-            job.append(
                 context.settings.composition.tree.leafs.text(),
-                1.0,
-                TextFormat {
-                    color: default_color,
-                    font_id: small_font_id,
-                    valign: Align::BOTTOM,
-                    ..Default::default()
-                },
+                Default::default(),
             );
-            ui.label(job)
+            let mut response = ui
+                .label(text)
                 .on_hover_ui(|ui| {
                     ui.label(format!("STC: {}", context.r#type(tag)));
                     let ecn = context.ecn(tag);
@@ -681,8 +477,28 @@ impl Leaf<Data> {
             if context.settings.composition.percent {
                 value *= 100.0;
             }
-            ui.label(format!("{value:.p$}"))
+            response |= ui
+                .label(format!("{value:.p$}"))
                 .on_hover_text(format!("Unrounded: {value}"));
+            response.context_menu(|ui| {
+                let id = Id::new("compare");
+                let mut selected = ui.data_mut(|data| {
+                    data.get_persisted_mut_or_default::<HashSet<Tag<usize>>>(id)
+                        .contains(&tag)
+                });
+                if ui.toggle_value(&mut selected, "Compare").clicked() {
+                    ui.data_mut(|data| {
+                        if selected {
+                            data.get_persisted_mut_or_default::<HashSet<Tag<usize>>>(id)
+                                .insert(tag);
+                        } else {
+                            data.get_persisted_mut_or_default::<HashSet<Tag<usize>>>(id)
+                                .remove(&tag);
+                        }
+                    });
+                    ui.close_menu();
+                }
+            });
         });
     }
 }

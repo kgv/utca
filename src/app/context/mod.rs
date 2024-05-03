@@ -1,5 +1,5 @@
 use self::{
-    settings::{composition::Stereospecificity, Settings},
+    settings::Settings,
     state::{Data, Entry, Meta, State},
 };
 use super::computers::{calculator::Calculated, comparator::Compared, composer::Composed};
