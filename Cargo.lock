@@ -3263,7 +3263,7 @@ checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 
 [[package]]
 name = "utca"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
