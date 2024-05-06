@@ -1,11 +1,15 @@
 use self::{
     calculation::Calculated, comparison::Compared, composition::Composed, configuration::Configured,
 };
-use crate::fatty_acid::{self, FattyAcid};
-use itertools::izip;
+use crate::{acylglycerol::Tag, fatty_acid::FattyAcid};
+use indexmap::IndexSet;
 use molecule::Counter;
 use serde::{Deserialize, Serialize};
-use std::{iter::zip, sync::Arc};
+use std::{
+    hash::{Hash, Hasher},
+    iter::zip,
+    sync::Arc,
+};
 
 /// State
 #[derive(Debug, Deserialize, Hash, Serialize)]
@@ -24,16 +28,16 @@ impl State {
         &mut self.entries[self.index]
     }
 
-    pub(in crate::app) fn configured_mut(
-        &mut self,
-    ) -> impl Iterator<Item = (&mut String, &mut Counter, &mut fatty_acid::Data)> {
-        let entry = self.entry_mut();
-        izip!(
-            &mut entry.meta.labels,
-            &mut entry.meta.formulas,
-            &mut entry.data.configured,
-        )
-    }
+    // pub(in crate::app) fn configured_mut(
+    //     &mut self,
+    // ) -> impl Iterator<Item = (&mut String, &mut Counter, &mut fatty_acid::Data)> {
+    //     let entry = self.entry_mut();
+    //     izip!(
+    //         &mut entry.meta.labels,
+    //         &mut entry.meta.formulas,
+    //         &mut entry.data.configured,
+    //     )
+    // }
 }
 
 impl Default for State {
@@ -65,19 +69,19 @@ impl Entry<Meta, Data> {
     }
 
     pub(in crate::app) fn add(&mut self) {
-        self.meta.labels.push(Default::default());
+        self.meta.labels.insert(Default::default());
         self.meta.formulas.push(Default::default());
         self.data.configured.push(Default::default());
     }
 
     pub(in crate::app) fn del(&mut self, index: usize) {
-        self.meta.labels.remove(index);
+        self.meta.labels.shift_remove_index(index);
         self.meta.formulas.remove(index);
         self.data.configured.remove(index);
     }
 
     pub(in crate::app) fn swap(&mut self, from: usize, to: usize) {
-        self.meta.labels.swap(from, to);
+        self.meta.labels.swap_indices(from, to);
         self.meta.formulas.swap(from, to);
         self.data.configured.swap(from, to);
     }
@@ -91,16 +95,24 @@ impl Entry<Meta, Data> {
 }
 
 /// Meta
-#[derive(Clone, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(in crate::app) struct Meta {
     pub(in crate::app) name: String,
-    pub(in crate::app) labels: Vec<String>,
+    pub(in crate::app) labels: IndexSet<String>,
     pub(in crate::app) formulas: Vec<Counter>,
 }
 
 impl Meta {
     pub(in crate::app) fn zip(&self) -> impl Iterator<Item = (&String, &Counter)> {
         zip(&self.labels, &self.formulas)
+    }
+}
+
+impl Hash for Meta {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.labels.as_slice().hash(state);
+        self.formulas.hash(state);
     }
 }
 

@@ -9,7 +9,7 @@ use crate::{
         state::composition::{
             Composed as Value, Data,
             Group::{Mc, Nc, Pmc, Pnc, Psc, Ptc, Sc, Smc, Snc, Ssc, Stc, Tc},
-            Merge, Meta, Rounded,
+            Mass, Merge, Meta, Rounded,
             TypeComposition::{S2U, S3, SU2, U3},
         },
         Context,
@@ -169,9 +169,6 @@ fn grouping(
 ) -> (Meta, Vec<Node<Meta, Data>>) {
     let Key { context } = key;
     let mut precision = context.settings.composition.precision;
-    if context.settings.composition.percent {
-        precision += 2;
-    }
     let adduct = context.settings.composition.adduct.0;
     let (meta, mut data) = match groups {
         [group, ..] => {
@@ -182,19 +179,22 @@ fn grouping(
                     NC => Nc(context.ecn(tag).sum()),
                     PNC => Pnc(context.ecn(tag).compose(Some(Positional))),
                     SNC => Snc(context.ecn(tag)),
-                    MC => Mc((C3H2 + context.mass(tag).sum() + adduct).round() as _),
+                    MC => Mc(Mass::new(
+                        C3H2 + context.mass(tag).sum() + adduct,
+                        precision,
+                    )),
                     PMC => Pmc((
-                        C3H2.round() as _,
+                        Mass::new(C3H2, precision),
                         context
                             .mass(tag)
-                            .map(|mass| mass.round() as _)
+                            .map(|value| Mass::new(value, precision))
                             .compose(Some(Positional)),
-                        adduct.round() as _,
+                        Mass::new(adduct, precision),
                     )),
                     SMC => Smc((
-                        C3H2.round() as _,
-                        context.mass(tag).map(|mass| mass.round() as _),
-                        adduct.round() as _,
+                        Mass::new(C3H2, precision),
+                        context.mass(tag).map(|value| Mass::new(value, precision)),
+                        Mass::new(adduct, precision),
                     )),
                     TC => Tc(context.r#type(tag).compose(None)),
                     PTC => Ptc(context.r#type(tag).compose(Some(Positional))),
@@ -214,6 +214,9 @@ fn grouping(
             (meta, children)
         }
         [] => {
+            if context.settings.composition.percent {
+                precision += 2;
+            }
             let mut meta = Meta::default();
             let data = ungrouped
                 .into_iter()
@@ -223,7 +226,7 @@ fn grouping(
                     let mut keep = !filter.sn1.contains(&tag[0])
                         && !filter.sn2.contains(&tag[1])
                         && !filter.sn3.contains(&tag[2])
-                        && value >= filter.value.into();
+                        && value.0 >= filter.value;
                     if context.settings.composition.filter.symmetrical {
                         keep &= tag[0] == tag[2]
                     }

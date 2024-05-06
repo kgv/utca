@@ -1,5 +1,5 @@
 use crate::{
-    acylglycerol::{Stereospecificity::Positional, Tag},
+    acylglycerol::Tag,
     app::context::settings::composition::{
         Composition, Method, MC, NC, PMC, PNC, PSC, PTC, SC, SMC, SNC, SSC, STC, TC,
     },
@@ -11,10 +11,7 @@ use molecule::{
 };
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Display, Formatter, Result},
-    hash::{Hash, Hasher},
-};
+use std::fmt::{Display, Formatter, Result};
 
 /// Composed data
 #[derive(Clone, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
@@ -60,9 +57,9 @@ pub(in crate::app) enum Group {
     Nc(usize),
     Pnc(Tag<usize>),
     Snc(Tag<usize>),
-    Mc(usize),
-    Pmc((usize, Tag<usize>, usize)),
-    Smc((usize, Tag<usize>, usize)),
+    Mc(Mass),
+    Pmc((Mass, Tag<Mass>, Mass)),
+    Smc((Mass, Tag<Mass>, Mass)),
     Tc(Tag<Saturation>),
     Ptc(Tag<Saturation>),
     Stc(Tag<Saturation>),
@@ -90,36 +87,65 @@ impl Group {
     }
 }
 
-impl Display for Group {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        match *self {
-            Self::Nc(ecn) => Display::fmt(&ecn, f),
-            Self::Pnc(ecn) => write!(f, "{:#}", ecn.compose(Some(Positional))),
-            Self::Snc(ecn) => write!(f, "{ecn:#}"),
-            Self::Mc(mass) => Display::fmt(&mass, f),
-            Self::Pmc((c3h2, mass, adduct)) => {
-                write!(f, "{c3h2}{:#}", mass.compose(Some(Positional)))?;
-                if adduct > 0 {
-                    write!(f, "{adduct}")?;
-                }
-                Ok(())
-            }
-            Self::Smc((c3h2, mass, adduct)) => {
-                write!(f, "{c3h2}{mass:#}")?;
-                if adduct > 0 {
-                    write!(f, "{adduct}")?;
-                }
-                Ok(())
-            }
-            Self::Tc(r#type) => Display::fmt(&r#type.compose(None), f),
-            Self::Ptc(r#type) => Display::fmt(&r#type.compose(Some(Positional)), f),
-            Self::Stc(r#type) => Display::fmt(&r#type, f),
-            Self::Sc(species) => Display::fmt(&species.compose(None), f),
-            Self::Psc(species) => Display::fmt(&species.compose(Some(Positional)), f),
-            Self::Ssc(species) => Display::fmt(&species, f),
+/// Mass
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct Mass {
+    pub value: u64,
+    pub precision: usize,
+}
+
+impl Mass {
+    pub fn new(value: f64, precision: usize) -> Self {
+        Self {
+            value: (value * 10f64.powi(precision as _)).round() as _,
+            precision,
         }
     }
 }
+
+impl Display for Mass {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        Display::fmt(&((self.value as f64) / 10f64.powi(self.precision as _)), f)
+    }
+}
+
+// impl PartialEq for Pmc {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.base.abs_diff_eq(other.base) && self.tag..abs_diff_eq( == other.tag && self.adduct == other.adduct
+//     }
+//     //
+// }
+
+// impl Display for Group {
+//     fn fmt(&self, f: &mut Formatter) -> Result {
+//         match *self {
+//             Self::Nc(ecn) => Display::fmt(&ecn, f),
+//             Self::Pnc(ecn) => write!(f, "{:#}", ecn.compose(Some(Positional))),
+//             Self::Snc(ecn) => write!(f, "{ecn:#}"),
+//             Self::Mc(mass) => Display::fmt(&mass, f),
+//             Self::Pmc((c3h2, mass, adduct)) => {
+//                 write!(f, "{c3h2}{:#.1}", mass.compose(Some(Positional)))?;
+//                 if adduct.0 > 0.0 {
+//                     write!(f, "{adduct}")?;
+//                 }
+//                 Ok(())
+//             }
+//             Self::Smc((c3h2, mass, adduct)) => {
+//                 write!(f, "{c3h2}{mass:#.1}")?;
+//                 if adduct > 0 {
+//                     write!(f, "{adduct}")?;
+//                 }
+//                 Ok(())
+//             }
+//             Self::Tc(r#type) => Display::fmt(&r#type.compose(None), f),
+//             Self::Ptc(r#type) => Display::fmt(&r#type.compose(Some(Positional)), f),
+//             Self::Stc(r#type) => Display::fmt(&r#type, f),
+//             Self::Sc(species) => Display::fmt(&species.compose(None), f),
+//             Self::Psc(species) => Display::fmt(&species.compose(Some(Positional)), f),
+//             Self::Ssc(species) => Display::fmt(&species, f),
+//         }
+//     }
+// }
 
 // pub(in crate::app) fn compose<T: Ord>(
 //     tag: &mut Tag<T>,

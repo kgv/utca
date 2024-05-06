@@ -18,6 +18,7 @@
 #![feature(hash_extract_if)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(lazy_cell)]
+#![feature(option_get_or_insert_default)]
 #![feature(option_take_if)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 

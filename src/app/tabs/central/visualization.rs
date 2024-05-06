@@ -115,7 +115,7 @@ impl View for Visualization<'_> {
                                 .data
                                 .composed
                                 .composition(context.settings.composition.method)
-                                .leafs()
+                                .leaves()
                                 .map(|Leaf { data }| (data.tag, data.value))
                                 .collect();
                             plot.show(ui, |ui| {

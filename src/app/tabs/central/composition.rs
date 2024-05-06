@@ -70,13 +70,10 @@ impl View for Composition<'_> {
         let height = ui.spacing().interact_size.y;
         context.compose(ui);
         ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-            let branch = context
-                .state
-                .entry()
-                .data
-                .composed
-                .composition(context.settings.composition.method);
-            branch.ui(ui, context, &mut vec![], None);
+            let composed = context.state.entry().data.composed.clone();
+            composed
+                .composition(context.settings.composition.method)
+                .ui(ui, context, &mut vec![], None);
         });
 
         // let mut close = false;
@@ -241,7 +238,7 @@ impl Branch<Meta, Data> {
     pub fn ui(
         &self,
         ui: &mut Ui,
-        context: &Context,
+        context: &mut Context,
         path: &mut Vec<Option<Group>>,
         mut open: Option<bool>,
     ) {
@@ -251,21 +248,19 @@ impl Branch<Meta, Data> {
         path.push(self.meta.group);
         let p = context.settings.composition.precision;
         let text = if let Some(group) = self.meta.group {
-            let text = match group {
-                Nc(ecn) => &ecn.to_string(),
-                Pnc(ecn) => &format!("{:#}", ecn.compose(Some(Positional))),
-                Snc(ecn) => &format!("{ecn:#}"),
-                Mc(mass) => &mass.to_string(),
-                Pmc((c3h2, mass, adduct)) => {
-                    &format!("{c3h2}{:#}{adduct}", mass.compose(Some(Positional)))
+            let text = &match group {
+                Nc(ecn) => ecn.to_string(),
+                Pnc(ecn) | Snc(ecn) => format!("{ecn:#}"),
+                Mc(mass) => format!("{mass:#.p$}"),
+                Pmc((c3h2, mass, adduct)) | Smc((c3h2, mass, adduct)) => {
+                    let mut buffer = format!("{c3h2:.p$}{mass:#.p$}");
+                    if adduct.value > 0 {
+                        buffer += &format!("{adduct:.p$}");
+                    }
+                    buffer
                 }
-                Smc((c3h2, mass, adduct)) => &format!("{c3h2}{mass:#}{adduct}"),
-                Tc(r#type) => &r#type.compose(None).to_string(),
-                Ptc(r#type) => &r#type.compose(Some(Positional)).to_string(),
-                Stc(r#type) => &r#type.to_string(),
-                Sc(tag) => &format!("{:#}", context.species(tag).compose(None)),
-                Psc(tag) => &format!("{:#}", context.species(tag).compose(Some(Positional))),
-                Ssc(tag) => &format!("{:#}", context.species(tag)),
+                Tc(r#type) | Ptc(r#type) | Stc(r#type) => r#type.to_string(),
+                Sc(tag) | Psc(tag) | Ssc(tag) => format!("{:#}", context.species(tag)),
             };
             let subscription = group.composition().text();
             ui.subscripted_text(text, subscription, Default::default())
@@ -311,18 +306,31 @@ impl Branch<Meta, Data> {
                         response
                     })
                     .inner;
-                if opened && branches {
-                    response.context_menu(|ui| {
-                        if ui.button("Show all").clicked() {
-                            open = Some(true);
-                            ui.close_menu();
+                response.context_menu(|ui| {
+                    if ui.button("Expand all children").clicked() {
+                        open = Some(true);
+                        ui.close_menu();
+                    }
+                    if ui.button("Collapse all children").clicked() {
+                        open = Some(false);
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button("Add to compare").clicked() {
+                        for leaf in self.leaves() {
+                            let tag = context.species(leaf.data.tag).map(ToOwned::to_owned);
+                            context.settings.comparison.set.insert(tag);
                         }
-                        if ui.button("Hide all").clicked() {
-                            open = Some(false);
-                            ui.close_menu();
+                        ui.close_menu();
+                    }
+                    if ui.button("Remove from compare").clicked() {
+                        for leaf in self.leaves() {
+                            let tag = context.species(leaf.data.tag).map(ToOwned::to_owned);
+                            context.settings.comparison.set.shift_remove(&tag);
                         }
-                    });
-                }
+                        ui.close_menu();
+                    }
+                });
             })
             .body(|ui| {
                 for child in &self.children {
@@ -337,7 +345,7 @@ impl Branch<Meta, Data> {
 }
 
 impl Leaf<Data> {
-    pub fn ui(&self, ui: &mut Ui, context: &Context) {
+    pub fn ui(&self, ui: &mut Ui, context: &mut Context) {
         let p = context.settings.composition.precision;
         let height = ui.spacing().interact_size.y;
         // TableBuilder::new(ui)
@@ -481,21 +489,14 @@ impl Leaf<Data> {
                 .label(format!("{value:.p$}"))
                 .on_hover_text(format!("Unrounded: {value}"));
             response.context_menu(|ui| {
-                let id = Id::new("compare");
-                let mut selected = ui.data_mut(|data| {
-                    data.get_persisted_mut_or_default::<HashSet<Tag<usize>>>(id)
-                        .contains(&tag)
-                });
-                if ui.toggle_value(&mut selected, "Compare").clicked() {
-                    ui.data_mut(|data| {
-                        if selected {
-                            data.get_persisted_mut_or_default::<HashSet<Tag<usize>>>(id)
-                                .insert(tag);
-                        } else {
-                            data.get_persisted_mut_or_default::<HashSet<Tag<usize>>>(id)
-                                .remove(&tag);
-                        }
-                    });
+                let species = context.species(tag).map(ToOwned::to_owned);
+                let contains = context.settings.comparison.set.contains(&species);
+                if contains && ui.button("Remove from compare").clicked() {
+                    context.settings.comparison.set.shift_remove(&species);
+                    ui.close_menu();
+                }
+                if !contains && ui.button("Add to compare").clicked() {
+                    context.settings.comparison.set.insert(species);
                     ui.close_menu();
                 }
             });

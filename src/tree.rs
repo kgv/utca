@@ -33,7 +33,7 @@ pub struct Branch<M, D> {
 }
 
 impl<M, D> Branch<M, D> {
-    pub fn leafs(&self) -> impl Iterator<Item = Leaf<&D>> {
+    pub fn leaves(&self) -> impl Iterator<Item = Leaf<&D>> {
         self.children
             .iter()
             .flatten()

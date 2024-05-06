@@ -4,112 +4,112 @@ name = "3.1"
 data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 47110.329 }
 description = "14:0"
 formula = "H28C14O2"
-label = "14:0"
+label = "Myr"
 
 [[fatty_acids]]
 data = { mag2 = 12350.983, dag1223 = 435192.378, tag123 = 7481757.683 }
 description = "16:0"
 formula = "C16H32O2"
-label = "16:0"
+label = "Pam"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 9298.381, tag123 = 291540.584 }
 description = "7-16:1"
 formula = "C16H30O2"
-label = "7-16:1"
+label = "P7x"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 51625.065 }
 description = "9-16:1"
 formula = "C16H30O2"
-label = "9-16:1"
+label = "P9x"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 32911.141 }
 description = "7,10,13-16:3"
 formula = "C16H26O2"
-label = "16:3"
+label = "Rug"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 15072.165, tag123 = 417247.108 }
 description = "18:0"
 formula = "C18H36O2"
-label = "18:0"
+label = "Ste"
 
 [[fatty_acids]]
 data = { mag2 = 3809320.566, dag1223 = 8031041.455, tag123 = 97261836.876 }
 description = "9-18:1"
 formula = "C18H34O2"
-label = "9-18:1"
+label = "Ole"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 62021.964, tag123 = 2128182.800 }
 description = "11-18:1"
 formula = "C18H34O2"
-label = "11-18:1"
+label = "Vac"
 
 [[fatty_acids]]
 data = { mag2 = 3511036.497, dag1223 = 5956745.629, tag123 = 61931118.388 }
 description = "9,12-18:2"
 formula = "C18H32O2"
-label = "18:2"
+label = "Lin"
 
 [[fatty_acids]]
 data = { mag2 = 579371.396, dag1223 = 830100.334, tag123 = 7336106.604 }
 description = "9,12,15-18:3"
 formula = "C18H30O2"
-label = "18:3"
+label = "Lnn"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 255566.354 }
 description = "20:0"
 formula = "C20H40O2"
-label = "20:0"
+label = "Ara"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 1943903.564, tag123 = 50987463.902 }
 description = "11-20:1"
 formula = "C20H38O2"
-label = "11-20:1"
+label = "Gad"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 717014.049 }
 description = "13-20:1"
 formula = "C20H38O2"
-label = "13-20:1"
+label = "Gvc"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 0.000, tag123 = 720817.216 }
 description = "11,14-20:2"
 formula = "C20H36O2"
-label = "20:2"
+label = "Gln"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 7518651.142, tag123 = 0.0 }
 description = "22:0"
 formula = "C22H44O2"
-label = "22:0"
+label = "Beh"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 0.000, tag123 = 254325426.430 }
 description = "13-22:1"
-formula = "C22H40O2"
-label = "13-22:1"
+formula = "C22H42O2"
+label = "Eru"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 2340423.913 }
 description = "15-22:1"
-formula = "C22H40O2"
-label = "15-22:1"
+formula = "C22H42O2"
+label = "E15"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 19915.648, tag123 = 1132276.866 }
 description = "13,16-22:2"
-formula = "C22H38O2"
-label = "22:2"
+formula = "C22H40O2"
+label = "Dde"
 
 [[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 994155.156, tag123 = 34870733.286 }
 description = "15-24:1"
 formula = "C24H46O2"
-label = "24:1"
+label = "Ner"

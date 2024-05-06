@@ -1,27 +1,16 @@
 [package]
 edition = "2021"
 name = "utca"
-version = "0.5.3"
+version = "0.5.4"
 
 [dependencies]
-# eframe = { version = "0.27.2", features = [
-#     "default_fonts",
-#     "persistence",
-#     "wgpu",
-# ] }
+anyhow = "1.0.82"
 eframe = { version = "0.27.2", default-features = false, features = [
     "accesskit",
     "default_fonts",
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
     "persistence",
 ] }
-# egui_glow = "0.27.2"
-# eframe = { version = "0.27.2", features = [
-#     "default_fonts",
-#     "glow",
-#     "persistence",
-# ] }
-anyhow = "1.0.82"
 egui = "0.27.2"
 egui-notify = "0.14.0"
 egui_animation = "0.4.0"

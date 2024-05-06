@@ -7,7 +7,6 @@ use crate::{acylglycerol::Tag, ecn::Ecn, parsers::toml::Parsed};
 use egui::Ui;
 use molecule::{Counter, Saturable, Saturation};
 use serde::{Deserialize, Serialize};
-use std::cmp::{max, min};
 
 /// Context
 #[derive(Debug, Default, Deserialize, Hash, Serialize)]
@@ -50,7 +49,7 @@ impl Context {
                     .data
                     .composed
                     .composition(self.settings.composition.method)
-                    .leafs()
+                    .leaves()
                     .any(|leaf| leaf.data.tag == tag)
                 {
                     value += 2u32.pow(index as _);

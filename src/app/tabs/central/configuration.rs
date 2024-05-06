@@ -10,6 +10,7 @@ use crate::{
 use egui::{Direction, DragValue, Layout, RichText, Ui};
 use egui_ext::{ClickedLabel, TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
+use indexmap::set::MutableValues;
 use molecule::{
     atom::{isotopes::*, Isotope},
     Saturable,
@@ -352,7 +353,13 @@ impl View for Configuration<'_> {
                             let mut response = ui
                                 .menu_button(title, |ui| {
                                     ui.text_edit_singleline(
-                                        &mut context.state.entry_mut().meta.labels[index],
+                                        context
+                                            .state
+                                            .entry_mut()
+                                            .meta
+                                            .labels
+                                            .get_index_mut2(index)
+                                            .unwrap_or(&mut String::new()),
                                     );
                                     let formula =
                                         &mut context.state.entry_mut().meta.formulas[index];

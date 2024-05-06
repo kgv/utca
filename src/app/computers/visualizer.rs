@@ -39,7 +39,7 @@ impl ComputerMut<Key<'_>, Value> for Visualizer {
                 .data
                 .composed
                 .composition(context.settings.composition.method)
-                .leafs()
+                .leaves()
                 .map(|Leaf { data }| {
                     let key = round_to_decimals(
                         C3H2 + context.mass(data.tag).sum() + context.settings.composition.adduct.0,
@@ -56,7 +56,7 @@ impl ComputerMut<Key<'_>, Value> for Visualizer {
                 .data
                 .composed
                 .composition(context.settings.composition.method)
-                .leafs()
+                .leaves()
                 .map(|Leaf { data }| {
                     let key = context.ecn(data.tag).sum() as f64;
                     let name = context.species(data.tag).to_string();

@@ -20,6 +20,6 @@ impl Ecn for Counter {
         assert!(h >= c, "Invalid fatty acid for ECN calculation {self}");
         // TODO: необходимо переделать хранимую формулу. В Configuration
         // участвуют метиловые эфиры, а в ecn - ацилы жирных кислот.
-        h - c - 1
+        h - c
     }
 }

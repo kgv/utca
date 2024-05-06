@@ -22,6 +22,15 @@ image:https://img.shields.io/badge/bevy%20tracking-main-yellow[bevy tracking, li
 
 `rustup target add wasm32-unknown-unknown`
 
+==== Errors
+
+integrity:
+
+* `chrome://settings/clearBrowserData`
+* `Дополнительные`
+* `Изображения и другие файлы, сохраненные в кеше`
+* `Удалить данные`
+
 == See also
 
 * https://byrdwell.com/Triacylglycerols/TAGbyMass1.htm[byrdwell.com]
@@ -32,3 +41,37 @@ image:https://img.shields.io/badge/bevy%20tracking-main-yellow[bevy tracking, li
 $env:RUST_LOG="utca=trace"
 
 ℹ🔎🔍🔧📝⚙🛠⬇🔃🔄 📋🖹🗐🗑
+
+14:0 - Myr
+16:0 - Pam
+7-16:1 - P7x
+9-16:1 - Pol
+16:3 - Rug
+18:0 - Ste
+9-18:1 - Ole
+11-18:1 - Vac
+9,12-18:2 - Lin
+9,12,15-18:3 - Lnn
+20:0 - Ara
+11-20:1 -Gad
+13-20:1 - Gvc
+22:0 - Beh
+13-22:1 - Eru
+15-22:1 - E15
+24:0 - Lig
+15-24:1 - Ner
+
+14:0 - M
+16:0 - P
+16:1 - Po
+16:3 - R
+18:0 - S
+9-18:1 - O
+11-18:1 - V
+18:2 - L
+18:3 - Ln
+20:0 - A
+20:1 - G
+20:2 - Gd
+22:1 - E
+24:1 - N

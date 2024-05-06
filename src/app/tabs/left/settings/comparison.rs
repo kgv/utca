@@ -7,8 +7,7 @@ use crate::app::{
     view::View,
     MAX_PRECISION,
 };
-use egui::{ComboBox, Id, RichText, Slider, Ui};
-use egui_dnd::dnd;
+use egui::{ComboBox, RichText, Slider, Ui};
 
 /// Left comparison tab
 pub(super) struct Comparison<'a> {
@@ -51,48 +50,45 @@ impl View for Comparison<'_> {
                     ui.toggle_value(&mut context.settings.link, "🔗");
                 });
                 ui.separator();
-                ui.label("Group:");
-                // ui.group(|ui| {
-                //     dnd(ui, Id::new("dnd").with("comparison")).show_vec(
-                //         &mut context.settings.comparison.groups,
-                //         |ui,
-                //          Checkable {
-                //              value: group,
-                //              checked,
-                //          },
-                //          handle,
-                //          state| {
-                //             ui.horizontal(|ui| {
-                //                 handle.ui(ui, |ui| {
-                //                     let _ = ui.button(if state.dragged { "👊" } else { "✋" });
-                //                 });
-                //                 ui.checkbox(checked, "");
-                //                 ui.label(group.text()).on_hover_text(group.hover_text());
-                //             });
-                //         },
-                //     );
-                // });
                 ui.horizontal(|ui| {
                     ui.label("Sort:");
                     ComboBox::from_id_source("sort")
-                        .selected_text(context.settings.comparison.sort.text())
+                        .selected_text(
+                            context
+                                .settings
+                                .comparison
+                                .sort
+                                .map_or("None", |sort| sort.text()),
+                        )
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
                                 &mut context.settings.comparison.sort,
-                                Sort::Key,
+                                None,
+                                "None",
+                            )
+                            .on_hover_text(Sort::Key.hover_text());
+                            ui.selectable_value(
+                                &mut context.settings.comparison.sort,
+                                Some(Sort::Key),
                                 Sort::Key.text(),
                             )
                             .on_hover_text(Sort::Key.hover_text());
                             ui.selectable_value(
                                 &mut context.settings.comparison.sort,
-                                Sort::Value,
+                                Some(Sort::Value),
                                 Sort::Value.text(),
                             )
                             .on_hover_text(Sort::Value.hover_text());
                         })
                         .response
-                        .on_hover_text(context.settings.comparison.sort.hover_text());
-                    if context.settings.comparison.sort == Sort::Value {
+                        .on_hover_text(
+                            context
+                                .settings
+                                .comparison
+                                .sort
+                                .map_or("None", |sort| sort.hover_text()),
+                        );
+                    if context.settings.comparison.sort == Some(Sort::Value) {
                         // ui.label("Mode:");
                         // ComboBox::from_id_source("mode")
                         //     .selected_text(context.settings.comparison.mode.text())
@@ -135,27 +131,29 @@ impl View for Comparison<'_> {
                             ));
                     }
                 });
-                ui.horizontal(|ui| {
-                    ui.label("Order:");
-                    ComboBox::from_id_source("order")
-                        .selected_text(context.settings.comparison.order.text())
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut context.settings.comparison.order,
-                                Order::Ascending,
-                                Order::Ascending.text(),
-                            )
-                            .on_hover_text(Order::Ascending.hover_text());
-                            ui.selectable_value(
-                                &mut context.settings.comparison.order,
-                                Order::Descending,
-                                Order::Descending.text(),
-                            )
-                            .on_hover_text(Order::Descending.hover_text());
-                        })
-                        .response
-                        .on_hover_text(context.settings.comparison.order.hover_text());
-                });
+                if context.settings.comparison.sort.is_some() {
+                    ui.horizontal(|ui| {
+                        ui.label("Order:");
+                        ComboBox::from_id_source("order")
+                            .selected_text(context.settings.comparison.order.text())
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut context.settings.comparison.order,
+                                    Order::Ascending,
+                                    Order::Ascending.text(),
+                                )
+                                .on_hover_text(Order::Ascending.hover_text());
+                                ui.selectable_value(
+                                    &mut context.settings.comparison.order,
+                                    Order::Descending,
+                                    Order::Descending.text(),
+                                )
+                                .on_hover_text(Order::Descending.hover_text());
+                            })
+                            .response
+                            .on_hover_text(context.settings.comparison.order.hover_text());
+                    });
+                }
             },
         );
     }
