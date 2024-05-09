@@ -12,7 +12,7 @@ use crate::{
         view::View,
         MAX_PRECISION,
     },
-    r#const::{H, LI, NA, NH4},
+    r#const::relative_atomic_mass::{H, LI, NA, NH4},
     utils::ui::{SubscriptedTextFormat, UiExt as _},
 };
 use egui::{

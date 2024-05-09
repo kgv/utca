@@ -1,8 +1,6 @@
 use crate::{
-    acylglycerol::{Stereospecificity::Positional, Tag},
     app::{
         context::{
-            settings::composition::{MC, NC, PMC, PNC, PSC, PTC, SC, SMC, SNC, SSC, STC, TC},
             state::composition::{
                 Count, Data,
                 Group::{self, Mc, Nc, Pmc, Pnc, Psc, Ptc, Sc, Smc, Snc, Ssc, Stc, Tc},
@@ -14,31 +12,14 @@ use crate::{
     },
     properties::density::Hammond,
     r#const::{
-        atoms::C,
         polymorphism::{alpha, beta::K_X},
-        C3H2,
+        relative_atomic_mass::C3H2,
     },
-    tree::{Branch, Hierarchized, Hierarchy, Item, Leaf, Node, Tree},
+    tree::{Branch, Leaf, Node},
     utils::ui::UiExt,
 };
-use egui::{
-    collapsing_header::CollapsingState, text::LayoutJob, Align, CollapsingHeader,
-    CollapsingResponse, Color32, Direction, FontId, Grid, Id, InnerResponse, Label, Layout,
-    Response, RichText, ScrollArea, Sense, Separator, Slider, TextFormat, TextStyle, Ui, Vec2,
-    Visuals, WidgetText,
-};
-use egui_ext::{ClickedLabel, CollapsingButton, CollapsingStateExt, TableBodyExt};
-use egui_extras::{Column, Size, StripBuilder, TableBuilder};
-use molecule::{
-    Saturable,
-    Saturation::{self, Saturated, Unsaturated},
-};
-use std::{
-    cmp::{max, min},
-    collections::HashSet,
-    fmt::Display,
-};
-use toml_edit::ser::to_string;
+use egui::{collapsing_header::CollapsingState, text::LayoutJob, Id, ScrollArea, Sense, Ui};
+use egui_ext::CollapsingStateExt;
 use uom::{
     fmt::DisplayStyle::*,
     si::{
@@ -49,8 +30,6 @@ use uom::{
         thermodynamic_temperature::{degree_celsius, kelvin},
     },
 };
-
-const COLUMNS: usize = 2;
 
 /// Central composition tab
 pub(super) struct Composition<'a> {
@@ -66,8 +45,6 @@ impl<'a> Composition<'a> {
 impl View for Composition<'_> {
     fn view(self, ui: &mut Ui) {
         let Self { context } = self;
-        let p = context.settings.composition.precision;
-        let height = ui.spacing().interact_size.y;
         context.compose(ui);
         ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
             let composed = context.state.entry().data.composed.clone();
@@ -75,7 +52,6 @@ impl View for Composition<'_> {
                 .composition(context.settings.composition.method)
                 .ui(ui, context, &mut vec![], None);
         });
-
         // let mut close = false;
         // let mut path = vec![];
         // for Hierarchized(Hierarchy { level, index }, item) in context
@@ -270,11 +246,11 @@ impl Branch<Meta, Data> {
         let collapsing_state =
             CollapsingState::load_with_default_open(ui.ctx(), Id::new(&path), path.len() < 1)
                 .open(open.take());
-        let opened = collapsing_state.is_open();
-        let branches = !self
-            .children
-            .iter()
-            .any(|node| matches!(node, Node::Leaf(_)));
+        // let opened = collapsing_state.is_open();
+        // let branches = !self
+        //     .children
+        //     .iter()
+        //     .any(|node| matches!(node, Node::Leaf(_)));
         collapsing_state
             .show_header(ui, |ui| {
                 // let available = ui.available_size_before_wrap().x;
@@ -347,103 +323,6 @@ impl Branch<Meta, Data> {
 impl Leaf<Data> {
     pub fn ui(&self, ui: &mut Ui, context: &mut Context) {
         let p = context.settings.composition.precision;
-        let height = ui.spacing().interact_size.y;
-        // TableBuilder::new(ui)
-        //     .auto_shrink(false)
-        //     .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
-        //     .columns(Column::auto(), 2)
-        //     .striped(true)
-        //     .header(height, |mut row| {
-        //         row.col(|ui| {
-        //             ui.label("");
-        //         });
-        //     })
-        //     .body(|mut body| {
-        //         body.row(height, |mut row| {
-        //             row.col(|ui| {
-        //                 let tag = self.data.tag;
-        //                 let species = context.species(tag);
-        //                 ui.label(format!("{species:#}"))
-        //                     .on_hover_ui(|ui| {
-        //                         ui.label(format!("STC: {}", context.r#type(tag)));
-        //                         let ecn = context.ecn(tag);
-        //                         ui.label(format!("ECN: {ecn:#} ({})", ecn.sum()));
-        //                         let mass = context.mass(tag);
-        //                         let adduct = context.settings.composition.adduct;
-        //                         ui.label(format!(
-        //                             "Mass: {:.p$} = [{:.p$} + {:.p$} + {:.p$}] + {adduct:.p$}",
-        //                             C3H2 + mass.sum() + adduct.0,
-        //                             mass[0],
-        //                             mass[1],
-        //                             mass[2]
-        //                         ));
-        //                     })
-        //                     .on_hover_ui(|ui| {
-        //                         let t = ThermodynamicTemperature::new::<degree_celsius>(20.0);
-        //                         ui.heading("Properties");
-        //                         ui.label(format!(
-        //                             "Density: {}",
-        //                             context.formula(tag).map(|counter| counter
-        //                                 .density(t)
-        //                                 .into_format_args(gram_per_cubic_centimeter, Abbreviation))
-        //                         ));
-        //                         // ui.label(format!("Molar volume: {}", properties.molar_volume.into_format_args(cubic_meter_per_mole, Abbreviation)));
-        //                         // ui.label(format!("Dynamic viscosity: {} ({})", properties.dynamic_viscosity.into_format_args(pascal_second, Abbreviation),
-        //                         //     properties.dynamic_viscosity.into_format_args(pascal_second, Abbreviation)));
-        //                     });
-        //             });
-        //             row.col(|ui| {
-        //                 let mut value = self.data.value;
-        //                 if context.settings.composition.percent {
-        //                     value *= 100.0;
-        //                 }
-        //                 ui.label(format!("{value:.p$}"))
-        //                     .on_hover_text(format!("Unrounded: {value}"));
-        //             });
-        //         })
-        //     })
-
-        // ui.columns(2, |ui| {
-        //     let tag = self.data.tag;
-        //     let species = context.species(tag);
-        //     ui[0]
-        //         .label(format!("{species:#}"))
-        //         .on_hover_ui(|ui| {
-        //             ui.label(format!("STC: {}", context.r#type(tag)));
-        //             let ecn = context.ecn(tag);
-        //             ui.label(format!("ECN: {ecn:#} ({})", ecn.sum()));
-        //             let mass = context.mass(tag);
-        //             let adduct = context.settings.composition.adduct;
-        //             ui.label(format!(
-        //                 "Mass: {:.p$} = [{:.p$} + {:.p$} + {:.p$}] + {adduct:.p$}",
-        //                 C3H2 + mass.sum() + adduct.0,
-        //                 mass[0],
-        //                 mass[1],
-        //                 mass[2]
-        //             ));
-        //         })
-        //         .on_hover_ui(|ui| {
-        //             let t = ThermodynamicTemperature::new::<degree_celsius>(20.0);
-        //             ui.heading("Properties");
-        //             ui.label(format!(
-        //                 "Density: {}",
-        //                 context.formula(tag).map(|counter| counter
-        //                     .density(t)
-        //                     .into_format_args(gram_per_cubic_centimeter, Abbreviation))
-        //             ));
-        //             // ui.label(format!("Molar volume: {}", properties.molar_volume.into_format_args(cubic_meter_per_mole, Abbreviation)));
-        //             // ui.label(format!("Dynamic viscosity: {} ({})", properties.dynamic_viscosity.into_format_args(pascal_second, Abbreviation),
-        //             //     properties.dynamic_viscosity.into_format_args(pascal_second, Abbreviation)));
-        //         });
-        //     let mut value = self.data.value;
-        //     if context.settings.composition.percent {
-        //         value *= 100.0;
-        //     }
-        //     ui[1]
-        //         .label(format!("{value:.p$}"))
-        //         .on_hover_text(format!("Unrounded: {value}"));
-        // });
-
         ui.horizontal(|ui| {
             let tag = self.data.tag;
             let species = context.species(tag);

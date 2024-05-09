@@ -1,9 +1,10 @@
 use self::{
     calculation::Calculated, comparison::Compared, composition::Composed, configuration::Configured,
 };
-use crate::{acylglycerol::Tag, fatty_acid::FattyAcid};
+use crate::fatty_acid::FattyAcid;
 use indexmap::IndexSet;
-use molecule::Counter;
+use itertools::enumerate;
+use molecule::{Counter, Saturable};
 use serde::{Deserialize, Serialize};
 use std::{
     hash::{Hash, Hasher},
@@ -27,17 +28,6 @@ impl State {
     pub(in crate::app) fn entry_mut(&mut self) -> &mut Entry<Meta, Data> {
         &mut self.entries[self.index]
     }
-
-    // pub(in crate::app) fn configured_mut(
-    //     &mut self,
-    // ) -> impl Iterator<Item = (&mut String, &mut Counter, &mut fatty_acid::Data)> {
-    //     let entry = self.entry_mut();
-    //     izip!(
-    //         &mut entry.meta.labels,
-    //         &mut entry.meta.formulas,
-    //         &mut entry.data.configured,
-    //     )
-    // }
 }
 
 impl Default for State {

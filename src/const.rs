@@ -1,14 +1,23 @@
-use molecule::{atom::isotopes::*, counter, Counter};
+pub(crate) mod atoms {
+    use molecule::atom::isotopes::*;
 
-pub(crate) const CH2: f64 =
-    C::Twelve.relative_atomic_mass().value + 2.0 * H::One.relative_atomic_mass().value;
-pub(crate) const C3H2: f64 =
-    3.0 * C::Twelve.relative_atomic_mass().value + 2.0 * H::One.relative_atomic_mass().value;
-pub(crate) const H: f64 = H::One.relative_atomic_mass().value;
-pub(crate) const LI: f64 = Li::Seven.relative_atomic_mass().value;
-pub(crate) const NA: f64 = Na.relative_atomic_mass().value;
-pub(crate) const NH4: f64 =
-    N::Fourteen.relative_atomic_mass().value + 4.0 * H::One.relative_atomic_mass().value;
+    pub(crate) const C: C = C::Twelve;
+    pub(crate) const H: H = H::One;
+}
+
+#[rustfmt::skip]
+pub(crate) mod relative_atomic_mass {
+    use molecule::atom::isotopes::*;
+
+    pub(crate) const C3H2: f64 = 3.0 * C::Twelve.relative_atomic_mass().value + 2.0 * H::One.relative_atomic_mass().value;
+    pub(crate) const C3H5O3: f64 = 3.0 * C::Twelve.relative_atomic_mass().value + 5.0 * H::One.relative_atomic_mass().value + 3.0 * O::Sixteen.relative_atomic_mass().value;
+    pub(crate) const CH2: f64 = C::Twelve.relative_atomic_mass().value + 2.0 * H::One.relative_atomic_mass().value;
+    pub(crate) const H: f64 = H::One.relative_atomic_mass().value;
+    pub(crate) const LI: f64 = Li::Seven.relative_atomic_mass().value;
+    pub(crate) const NA: f64 = Na.relative_atomic_mass().value;
+    pub(crate) const NH4: f64 = N::Fourteen.relative_atomic_mass().value + 4.0 * H::One.relative_atomic_mass().value;
+    pub(crate) const OH: f64 =  O::Sixteen.relative_atomic_mass().value + H::One.relative_atomic_mass().value;
+}
 
 // pub(crate) const OLEIC: Counter = counter! {
 //     C::Twelve => 18,
@@ -22,12 +31,6 @@ pub(crate) const NH4: f64 =
 //     C::Twelve => 18,
 //     H::One => 32,
 // };
-
-pub mod atoms {
-    use molecule::atom::isotopes::*;
-
-    pub const C: C = C::Twelve;
-}
 
 pub const R: f64 = 8.314_462_618_153_24;
 

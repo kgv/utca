@@ -1,0 +1,37 @@
+name = "Euonymus Euonymus Europaeus"
+
+[[fatty_acids]]
+data = { tag123 = 23.2, mag2 = 0.0, dag1223 = 28.6 }
+description = "16:0"
+formula = "C16H32O2"
+label = "P"
+
+[[fatty_acids]]
+data = { tag123 = 6.8, mag2 = 2.7, dag1223 = 6.9 }
+description = "16:1"
+formula = "C16H30O2"
+label = "H"
+
+[[fatty_acids]]
+data = { tag123 = 1.5, mag2 = 0.0, dag1223 = 2.8 }
+description = "18:0"
+formula = "C18H36O2"
+label = "St"
+
+[[fatty_acids]]
+data = { tag123 = 20.5, mag2 = 12.5, dag1223 = 26.8 }
+description = "18:1"
+formula = "C18H34O2"
+label = "O"
+
+[[fatty_acids]]
+data = { tag123 = 45.6, mag2 = 81.1, dag1223 = 32.8 }
+description = "18:2"
+formula = "C18H32O2"
+label = "L"
+
+[[fatty_acids]]
+data = { tag123 = 2.5, mag2 = 3.7, dag1223 = 2.1 }
+description = "18:3"
+formula = "C18H30O2"
+label = "Ln"

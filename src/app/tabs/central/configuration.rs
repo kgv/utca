@@ -4,7 +4,7 @@ use crate::{
         view::View,
     },
     properties::{density::Hammond, viscosity::Rabelo},
-    r#const::CH2,
+    r#const::relative_atomic_mass::CH2,
     utils::ui::{SubscriptedTextFormat, UiExt},
 };
 use egui::{Direction, DragValue, Layout, RichText, Ui};

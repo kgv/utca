@@ -9,6 +9,8 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) precision: usize,
 
     pub(in crate::app) fraction: Fraction,
+    pub(in crate::app) enrichment_factor: bool,
+    pub(in crate::app) selectivity_factor: bool,
     pub(in crate::app) selectivity: bool,
     pub(in crate::app) theoretical: bool,
     pub(in crate::app) unnormalized: bool,
@@ -24,6 +26,8 @@ impl Default for Settings {
             percent: true,
             precision: 1,
             fraction: Fraction::Molar { mixture: true },
+            enrichment_factor: true,
+            selectivity_factor: true,
             selectivity: true,
             theoretical: false,
             unnormalized: false,

@@ -3,7 +3,7 @@ use crate::{
         settings::visualization::{Source, X},
         Context,
     },
-    r#const::C3H2,
+    r#const::relative_atomic_mass::C3H2,
     tree::Leaf,
 };
 use egui::{

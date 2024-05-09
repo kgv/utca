@@ -44,11 +44,7 @@ impl ComputerMut<Key<'_>, Arc<Value>> for Comparator {
                     .enumerate()
                     .map(|(index, entry)| {
                         meta[index].count.unfiltered += 1;
-                        let tag = Tag([
-                            entry.meta.labels.get_index_of(&tag[0])?,
-                            entry.meta.labels.get_index_of(&tag[1])?,
-                            entry.meta.labels.get_index_of(&tag[2])?,
-                        ]);
+                        let tag = context.indices(tag)?;
                         let value = entry
                             .data
                             .composed

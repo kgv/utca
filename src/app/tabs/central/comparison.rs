@@ -72,11 +72,13 @@ impl View for Comparison<'_> {
                             );
                             ui.label(text)
                                 .on_hover_ui(|ui| {
+                                    // if let Some(tag) = context.indices(tag) {
+                                    // let cmn = context.cmn(indices);
                                     // ui.label(format!(
-                                    //     "CMN: {:01$b}",
-                                    //     context.cmn(data.tag),
+                                    //     "CMN: {cmn:00$b}",
                                     //     context.state.entries.len(),
                                     // ));
+                                    // }
                                     // ui.label(format!("PTC: {}", context.r#type(tag)));
                                     // let ecn = context.ecn(data.tag);
                                     // ui.label(format!("ECN: {ecn:#} ({})", ecn.sum()));

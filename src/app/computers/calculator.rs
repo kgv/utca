@@ -4,7 +4,7 @@ use crate::{
         state::calculation::Calculated as Value,
         Context,
     },
-    r#const::CH2,
+    r#const::relative_atomic_mass::CH2,
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use std::{

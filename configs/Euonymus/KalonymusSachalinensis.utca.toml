@@ -1,0 +1,37 @@
+name = "Kalonymus Sachalinensis"
+
+[[fatty_acids]]
+data = { tag123 = 33.7, mag2 = 0.4, dag1223 = 47.1 }
+description = "16:0"
+formula = "C16H32O2"
+label = "P"
+
+[[fatty_acids]]
+data = { tag123 = 0.4, mag2 = 0.0, dag1223 = 0.6 }
+description = "16:1"
+formula = "C16H30O2"
+label = "H"
+
+[[fatty_acids]]
+data = { tag123 = 5.3, mag2 = 0.0, dag1223 = 9.6 }
+description = "18:0"
+formula = "C18H36O2"
+label = "St"
+
+[[fatty_acids]]
+data = { tag123 = 47.2, mag2 = 68.2, dag1223 = 39.2 }
+description = "18:1"
+formula = "C18H34O2"
+label = "O"
+
+[[fatty_acids]]
+data = { tag123 = 11.9, mag2 = 30.8, dag1223 = 2.9 }
+description = "18:2"
+formula = "C18H32O2"
+label = "L"
+
+[[fatty_acids]]
+data = { tag123 = 0.7, mag2 = 0.6, dag1223 = 0.6 }
+description = "18:3"
+formula = "C18H30O2"
+label = "Ln"

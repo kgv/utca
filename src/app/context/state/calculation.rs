@@ -34,6 +34,8 @@ impl Calculated {
             self.dags13.zip(),
         )
     }
+
+    pub(in crate::app) fn selectivity_factor() {}
 }
 
 impl Hash for Calculated {

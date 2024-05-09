@@ -1,101 +1,101 @@
-name = "Olea_SH"
+name = "Olea SH"
 
 [[fatty_acids]]
-label = "Lau"
-formula = "H24C12O2"
 data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 168935.0 }
+formula = "H24C12O2"
+label = "Lau"
 
 [[fatty_acids]]
-label = "Myr"
-formula = "H28C14O2"
 data = { mag2 = 255312.0, dag1223 = 0.0, tag123 = 1151054.0 }
+formula = "H28C14O2"
+label = "Myr"
 
 [[fatty_acids]]
-label = "Pam"
-formula = "H32C16O2"
 data = { mag2 = 6600210.0, dag1223 = 0.0, tag123 = 116744609.0 }
+formula = "H32C16O2"
+label = "Pam"
 
 [[fatty_acids]]
-label = "Hx7"
-formula = "H30C16O2"
 data = { mag2 = 547485.0, dag1223 = 0.0, tag123 = 4442301.0 }
+formula = "H30C16O2"
+label = "Hx7"
 
 [[fatty_acids]]
-label = "Hx9"
-formula = "H30C16O2"
 data = { mag2 = 266486.0, dag1223 = 0.0, tag123 = 1811187.0 }
-
-[[fatty_acids]]
-label = "Pl7"
-formula = "H28C16O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
-
-[[fatty_acids]]
-label = "Ste"
-formula = "H36C18O2"
-data = { mag2 = 2036059.0, dag1223 = 0.0, tag123 = 30934021.0 }
-
-[[fatty_acids]]
-label = "Ole"
-formula = "H34C18O2"
-data = { mag2 = 52940620.0, dag1223 = 0.0, tag123 = 247227446.0 }
-
-[[fatty_acids]]
-label = "Vac"
-formula = "H34C18O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 10702708.0 }
-
-[[fatty_acids]]
-label = "Lin"
-formula = "H32C18O2"
-data = { mag2 = 35163351.0, dag1223 = 0.0, tag123 = 135296626.0 }
-
-[[fatty_acids]]
-label = "Gad"
-formula = "H38C20O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 9932595.0 }
-
-[[fatty_acids]]
-label = "Lnn"
-formula = "H30C18O2"
-data = { mag2 = 69007867.0, dag1223 = 0.0, tag123 = 346143252.0 }
-
-[[fatty_acids]]
-label = "Etr"
-formula = "H34C20O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
-
-[[fatty_acids]]
-label = "Ody"
-formula = "H32C18O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
-
-[[fatty_acids]]
-label = "Hx11"
 formula = "H30C16O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
+label = "Hx9"
 
 [[fatty_acids]]
-label = "Ara"
-formula = "H40C20O2"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
+formula = "H28C16O2"
+label = "Pl7"
+
+[[fatty_acids]]
+data = { mag2 = 2036059.0, dag1223 = 0.0, tag123 = 30934021.0 }
+formula = "H36C18O2"
+label = "Ste"
+
+[[fatty_acids]]
+data = { mag2 = 52940620.0, dag1223 = 0.0, tag123 = 247227446.0 }
+formula = "H34C18O2"
+label = "Ole"
+
+[[fatty_acids]]
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 10702708.0 }
+formula = "H34C18O2"
+label = "Vac"
+
+[[fatty_acids]]
+data = { mag2 = 35163351.0, dag1223 = 0.0, tag123 = 135296626.0 }
+formula = "H32C18O2"
+label = "Lin"
+
+[[fatty_acids]]
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 9932595.0 }
+formula = "H38C20O2"
+label = "Gad"
+
+[[fatty_acids]]
+data = { mag2 = 69007867.0, dag1223 = 0.0, tag123 = 346143252.0 }
+formula = "H30C18O2"
+label = "Lnn"
+
+[[fatty_acids]]
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
+formula = "H34C20O2"
+label = "Etr"
+
+[[fatty_acids]]
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
+formula = "H32C18O2"
+label = "Ody"
+
+[[fatty_acids]]
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
+formula = "H30C16O2"
+label = "Hx11"
+
+[[fatty_acids]]
 data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 4103158.0 }
+formula = "H40C20O2"
+label = "Ara"
 
 [[fatty_acids]]
-label = "Edn"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
 formula = "H36C20O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
+label = "Edn"
 
 [[fatty_acids]]
-label = "Beh"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
 formula = "H44C22O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
+label = "Beh"
 
 [[fatty_acids]]
-label = "Eru"
+data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
 formula = "H42C22O2"
-data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
+label = "Eru"
 
 [[fatty_acids]]
-label = "Lig"
-formula = "H48C24O2"
 data = { mag2 = 0.0, dag1223 = 0.0, tag123 = 0.0 }
+formula = "H48C24O2"
+label = "Lig"

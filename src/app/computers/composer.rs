@@ -14,7 +14,7 @@ use crate::{
         },
         Context,
     },
-    r#const::C3H2,
+    r#const::relative_atomic_mass::{C3H2, C3H5O3, OH},
     tree::{Branch, Leaf, Node, Tree},
     utils::Normalize,
 };
@@ -184,16 +184,18 @@ fn grouping(
                         precision,
                     )),
                     PMC => Pmc((
-                        Mass::new(C3H2, precision),
+                        Mass::new(C3H5O3, precision),
                         context
                             .mass(tag)
-                            .map(|value| Mass::new(value, precision))
+                            .map(|value| Mass::new(value - OH, precision))
                             .compose(Some(Positional)),
                         Mass::new(adduct, precision),
                     )),
                     SMC => Smc((
-                        Mass::new(C3H2, precision),
-                        context.mass(tag).map(|value| Mass::new(value, precision)),
+                        Mass::new(C3H5O3, precision),
+                        context
+                            .mass(tag)
+                            .map(|value| Mass::new(value - OH, precision)),
                         Mass::new(adduct, precision),
                     )),
                     TC => Tc(context.r#type(tag).compose(None)),

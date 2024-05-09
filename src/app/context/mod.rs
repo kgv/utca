@@ -105,6 +105,36 @@ impl Context {
         tag.map(|index| &*self.state.entry().meta.labels[index])
     }
 
+    pub(super) fn indices(&self, tag: &Tag<impl AsRef<str>>) -> Option<Tag<usize>> {
+        Some(Tag([
+            self.state
+                .entry()
+                .meta
+                .labels
+                .get_index_of(tag[0].as_ref())?,
+            self.state
+                .entry()
+                .meta
+                .labels
+                .get_index_of(tag[1].as_ref())?,
+            self.state
+                .entry()
+                .meta
+                .labels
+                .get_index_of(tag[2].as_ref())?,
+        ]))
+    }
+
+    pub(super) fn unsaturated(&self) -> impl Iterator<Item = usize> + '_ {
+        self.state
+            .entry()
+            .meta
+            .formulas
+            .iter()
+            .enumerate()
+            .filter_map(|(index, formula)| formula.saturated().then_some(index))
+    }
+
     pub(super) fn calculate(&mut self, ui: &Ui) {
         self.state.entry_mut().data.calculated =
             ui.memory_mut(|memory| memory.caches.cache::<Calculated>().get((&*self).into()));
