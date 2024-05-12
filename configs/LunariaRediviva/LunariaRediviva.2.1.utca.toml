@@ -85,13 +85,13 @@ formula = "C20H36O2"
 label = "Gln"
 
 [[fatty_acids]]
-data = { mag2 = 0.0, dag1223 = 7385644.310, tag123 = 0.0 }
+data = { mag2 = 0.0, dag1223 = 0.000, tag123 = 0.0 }
 description = "22:0"
 formula = "C22H44O2"
 label = "Beh"
 
 [[fatty_acids]]
-data = { mag2 = 0.0, dag1223 = 0.000, tag123 = 416886485.561 }
+data = { mag2 = 0.0, dag1223 = 7385644.310, tag123 = 416886485.561 }
 description = "13-22:1"
 formula = "C22H42O2"
 label = "Eru"
