@@ -32,7 +32,7 @@ rfd = "0.14.1"
 serde = { version = "1.0.200", features = ["derive", "std"] }
 simple-easing = "1.0.1"
 tabled = "0.15.0"
-toml_edit = { version = "0.22.12", features = ["serde"] }
+toml_edit = { version = "0.22.13", features = ["serde"] }
 tracing = "0.1.40"
 uom = "0.36.0"
 
