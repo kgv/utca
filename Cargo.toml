@@ -20,7 +20,7 @@ egui_ext = { git = "https://github.com/kgv/egui_ext" }
 egui_extras = "0.27.2"
 egui_plot = "0.27.2"
 indexmap = { version = "2.2.6", features = ["serde"] }
-itertools = "0.12.1"
+itertools = "0.13.0"
 maplit = "1.0.2"
 molecule = { git = "https://github.com/ippras/molecule" }
 ndarray = "0.15.6"
