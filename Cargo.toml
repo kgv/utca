@@ -4,7 +4,7 @@ name = "utca"
 version = "0.5.4"
 
 [dependencies]
-anyhow = "1.0.82"
+anyhow = "1.0.86"
 eframe = { version = "0.27.2", default-features = false, features = [
     "accesskit",
     "default_fonts",
