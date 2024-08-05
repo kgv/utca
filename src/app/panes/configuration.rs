@@ -110,7 +110,6 @@ impl Pane {
     fn try_ui(&mut self, ui: &mut Ui) -> Result<()> {
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
-        let count = if self.settings.editable { 6 } else { 4 };
         let total_rows = self.data_frame.height();
 
         let labels = self.data_frame[FA_LABEL].str()?;
@@ -288,8 +287,7 @@ impl Pane {
                             let mut label = labels.get(index).unwrap_or_default().to_owned();
                             let mut carbon = carbons.get(index).unwrap_or_default();
                             // let l = doubles.get(index).map(|array| array.into_iter());
-                            let mut double_series =
-                                doubles.get_as_series(index).unwrap_or_default();
+                            let double_series = doubles.get_as_series(index).unwrap_or_default();
                             let doubles = double_series.u8().unwrap();
                             // let t = doubles.into_iter().filter_map(identity).collect();
                             let fatty_acid = FattyAcid::new(carbon, Some(vec![9, 12]), None);
@@ -329,12 +327,14 @@ impl Pane {
                                     }
                                     // Double
                                     ui.menu_button(RichText::new("D").monospace(), |ui| {
-                                        let mut changed = false;
-                                        let mut values = ui
-                                            .data_mut(|data| {
-                                                data.get_temp::<Vec<u8>>(Id::new(FA_DOUBLE))
-                                            })
-                                            .unwrap_or_default();
+                                        ui.visuals_mut().widgets = Default::default();
+                                        let mut values: Vec<_> =
+                                            double_series.u8().unwrap().iter().flatten().collect();
+                                        // let mut values = ui
+                                        //     .data_mut(|data| {
+                                        //         data.get_temp::<Vec<u8>>(Id::new(FA_DOUBLE))
+                                        //     })
+                                        //     .unwrap_or_default();
                                         // StripBuilder::new(ui)
                                         //     .size(Size::remainder())
                                         //     .size(Size::exact(width))
@@ -371,10 +371,10 @@ impl Pane {
                                         //         //     }
                                         //         // });
                                         //     });
-                                        let mut values = vec![0, 1, 2, 3];
+                                        let mut changed = false;
                                         let count = values.len();
                                         StripBuilder::new(ui)
-                                            .sizes(Size::remainder(), count)
+                                            .sizes(Size::exact(height), count + 1)
                                             .vertical(|mut strip| {
                                                 values.retain_mut(|value| {
                                                     let mut keep = true;
@@ -392,33 +392,47 @@ impl Pane {
                                                                         .changed();
                                                                 });
                                                                 strip.cell(|ui| {
-                                                                    // *ui.visuals_mut() =
-                                                                    //     Default::default();
-                                                                    ui.visuals_mut().widgets =
-                                                                        Default::default();
-                                                                    keep = !ui
+                                                                    if ui
                                                                         .button(
                                                                             RichText::new("❌")
                                                                                 .monospace(),
                                                                         )
-                                                                        .clicked();
+                                                                        .clicked()
+                                                                    {
+                                                                        changed = true;
+                                                                        keep = false;
+                                                                    }
                                                                 });
                                                             });
                                                     });
                                                     keep
                                                 });
                                                 // strip.cell(|_ui| {});
-                                                // strip.cell(|ui| {
-                                                //     if ui.button("Add").clicked() {
-                                                //         values.push(0);
-                                                //         changed = true;
-                                                //     }
-                                                // });
+                                                strip.cell(|ui| {
+                                                    if ui.button("Add").clicked() {
+                                                        let index = values
+                                                            .iter()
+                                                            .max()
+                                                            .map(|value| {
+                                                                value.saturating_add(1).min(carbon)
+                                                            })
+                                                            .unwrap_or_default();
+                                                        values.push(index);
+                                                        changed = true;
+                                                    }
+                                                });
                                             });
                                         if changed {
-                                            ui.data_mut(|data| {
-                                                data.insert_temp(Id::new(FA_DOUBLE), values);
+                                            event = Some(Event::Change {
+                                                index,
+                                                name: FA_DOUBLE,
+                                                value: LiteralValue::Series(SpecialEq::new(
+                                                    Series::from_iter(values),
+                                                )),
                                             });
+                                            // ui.data_mut(|data| {
+                                            //     data.insert_temp(Id::new(FA_DOUBLE), values);
+                                            // });
                                         }
                                     });
 
@@ -688,7 +702,20 @@ impl Pane {
                 )?
                 .collect()?;
             }
-            Some(Event::Change { index, name, value }) => {
+            Some(Event::Change {
+                index,
+                name,
+                mut value,
+            }) => {
+                println!("value: {value:?}");
+                if let LiteralValue::Series(series) = &value {
+                    for i in series.iter() {
+                        println!("value: {i:?}");
+                    }
+                    // value = LiteralValue::Series(SpecialEq(value));
+                }
+                // let value = LiteralValue::Series(SpecialEq::new(Series::from_iter(vec![0, 1, 2])));
+                // println!("value: {value:?}");
                 self.data_frame = self
                     .data_frame
                     .clone()
@@ -697,11 +724,31 @@ impl Pane {
                     .with_column(
                         when(col("Index").eq(lit(index as i64)))
                             .then({
-                                if let FA_DOUBLE | FA_TRIPLE = name {
-                                    concat_list([col(name), lit(value)])?
-                                } else {
-                                    lit(value)
-                                }
+                                col(name).list().eval(
+                                    // col("").map(
+                                    //     |_series| {
+                                    //         println!("_series: {_series:?}");
+                                    //         Ok(Some(Series::from_iter([0u8, 1])))
+                                    //     },
+                                    //     GetOutput::same_type(),
+                                    // )
+                                    col("").explode()
+                                    lit(Series::from_iter([0u8, 1])),
+                                    false,
+                                )
+                                // col(name).map_list(
+                                //     |_series| {
+                                //         println!("_series: {_series:?}");
+                                //         Ok(Some(Series::from_iter([0u8, 1])))
+                                //     },
+                                //     GetOutput::same_type(),
+                                // )
+
+                                // if let FA_DOUBLE | FA_TRIPLE = name {
+                                //     concat_list([col(name), lit(value)])?
+                                // } else {
+                                //     lit(value)
+                                // }
                             })
                             .otherwise(col(name))
                             .alias(name),
