@@ -72,8 +72,6 @@ pub struct App {
     // Notifications
     #[serde(skip)]
     toasts: Toasts,
-    #[serde(skip)]
-    github: Github,
 }
 
 impl Default for App {
@@ -86,7 +84,6 @@ impl Default for App {
             toasts: Default::default(),
             file_dialog: Default::default(),
             about: Default::default(),
-            github: Default::default(),
         }
     }
 }

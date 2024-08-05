@@ -7,11 +7,11 @@ use crate::{
 };
 use anyhow::Result;
 use egui::{
-    text::LayoutJob, Align, CursorIcon, Direction, DragValue, Id, Layout, RichText, Slider,
-    TextStyle, Ui, WidgetText,
+    menu::menu_button, text::LayoutJob, Align, CursorIcon, Direction, DragValue, Id, Layout,
+    RichText, Slider, TextStyle, Ui, WidgetText,
 };
 use egui_ext::{TableBodyExt, TableRowExt};
-use egui_extras::{Column, TableBuilder};
+use egui_extras::{Column, Size, StripBuilder, TableBuilder};
 use egui_tiles::{TileId, UiResponse};
 use indexmap::set::MutableValues;
 use molecule::{
@@ -20,7 +20,10 @@ use molecule::{
 };
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{f64::NAN, iter::empty, num::NonZeroUsize, sync::LazyLock, usize::MAX};
+use std::{
+    collections::BTreeSet, convert::identity, f64::NAN, iter::empty, num::NonZeroUsize,
+    sync::LazyLock, usize::MAX,
+};
 use toml_edit::DocumentMut;
 use tracing::error;
 use uom::{
@@ -284,11 +287,11 @@ impl Pane {
                         row.left_align_col(|ui| {
                             let mut label = labels.get(index).unwrap_or_default().to_owned();
                             let mut carbon = carbons.get(index).unwrap_or_default();
-                            let l = doubles.get(index).map(|array| array.into_vec());
+                            // let l = doubles.get(index).map(|array| array.into_iter());
                             let mut double_series =
                                 doubles.get_as_series(index).unwrap_or_default();
                             let doubles = double_series.u8().unwrap();
-                            let t = doubles.into_iter().map(|t| t);
+                            // let t = doubles.into_iter().filter_map(identity).collect();
                             let fatty_acid = FattyAcid::new(carbon, Some(vec![9, 12]), None);
                             let title = ui.subscripted_text(
                                 &label,
@@ -324,13 +327,122 @@ impl Pane {
                                             value: LiteralValue::UInt8(carbon),
                                         });
                                     }
-                                    if ui.button(RichText::new("D").monospace()).clicked() {
-                                        event = Some(Event::Change {
-                                            index,
-                                            name: FA_DOUBLE,
-                                            value: LiteralValue::UInt8(0),
-                                        });
-                                    }
+                                    // Double
+                                    ui.menu_button(RichText::new("D").monospace(), |ui| {
+                                        let mut changed = false;
+                                        let mut values = ui
+                                            .data_mut(|data| {
+                                                data.get_temp::<Vec<u8>>(Id::new(FA_DOUBLE))
+                                            })
+                                            .unwrap_or_default();
+                                        // StripBuilder::new(ui)
+                                        //     .size(Size::remainder())
+                                        //     .size(Size::exact(width))
+                                        //     .horizontal(|mut strip| {
+                                        //         let mut values = vec![0, 1, 2, 3];
+                                        //         let count = values.len();
+                                        //         values.retain_mut(|value| {
+                                        //             let mut keep = true;
+                                        //             strip.strip(|builder| {
+                                        //                 builder
+                                        //                     .sizes(Size::remainder(), count)
+                                        //                     .vertical(|mut strip| {
+                                        //                         strip.cell(|ui| {
+                                        //                             changed |= ui
+                                        //                                 .add(Slider::new(
+                                        //                                     value,
+                                        //                                     0..=carbon,
+                                        //                                 ))
+                                        //                                 .changed();
+                                        //                         });
+                                        //                         strip.cell(|ui| {
+                                        //                             keep =
+                                        //                                 !ui.button("X").clicked();
+                                        //                         });
+                                        //                     });
+                                        //             });
+                                        //             keep
+                                        //         });
+                                        //         // strip.cell(|_ui| {});
+                                        //         // strip.cell(|ui| {
+                                        //         //     if ui.button("Add").clicked() {
+                                        //         //         values.push(0);
+                                        //         //         changed = true;
+                                        //         //     }
+                                        //         // });
+                                        //     });
+                                        let mut values = vec![0, 1, 2, 3];
+                                        let count = values.len();
+                                        StripBuilder::new(ui)
+                                            .sizes(Size::remainder(), count)
+                                            .vertical(|mut strip| {
+                                                values.retain_mut(|value| {
+                                                    let mut keep = true;
+                                                    strip.strip(|builder| {
+                                                        builder
+                                                            .size(Size::remainder())
+                                                            .size(Size::exact(width))
+                                                            .horizontal(|mut strip| {
+                                                                strip.cell(|ui| {
+                                                                    changed |= ui
+                                                                        .add(Slider::new(
+                                                                            value,
+                                                                            0..=carbon,
+                                                                        ))
+                                                                        .changed();
+                                                                });
+                                                                strip.cell(|ui| {
+                                                                    // *ui.visuals_mut() =
+                                                                    //     Default::default();
+                                                                    ui.visuals_mut().widgets =
+                                                                        Default::default();
+                                                                    keep = !ui
+                                                                        .button(
+                                                                            RichText::new("❌")
+                                                                                .monospace(),
+                                                                        )
+                                                                        .clicked();
+                                                                });
+                                                            });
+                                                    });
+                                                    keep
+                                                });
+                                                // strip.cell(|_ui| {});
+                                                // strip.cell(|ui| {
+                                                //     if ui.button("Add").clicked() {
+                                                //         values.push(0);
+                                                //         changed = true;
+                                                //     }
+                                                // });
+                                            });
+                                        if changed {
+                                            ui.data_mut(|data| {
+                                                data.insert_temp(Id::new(FA_DOUBLE), values);
+                                            });
+                                        }
+                                    });
+
+                                    //     .clicked()
+                                    // {
+                                    //     ui.data_mut(|data| {
+                                    //         let set = data.get_temp_mut_or_default::<Vec<u8>>(
+                                    //             Id::new(FA_DOUBLE),
+                                    //         );
+                                    //         set.push(0);
+                                    //     });
+                                    // }
+
+                                    // menu_button(ui, RichText::new("D").monospace(), |ui| {
+                                    //     let mut value = ui
+                                    //         .data_mut(|data| {
+                                    //             data.get_temp::<u8>(Id::new(FA_DOUBLE))
+                                    //         })
+                                    //         .unwrap_or_default();
+                                    //     ui.add(Slider::new(&mut value, 0..=carbon));
+                                    //     ui.data_mut(|data| {
+                                    //         data.insert_temp(Id::new(FA_DOUBLE), value);
+                                    //     });
+                                    // });
                                     for double in doubles {
                                         let mut double = double.unwrap_or_default();
                                         if ui
@@ -729,13 +841,32 @@ enum Event<'a> {
     },
 }
 
-// /// Change
+/// Change
+#[derive(Clone, Debug)]
+enum Change {
+    Fa(Fa),
+    Tag(f64),
+    Dag(f64),
+    Mag(f64),
+}
+
+/// Fatty acid
+#[derive(Clone, Debug)]
+enum Fa {
+    Label(String),
+    Carbon(u8),
+    Double(u8),
+    Triple(u8),
+}
+
+// /// Bound
 // #[derive(Clone, Debug)]
-// enum Change {
-//     Label(String),
-//     Tag(f64),
-//     Dag(f64),
-//     Mag(f64),
+// enum Bound {
+//     Add,
+//     Delete(index),
+//     Carbon(u8),
+//     Double(vec![u8]),
+//     Triple(vec![u8]),
 // }
 
 // impl Change {
