@@ -5,7 +5,7 @@ use indexmap::{indexmap, IndexMap, IndexSet};
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     hash::{Hash, Hasher},
     sync::LazyLock,
 };
@@ -242,16 +242,25 @@ impl Scope {
 // Desecrimination
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(in crate::app) struct Discrimination {
-    pub(in crate::app) sn1: BTreeSet<usize>,
-    pub(in crate::app) sn2: BTreeSet<usize>,
-    pub(in crate::app) sn3: BTreeSet<usize>,
+    pub(in crate::app) sn1: BTreeMap<usize, f64>,
+    pub(in crate::app) sn2: BTreeMap<usize, f64>,
+    pub(in crate::app) sn3: BTreeMap<usize, f64>,
 }
 
 impl Hash for Discrimination {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.sn1.hash(state);
-        self.sn2.hash(state);
-        self.sn3.hash(state);
+        for (key, value) in &self.sn1 {
+            key.hash(state);
+            value.ord().hash(state);
+        }
+        for (key, value) in &self.sn2 {
+            key.hash(state);
+            value.ord().hash(state);
+        }
+        for (key, value) in &self.sn3 {
+            key.hash(state);
+            value.ord().hash(state);
+        }
     }
 }
 

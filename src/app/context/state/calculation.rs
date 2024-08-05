@@ -1,3 +1,9 @@
+pub(in crate::app) use self::{
+    ExperimentalOrTheoretical::{Experimental, Theoretical},
+    NormalizedOrUnnormalized::{Normalized, Unnormalized},
+    Target::{Dag1223, Dag13, Mag2, Tag123},
+};
+
 use crate::app::context::settings::calculation::From;
 use egui::epaint::util::FloatOrd;
 use itertools::izip;
@@ -6,6 +12,27 @@ use std::{
     hash::{Hash, Hasher},
     iter::zip,
 };
+
+/// Experimental or theoretical
+pub(in crate::app) enum ExperimentalOrTheoretical {
+    Experimental,
+    Theoretical,
+}
+
+/// Normalized or unnormalized
+pub(in crate::app) enum NormalizedOrUnnormalized {
+    Normalized,
+    Unnormalized,
+}
+
+/// Target
+#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+pub(in crate::app) enum Target {
+    Dag1223,
+    Dag13,
+    Mag2,
+    Tag123,
+}
 
 /// Calculated data
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -35,7 +62,33 @@ impl Calculated {
         )
     }
 
-    pub(in crate::app) fn selectivity_factor() {}
+    //     pub(in crate::app) fn selectivity_factors(
+    //         &self,
+    //         target: Target,
+    //         experimental_or_theoretical: ExperimentalOrTheoretical,
+    //         normalized_or_unnormalized: NormalizedOrUnnormalized,
+    //     ) -> impl Iterator<Item = f64> + '_ {
+    //         let a = &match (
+    //             target,
+    //             experimental_or_theoretical,
+    //             normalized_or_unnormalized,
+    //         ) {
+    //             (Dag1223, Experimental, Normalized) => self.dags1223.experimental.normalized,
+    //             (Dag1223, Experimental, Unnormalized) => self.dags1223.experimental.unnormalized,
+    //             (Dag1223, Theoretical, Normalized) => self.dags1223.theoretical.normalized,
+    //             (Dag1223, Theoretical, Unnormalized) => self.dags1223.theoretical.unnormalized,
+    //             (Dag13, Experimental, Normalized) => self.dags13.experimental.normalized,
+    //             (Dag13, Experimental, Unnormalized) => self.dags13.experimental.unnormalized,
+    //             (Dag13, Theoretical, Normalized) => self.dags13.theoretical.normalized,
+    //             (Dag13, Theoretical, Unnormalized) => self.dags13.theoretical.unnormalized,
+
+    //             (Tag123, Experimental, Normalized) => self.tags123.experimental.normalized,
+    //             (Tag123, Experimental, Unnormalized) => self.tags123.experimental.unnormalized,
+    //             (Tag123, Theoretical, Normalized) => self.tags123.theoretical.normalized,
+    //             (Tag123, Theoretical, Unnormalized) => self.tags123.theoretical.unnormalized,
+    //         };
+    //         zip(a, &self.tags123.experimental)
+    //     }
 }
 
 impl Hash for Calculated {

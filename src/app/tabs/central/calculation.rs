@@ -2,8 +2,8 @@ use crate::app::{
     context::{settings::calculation::From, state::calculation::Normalizable, Context},
     view::View,
 };
-use egui::{Color32, Direction, Layout, Ui};
-use egui_ext::{TableBodyExt, TableRowExt};
+use egui::{Color32, Direction, Id, Layout, Response, Sense, Ui};
+use egui_ext::{ClickedLabel, TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
 
 const COLUMNS: usize = 4;
@@ -34,22 +34,48 @@ impl View for Calculation<'_> {
             .resizable(context.settings.calculation.resizable)
             .striped(true)
             .header(height, |mut row| {
-                row.col(|_| {});
+                let mut response = row.col(|_| {}).1;
+                response.sense = Sense::click();
                 // 1,2,3-TAGs
                 row.col(|ui| {
-                    ui.heading("1,2,3").on_hover_text("1,2,3-TAGs");
+                    response |= ui.heading("1,2,3").on_hover_text("1,2,3-TAGs");
                 });
                 // 1,2/2,3-DAGs
                 row.col(|ui| {
-                    ui.heading("1,2/2,3").on_hover_text("1,2/2,3-DAGs");
+                    response |= ui.heading("1,2/2,3").on_hover_text("1,2/2,3-DAGs");
                 });
                 // 2-MAGs
                 row.col(|ui| {
-                    ui.heading("2").on_hover_text("2-MAGs");
+                    response |= ui.heading("2").on_hover_text("2-MAGs");
                 });
                 // 1,3-DAGs
                 row.col(|ui| {
-                    ui.heading("1,3").on_hover_text("1,3-DAGs");
+                    response |= ui.heading("1,3").on_hover_text("1,3-DAGs");
+                });
+                row.response().union(response).context_menu(|ui| {
+                    let id = Id::new("show");
+                    let mut current_value = ui
+                        .data(|data| data.get_temp::<Show>(id))
+                        .unwrap_or_default();
+                    let mut response = ui.selectable_value(
+                        &mut current_value,
+                        Show::ExperimentalValue,
+                        "Experimental value",
+                    );
+                    response |= ui.selectable_value(
+                        &mut current_value,
+                        Show::EnrichmentFactor,
+                        "Enrichment factor",
+                    );
+                    response |= ui.selectable_value(
+                        &mut current_value,
+                        Show::SelectivityFactor,
+                        "Selectivity factor",
+                    );
+                    if response.changed() {
+                        ui.data_mut(|data| data.insert_temp(id, current_value));
+                        ui.close_menu();
+                    }
                 });
             })
             .body(|mut body| {
@@ -189,6 +215,13 @@ impl View for Calculation<'_> {
                                             }
                                             ui.label(format!("Unnormalized: {unnormalized}"));
                                         }
+                                        if context.settings.calculation.selectivity_factor {
+                                            let selectivity_factor = mag2.experimental.normalized
+                                                / tag123.experimental.normalized;
+                                            ui.label(format!(
+                                                "Selectivity factor: {selectivity_factor}"
+                                            ));
+                                        }
                                     }
                                 });
                             if context.settings.calculation.theoretical {
@@ -212,61 +245,85 @@ impl View for Calculation<'_> {
                         });
                         // 1,3-DAGs
                         row.right_align_col(|ui| {
-                            let Normalizable {
-                                mut unnormalized,
-                                mut normalized,
-                            } = *dag13.value(context.settings.calculation.from);
+                            let show = ui
+                                .data(|data| data.get_temp::<Show>(Id::new("show")))
+                                .unwrap_or_default();
+                            let mut normalized =
+                                dag13.value(context.settings.calculation.from).normalized;
                             if context.settings.calculation.percent {
                                 normalized *= 100.0;
                             }
-                            ui.label(format!("{normalized:.p$}")).on_hover_ui(|ui| {
-                                ui.label(normalized.to_string());
-                                if context.settings.calculation.unnormalized {
-                                    if context.settings.calculation.pchelkin {
-                                        unnormalized *= 10.0;
-                                    }
-                                    ui.label(format!("Unnormalized: {unnormalized}"));
+                            match show {
+                                Show::ExperimentalValue => {
+                                    ui.label(format!("{normalized:.p$}"));
                                 }
-                                if context.settings.calculation.selectivity {
-                                    let selectivity = normalized / tag123.experimental.unnormalized;
-                                    ui.label(format!("Selectivity: {selectivity}"));
+                                Show::EnrichmentFactor => {
+                                    let enrichment_factor =
+                                        normalized / tag123.experimental.normalized;
+                                    ui.label(format!("{enrichment_factor:.p$}"));
                                 }
-                                if context.settings.calculation.selectivity_factor {
+                                Show::SelectivityFactor => {
                                     let selectivity_factor =
                                         normalized / tag123.experimental.normalized;
-                                    ui.label(format!("Selectivity factor: {selectivity_factor}"));
+                                    ui.label(format!("{selectivity_factor:.p$}"));
                                 }
-                                if context.settings.calculation.enrichment_factor {
-                                    let selectivity_factor =
-                                        normalized / tag123.experimental.normalized;
-                                    let mut u123 = 0.0;
-                                    let mut u2 = 0.0;
-                                    let (u123, u2) = context.unsaturated().fold(
-                                        (0.0, 0.0),
-                                        |(u123, u2), index| {
-                                            (
-                                                u123 + context
-                                                    .state
-                                                    .entry()
-                                                    .data
-                                                    .calculated
-                                                    .tags123
-                                                    .experimental
-                                                    .normalized[index],
-                                                u2 + context
-                                                    .state
-                                                    .entry()
-                                                    .data
-                                                    .calculated
-                                                    .tags123
-                                                    .experimental
-                                                    .normalized[index],
-                                            )
-                                        },
-                                    );
-                                    // ui.label(format!("Enrichment factor: {enrichment_factor}"));
-                                }
-                            });
+                            }
+
+                            // let Normalizable {
+                            //     mut unnormalized,
+                            //     mut normalized,
+                            // } = dag13.value(context.settings.calculation.from);
+                            // if context.settings.calculation.percent {
+                            //     normalized *= 100.0;
+                            // }
+                            // ui.label(format!("{normalized:.p$}")).on_hover_ui(|ui| {
+                            //     ui.label(normalized.to_string());
+                            //     if context.settings.calculation.unnormalized {
+                            //         if context.settings.calculation.pchelkin {
+                            //             unnormalized *= 10.0;
+                            //         }
+                            //         ui.label(format!("Unnormalized: {unnormalized}"));
+                            //     }
+                            //     if context.settings.calculation.selectivity {
+                            //         let selectivity = normalized / tag123.experimental.unnormalized;
+                            //         ui.label(format!("Selectivity: {selectivity}"));
+                            //     }
+                            //     if context.settings.calculation.selectivity_factor {
+                            //         let selectivity_factor =
+                            //             normalized / tag123.experimental.normalized;
+                            //         ui.label(format!("Selectivity factor: {selectivity_factor}"));
+                            //     }
+                            //     if context.settings.calculation.enrichment_factor {
+                            //         let selectivity_factor =
+                            //             normalized / tag123.experimental.normalized;
+                            //         let mut u123 = 0.0;
+                            //         let mut u2 = 0.0;
+                            //         let (u123, u2) = context.unsaturated().fold(
+                            //             (0.0, 0.0),
+                            //             |(u123, u2), index| {
+                            //                 (
+                            //                     u123 + context
+                            //                         .state
+                            //                         .entry()
+                            //                         .data
+                            //                         .calculated
+                            //                         .tags123
+                            //                         .experimental
+                            //                         .normalized[index],
+                            //                     u2 + context
+                            //                         .state
+                            //                         .entry()
+                            //                         .data
+                            //                         .calculated
+                            //                         .tags123
+                            //                         .experimental
+                            //                         .normalized[index],
+                            //                 )
+                            //             },
+                            //         );
+                            //         // ui.label(format!("Enrichment factor: {enrichment_factor}"));
+                            //     }
+                            // });
                         });
                     });
                 }
@@ -323,4 +380,13 @@ impl View for Calculation<'_> {
                 });
             });
     }
+}
+
+/// Column show
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum Show {
+    #[default]
+    ExperimentalValue,
+    EnrichmentFactor,
+    SelectivityFactor,
 }

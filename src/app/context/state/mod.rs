@@ -2,9 +2,11 @@ use self::{
     calculation::Calculated, comparison::Compared, composition::Composed, configuration::Configured,
 };
 use crate::fatty_acid::FattyAcid;
+use ehttp::Response;
 use indexmap::IndexSet;
 use itertools::enumerate;
 use molecule::{Counter, Saturable};
+use poll_promise::Promise;
 use serde::{Deserialize, Serialize};
 use std::{
     hash::{Hash, Hasher},

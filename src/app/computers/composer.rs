@@ -356,15 +356,14 @@ fn discriminated(context: &Context, sn: Sn) -> Vec<f64> {
         .normalized
         .iter()
         .enumerate()
-        .map(move |(index, value)| {
+        .map(move |(index, &value)| {
             let discrimination = &context.settings.composition.discrimination;
             match sn {
-                Sn::One => discrimination.sn1.contains(&index),
-                Sn::Two => discrimination.sn2.contains(&index),
-                Sn::Three => discrimination.sn3.contains(&index),
+                Sn::One => discrimination.sn1.get(&index),
+                Sn::Two => discrimination.sn2.get(&index),
+                Sn::Three => discrimination.sn3.get(&index),
             }
-            .then_some(0.0)
-            .unwrap_or(*value)
+            .map_or(value, |&f| f * value)
         })
         .normalized()
 }

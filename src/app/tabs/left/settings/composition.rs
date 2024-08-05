@@ -15,6 +15,7 @@ use crate::{
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
     utils::ui::{SubscriptedTextFormat, UiExt as _},
 };
+use eframe::emath::Float;
 use egui::{
     epaint::util::FloatOrd, text::LayoutJob, CollapsingHeader, ComboBox, DragValue, Id, Key,
     KeyboardShortcut, Modifiers, RichText, ScrollArea, Slider, TextStyle, Ui, Window,
@@ -39,6 +40,13 @@ impl<'a> Composition<'a> {
 
     fn windows(self, ui: &mut Ui) {
         let Self { context } = self;
+
+        // TODO:
+        // use peroxide::fuga::*;
+        // let l = lagrange_polynomial(vec![1.0, 2.0, 3.0], vec![1.0, 4.0, 10.0]);
+        // l.print();
+        // println!("{l:?}");
+
         Window::new("📊 Method")
             .open(&mut context.settings.composition.window)
             .show(ui.ctx(), |ui| {
@@ -917,7 +925,6 @@ impl UiExt for Ui {
     fn discrimination_menu(&mut self, context: &mut Context, sn: Sn) {
         let Discrimination { sn1, sn2, sn3 } = &mut context.settings.composition.discrimination;
         let psc = context.settings.composition.tree.leafs == PSC;
-        let mut changed = false;
         self.menu_button(
             self.subscripted_text(
                 "SN",
@@ -928,54 +935,54 @@ impl UiExt for Ui {
                 },
             ),
             |ui| {
-                for (index, label) in context.state.entry().meta.labels.iter().enumerate() {
-                    let mut checked = match sn {
-                        Sn::One => !sn1.contains(&index),
-                        Sn::Two => !sn2.contains(&index),
-                        Sn::Three => !sn3.contains(&index),
-                    };
-                    if ui.checkbox(&mut checked, label).changed() {
-                        changed |= true;
-                        if !checked {
-                            match sn {
-                                Sn::One | Sn::Three if psc => {
-                                    sn1.insert(index);
-                                    sn3.insert(index);
-                                }
-                                Sn::One => {
-                                    sn1.insert(index);
-                                }
-                                Sn::Two => {
-                                    sn2.insert(index);
-                                }
-                                Sn::Three => {
-                                    sn3.insert(index);
+                for (index, text) in context.state.entry().meta.labels.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        ui.label(text);
+                        match sn {
+                            Sn::One => {
+                                let value = sn1.entry(index).or_insert(1.0);
+                                if ui
+                                    .add(
+                                        DragValue::new(value)
+                                            .clamp_range(0.0..=f64::MAX)
+                                            .speed(0.01),
+                                    )
+                                    .changed()
+                                    && psc
+                                {
+                                    sn3.insert(index, *value);
                                 }
                             }
-                        } else {
-                            match sn {
-                                Sn::One | Sn::Three if psc => {
-                                    sn1.remove(&index);
-                                    sn3.remove(&index);
-                                }
-                                Sn::One => {
-                                    sn1.remove(&index);
-                                }
-                                Sn::Two => {
-                                    sn2.remove(&index);
-                                }
-                                Sn::Three => {
-                                    sn3.remove(&index);
+                            Sn::Two => {
+                                let value = sn2.entry(index).or_insert(1.0);
+                                ui.add(
+                                    DragValue::new(value)
+                                        .clamp_range(0.0..=f64::MAX)
+                                        .speed(0.01),
+                                );
+                            }
+                            Sn::Three => {
+                                let value = sn3.entry(index).or_insert(1.0);
+                                if ui
+                                    .add(
+                                        DragValue::new(value)
+                                            .clamp_range(0.0..=f64::MAX)
+                                            .speed(0.01),
+                                    )
+                                    .changed()
+                                    && psc
+                                {
+                                    sn1.insert(index, *value);
                                 }
                             }
-                        }
-                    }
+                        };
+                    });
                 }
             },
         )
         .response
         .context_menu(|ui| {
-            if ui.button("Check all").clicked() {
+            if ui.button("Clear all").clicked() {
                 match sn {
                     Sn::One | Sn::Three if psc => {
                         sn1.clear();
@@ -992,25 +999,26 @@ impl UiExt for Ui {
                     }
                 }
                 ui.close_menu();
-            } else if ui.button("Uncheck all").clicked() {
-                let all = (0..context.state.entry().meta.labels.len()).collect();
-                match sn {
-                    Sn::One | Sn::Three if psc => {
-                        *sn1 = all;
-                        *sn3 = sn1.clone();
-                    }
-                    Sn::One => {
-                        *sn1 = all;
-                    }
-                    Sn::Two => {
-                        *sn2 = all;
-                    }
-                    Sn::Three => {
-                        *sn3 = all;
-                    }
-                }
-                ui.close_menu();
             }
+            // else if ui.button("Set all").clicked() {
+            //     let all = (0..context.state.entry().meta.labels.len()).collect();
+            //     match sn {
+            //         Sn::One | Sn::Three if psc => {
+            //             *sn1 = all;
+            //             *sn3 = sn1.clone();
+            //         }
+            //         Sn::One => {
+            //             *sn1 = all;
+            //         }
+            //         Sn::Two => {
+            //             *sn2 = all;
+            //         }
+            //         Sn::Three => {
+            //             *sn3 = all;
+            //         }
+            //     }
+            //     ui.close_menu();
+            // }
         });
     }
 }

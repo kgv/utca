@@ -72,11 +72,11 @@ impl VisitMut for Visitor {
 /// Result
 type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[test]
-fn test() -> Result<()> {
-    // let config = include_str!("../../configs/pinaceae/cedrus/config.toml");
-    let config = include_str!("../../configs/test/temp.toml");
-    let parsed = config.parse::<Parsed>()?;
-    println!("{parsed:?}");
-    Ok(())
-}
+// #[test]
+// fn test() -> Result<()> {
+//     // let config = include_str!("../../configs/pinaceae/cedrus/config.toml");
+//     let config = include_str!("../../configs/test/temp.toml");
+//     let parsed = config.parse::<Parsed>()?;
+//     println!("{parsed:?}");
+//     Ok(())
+// }

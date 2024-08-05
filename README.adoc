@@ -75,3 +75,5 @@ $env:RUST_LOG="utca=trace"
 20:2 - Gd
 22:1 - E
 24:1 - N
+
+// https://raw.githubusercontent.com/ippras/utca/gh-pages/configs/lunaria_rediviva/1.1.utca.toml

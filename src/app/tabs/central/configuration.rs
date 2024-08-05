@@ -7,8 +7,8 @@ use crate::{
     r#const::relative_atomic_mass::CH2,
     utils::ui::{SubscriptedTextFormat, UiExt},
 };
-use egui::{Direction, DragValue, Layout, RichText, Ui};
-use egui_ext::{ClickedLabel, TableBodyExt, TableRowExt};
+use egui::{text::LayoutJob, Align, Direction, DragValue, Id, Layout, RichText, TextStyle, Ui};
+use egui_ext::{TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
 use indexmap::set::MutableValues;
 use molecule::{
@@ -58,12 +58,24 @@ impl View for Configuration<'_> {
         if context.settings.configuration.editable {
             columns += 2;
         }
-        ui.horizontal_wrapped(|ui| {
+        ui.horizontal(|ui| {
             ui.label("Name:");
-            ui.clicked_label(&context.state.entry_mut().meta.name)
-                .context_menu(|ui| {
-                    ui.text_edit_singleline(&mut context.state.entry_mut().meta.name);
-                });
+            ui.with_layout(
+                Layout::top_down(Align::LEFT).with_cross_justify(true),
+                |ui| {
+                    let color = ui.visuals().widgets.inactive.text_color();
+                    let font_id = TextStyle::Body.resolve(ui.style());
+                    let mut title = LayoutJob::simple_singleline(
+                        context.state.entry().meta.name.clone(),
+                        font_id,
+                        color,
+                    );
+                    title.wrap.max_rows = 1;
+                    ui.menu_button(title, |ui| {
+                        ui.text_edit_singleline(&mut context.state.entry_mut().meta.name);
+                    });
+                },
+            );
         });
         let mut builder = TableBuilder::new(ui)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight));
@@ -85,7 +97,7 @@ impl View for Configuration<'_> {
                     row.col(|_| {});
                 }
                 row.col(|ui| {
-                    ui.heading("FA").on_hover_text("Fatty acid label");
+                    ui.heading("FA").on_hover_text("Fatty acid");
                 });
                 row.col(|ui| {
                     ui.heading("1,2,3-TAG");

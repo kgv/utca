@@ -16,7 +16,6 @@ use egui::{Direction, Id, InnerResponse, Label, Layout, RichText, Ui};
 use egui_ext::{ClickedLabel, CollapsingButton, TableBodyExt, TableRowExt};
 use egui_extras::{Column, Size, StripBuilder, TableBuilder};
 use itertools::Itertools;
-use ndarray::{Array, Axis, Zip};
 use ordered_float::OrderedFloat;
 use std::iter::{once, zip};
 use tabled::{

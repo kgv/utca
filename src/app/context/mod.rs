@@ -3,9 +3,11 @@ use self::{
     state::{Data, Entry, Meta, State},
 };
 use super::computers::{calculator::Calculated, comparator::Compared, composer::Composed};
-use crate::{acylglycerol::Tag, ecn::Ecn, parsers::toml::Parsed};
+use crate::{acylglycerol::Tag, ecn::Ecn, fatty_acid::FattyAcid, parsers::toml::Parsed};
 use egui::Ui;
 use molecule::{Counter, Saturable, Saturation};
+use polars::{error::PolarsResult, frame::row::Row};
+use ron::{extensions::Extensions, ser::PrettyConfig};
 use serde::{Deserialize, Serialize};
 
 /// Context
@@ -15,9 +17,136 @@ pub(super) struct Context {
     pub(super) state: State,
 }
 
+fn data_frame(fatty_acids: &[FattyAcid]) -> PolarsResult<()> {
+    use polars::prelude::*;
+
+    let labels = Series::new(
+        "Label",
+        fatty_acids
+            .iter()
+            .cloned()
+            .map(|fatty_acid| fatty_acid.label)
+            .collect::<Vec<_>>(),
+    );
+    // let formulas = Series::new(
+    //     "Saturation",
+    //     fatty_acids
+    //         .iter()
+    //         .map(|fatty_acid| fatty_acid.formula.saturation())
+    //         .collect::<Vec<_>>(),
+    // ).cast(DataType::Enum);
+    let tags = Series::new(
+        "TAG",
+        fatty_acids
+            .iter()
+            .map(|fatty_acid| fatty_acid.data.tag123)
+            .collect::<Vec<_>>(),
+    );
+    let dags = Series::new(
+        "DAG1223",
+        fatty_acids
+            .iter()
+            .map(|fatty_acid| fatty_acid.data.dag1223)
+            .collect::<Vec<_>>(),
+    );
+    let mags = Series::new(
+        "MAG2",
+        fatty_acids
+            .iter()
+            .map(|fatty_acid| fatty_acid.data.mag2)
+            .collect::<Vec<_>>(),
+    );
+    let df = DataFrame::new(vec![labels, tags, dags, mags])?;
+    // {
+    //     "Label" => labels,
+    //     "Formula" => &formulas,
+    //     "TAG" => tags,
+    //     "DAG1223" => dags,
+    //     "MAG2" => mags,
+    // }?;
+
+    // let s1 = Series::new("Fruit", &["Apple", "Apple", "Pear"]);
+    // let s2 = Series::new("Color", &["Red", "Yellow", "Green"]);
+    // let df: PolarsResult<DataFrame> = DataFrame::new(vec![s1, s2]);
+    // let df: DataFrame = df! {
+    //     "Label" => labels,
+    //     "Formula" => &formulas,
+    //     "TAG" => tags,
+    //     "DAG1223" => dags,
+    //     "MAG2" => mags,
+    // }?;
+    println!("df: {df:?}");
+    let serialized = ron::ser::to_string_pretty(
+        &df,
+        PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME),
+    )
+    .unwrap();
+    // println!("serialized: {serialized}");
+    let filtered = df
+        .clone()
+        .lazy()
+        .filter(col("MAG2").gt(lit(0.0)))
+        .collect()?;
+    println!("filtered: {filtered:?}");
+    let mut fractionalized = df
+        .lazy()
+        .select([
+            col("Label"),
+            (col("TAG") / sum("TAG")),
+            (col("DAG1223") / sum("DAG1223")),
+            (col("MAG2") / sum("MAG2")),
+        ])
+        .with_columns([
+            ((lit(4) * col("DAG1223") - col("MAG2")) / lit(3))
+                .clip_min(lit(0))
+                .alias("TAG.FROM_DAG1223_MAG2"),
+            ((lit(3) * col("TAG") + col("MAG2")) / lit(4)).alias("DAG1223.FROM_TAG_MAG2"),
+            (lit(4) * col("DAG1223") - lit(3) * col("TAG"))
+                .clip_min(lit(0))
+                .alias("MAG2.FROM_TAG_DAG1223"),
+            (lit(3) * col("TAG") - lit(2) * col("DAG1223"))
+                .clip_min(lit(0))
+                .alias("DAG13.FROM_TAG_DAG1223"),
+            ((lit(3) * col("TAG") - col("MAG2")) / lit(2))
+                .clip_min(lit(0))
+                .alias("DAG13.FROM_TAG_MAG2"),
+        ])
+        .collect()?;
+    println!("fractionalized: {fractionalized}");
+    let schema = &fractionalized.schema();
+    let row = {
+        let mut values = Vec::with_capacity(schema.len());
+        values.push(AnyValue::String(""));
+        values.append(&mut vec![AnyValue::Float64(0.0); schema.len() - 1]);
+        Row::new(values)
+    };
+    fractionalized.extend(&DataFrame::from_rows_and_schema(&[row], schema)?)?;
+    // println!("extended: {fractionalized}");
+    // let grouped = fractionalized
+    //     .lazy()
+    //     .group_by([col("Label")])
+    //     .agg([col("TAG").sum().alias("SUM")])
+    //     .collect()?;
+
+    // let mask = fractionalized.column("TAG")?.gt(0.01)?;
+    // let filtered = fractionalized.filter(&mask)?;
+
+    println!("filtered: {filtered:?}");
+    let filtered = fractionalized
+        .lazy()
+        .filter(col("TAG").gt(lit(0.01)))
+        .collect()?;
+    println!("filtered: {filtered:?}");
+    // .agg([col("TAG").sum().alias("SUM")])
+    Ok(())
+}
+
 impl Context {
     pub(super) fn init(&mut self, parsed: Parsed) {
         let Parsed { name, fatty_acids } = parsed;
+
+        data_frame(&fatty_acids).unwrap();
+
         let (labels, (formulas, configured)) = fatty_acids
             .into_iter()
             .map(|fatty_acid| (fatty_acid.label, (fatty_acid.formula, fatty_acid.data)))

@@ -17,7 +17,6 @@
 #![feature(float_next_up_down)]
 #![feature(hash_extract_if)]
 #![feature(impl_trait_in_assoc_type)]
-#![feature(lazy_cell)]
 #![feature(option_get_or_insert_default)]
 #![feature(option_take_if)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
@@ -32,7 +31,7 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "UTCA",
         Default::default(),
-        Box::new(|context| Box::new(App::new(context))),
+        Box::new(|context| Ok(Box::new(App::new(context)))),
     )
 }
 
@@ -48,7 +47,7 @@ fn main() {
             .start(
                 "the_canvas_id",
                 Default::default(),
-                Box::new(|context| Box::new(App::new(context))),
+                Box::new(|context| Ok(Box::new(App::new(context)))),
             )
             .await
             .expect("failed to start eframe");

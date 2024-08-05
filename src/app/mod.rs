@@ -1,25 +1,30 @@
 use self::{
-    tabs::{CentralDock, CentralTab, CentralTabs, LeftDock, LeftTab, LeftTabs},
+    panes::Behavior,
+    panes::Pane,
+    panes::SettingsBehavior,
+    // tabs::{CentralDock, CentralTab, CentralTabs, LeftDock, LeftTab, LeftTabs},
     windows::About,
 };
+use crate::parsers::toml::Parsed;
 use crate::{
-    app::context::Context,
-    parsers::{
-        toml::{to_string, Parsed as TomlParsed},
-        whitespace::Parsed,
-    },
-    widgets::FileDialog,
+    // app::context::Context,
+    parsers::toml::{to_string, Parsed as TomlParsed},
+    widgets::{FileDialog, Github},
 };
 use anyhow::Result;
 use eframe::{get_value, set_value, CreationContext, Frame, Storage, APP_KEY};
 use egui::{
     global_dark_light_mode_switch, menu::bar, warn_if_debug_build, Align, Align2, Button,
     CentralPanel, Color32, ComboBox, Event, Id, LayerId, Layout, Order, RichText, SidePanel,
-    TextStyle, TopBottomPanel, Visuals,
+    TextStyle, TopBottomPanel, Visuals, Widget,
 };
 use egui_dock::{DockArea, Style};
 use egui_ext::{DroppedFileExt, HoveredFileExt, WithVisuals};
 use egui_notify::Toasts;
+use egui_tiles::{Tiles, Tree};
+use ehttp::{fetch, Headers, Request, Response};
+use polars::prelude::*;
+use poll_promise::Promise;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::BorrowMut,
@@ -29,6 +34,7 @@ use std::{
     time::Duration,
 };
 use tracing::{debug, error, info, trace};
+use url::Url;
 
 /// IEEE 754-2008
 const MAX_PRECISION: usize = 16;
@@ -48,12 +54,16 @@ fn custom_visuals<T: BorrowMut<Visuals>>(mut visuals: T) -> T {
     visuals
 }
 
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(default)]
 pub struct App {
-    context: Context,
-    // Docks
-    docks: Docks,
+    // Panels
+    left_panel: bool,
+    // Panes
+    tree: Tree<Pane>,
+    #[serde(skip)]
+    behavior: Behavior,
+
     #[serde(skip)]
     file_dialog: FileDialog,
     // Windows
@@ -62,6 +72,23 @@ pub struct App {
     // Notifications
     #[serde(skip)]
     toasts: Toasts,
+    #[serde(skip)]
+    github: Github,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            left_panel: true,
+            tree: Tree::empty("central_tree"),
+            behavior: Default::default(),
+
+            toasts: Default::default(),
+            file_dialog: Default::default(),
+            about: Default::default(),
+            github: Default::default(),
+        }
+    }
 }
 
 impl App {
@@ -74,7 +101,91 @@ impl App {
         cc.storage
             .and_then(|storage| get_value(storage, APP_KEY))
             .unwrap_or_default()
+        // Default::default()
     }
+
+    // pub fn load_configs(&mut self) {
+    //     if let Some(promise) = &self.promise {
+    //         if let Some(entries) = promise.ready() {
+    //             println!("entries: {entries:?}");
+    //         } else {
+    //             println!("loading");
+    //         }
+    //     } else {
+    //         let request = Request {
+    //             headers: Headers::new(&[
+    //                 ("Accept", "application/vnd.github+json"),
+    //                 (
+    //                     "Authorization",
+    //                     "Bearer ghp_",
+    //                 ),
+    //                 ("X-GitHub-Api-Version", "2022-11-28"),
+    //             ]),
+    //             ..Request::get(
+    //                 "https://api.github.com/repos/ippras/utca/contents/configs?recursive=true",
+    //             )
+    //         };
+    //         let (sender, promise) = Promise::new();
+    //         self.promise = Some(promise);
+    //         fetch(
+    //             request,
+    //             move |response: Result<Response, String>| match response {
+    //                 Ok(response) => {
+    //                     info!("Status code: {}", response.status);
+    //                     match response.json::<Vec<Entry>>() {
+    //                         Ok(entries) => {
+    //                             println!("entries: {entries:#?}");
+    //                             sender.send(Some(entries));
+    //                         }
+    //                         Err(error) => {
+    //                             error!(%error);
+    //                             sender.send(None);
+    //                         }
+    //                     }
+    //                 }
+    //                 Err(error) => error!(%error),
+    //             },
+    //         );
+    //     }
+    //     // // let toasts = self.toasts.clone();
+    //     // fetch(request, move |response: Result<Response, String>| {
+    //     //     match response {
+    //     //         Ok(response) => {
+    //     //             info!("Status code: {}", response.status);
+    //     //             match response.json::<Vec<Entry>>() {
+    //     //                 Ok(entries) => {
+    //     //                     println!("entries: {entries:#?}");
+    //     //                 }
+    //     //                 Err(error) => {
+    //     //                     error!(%error);
+    //     //                     return;
+    //     //                 }
+    //     //             }
+    //     //             // if let Ok(json) = response.json::<Vec<Entry>>() {
+    //     //             //     let parsed:  = match text.parse() {
+    //     //             //         Ok(file) => file,
+    //     //             //         Err(error) => {
+    //     //             //             error!(%error);
+    //     //             //             return;
+    //     //             //         }
+    //     //             //     };
+    //     //             //     println!("parsed: {parsed:?}");
+    //     //             // }
+    //     //         }
+    //     //         Err(error) => error!(%error),
+    //     //     }
+    //     //     // if let Err(error) = response {
+    //     //     //     error!(%error);
+    //     //     //     // toasts
+    //     //     //     //     .error(format!("Load configs: {error}"))
+    //     //     //     //     .set_closable(true)
+    //     //     //     //     .set_duration(Some(NOTIFICATIONS_DURATION));
+    //     //     // } else {
+    //     //     //     info!("Load configs: OK");
+    //     //     // }
+    //     //     // println!("Status code: {:?}", response.unwrap().status);
+    //     // });
+    // }
 }
 
 // Panels
@@ -102,15 +213,19 @@ impl App {
         CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
             .show(ctx, |ui| {
-                DockArea::new(&mut self.docks.central)
-                    .id(Id::new("central_dock"))
-                    .style(Style::from_egui(&ctx.style()))
-                    .show_inside(
-                        ui,
-                        &mut CentralTabs {
-                            context: &mut self.context,
-                        },
-                    );
+                self.tree.ui(&mut self.behavior, ui);
+                // if let Some(id) = self.behavior.close {
+                //     self.tree.tiles.remove(id);
+                // }
+                // DockArea::new(&mut self.docks.central)
+                //     .id(Id::new("central_dock"))
+                //     .style(Style::from_egui(&ctx.style()))
+                //     .show_inside(
+                //         ui,
+                //         &mut CentralTabs {
+                //             context: &mut self.context,
+                //         },
+                //     );
             });
     }
 
@@ -119,24 +234,21 @@ impl App {
         SidePanel::left("left_panel")
             .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(0.0))
             .resizable(true)
-            .show_animated(
-                ctx,
-                self.docks.left.state.main_surface().num_tabs() != 0,
-                |ui| {
-                    let mut style = Style::from_egui(&ctx.style());
-                    style.tab_bar.fill_tab_bar = true;
-                    DockArea::new(&mut self.docks.left.state)
-                        .id(Id::new("left_dock"))
-                        .style(style)
-                        .show_inside(
-                            ui,
-                            &mut LeftTabs {
-                                context: &mut self.context,
-                                state: &self.docks.central,
-                            },
-                        );
-                },
-            );
+            .show_animated(ctx, self.left_panel, |ui| {
+                let mut style = Style::from_egui(&ctx.style());
+                style.tab_bar.fill_tab_bar = true;
+                self.tree.ui(&mut SettingsBehavior, ui);
+                // DockArea::new(&mut self.docks.left.state)
+                //     .id(Id::new("left_dock"))
+                //     .style(style)
+                //     .show_inside(
+                //         ui,
+                //         &mut LeftTabs {
+                //             context: &mut self.context,
+                //             state: &self.docks.central,
+                //         },
+                //     );
+            });
     }
 
     // Top panel
@@ -144,186 +256,235 @@ impl App {
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             bar(ui, |ui| {
                 ui.visuals_mut().button_frame = false;
+                // Left panel
+                let text = if self.left_panel { "⮪" } else { "⮩" };
+                ui.toggle_value(&mut self.left_panel, text)
+                    .on_hover_text("Left panel");
+                ui.separator();
                 global_dark_light_mode_switch(ui);
                 ui.separator();
-                if ui
-                    .add(Button::new(RichText::new("🗑")))
-                    .on_hover_text("Reset data")
-                    .clicked()
-                {
-                    *self = Self {
-                        docks: take(&mut self.docks),
-                        ..Default::default()
-                    };
-                }
-                // Reset gui
-                if ui
-                    .add(Button::new(RichText::new("🔃")))
-                    .on_hover_text("Reset gui")
-                    .clicked()
-                {
-                    ui.with_visuals(|ui, _| ui.memory_mut(|memory| *memory = Default::default()));
-                }
-                // Organize windows
-                if ui
-                    .add(Button::new(RichText::new("▣")))
-                    .on_hover_text("Organize windows")
-                    .clicked()
-                {
-                    self.docks.left = Default::default();
-                    self.docks.central = Default::default();
-                    ui.ctx().memory_mut(|memory| memory.reset_areas());
+                if ui.button("🗑").on_hover_text("Reset application").clicked() {
+                    *self = Default::default();
                 }
                 ui.separator();
-                #[derive(Clone, Copy, Debug, PartialEq)]
-                enum Format {
-                    Toml,
+                if ui.button("🔃").on_hover_text("Reset gui").clicked() {
+                    ui.memory_mut(|memory| *memory = Default::default());
                 }
-                // Import file
-                if ui.button("📤").on_hover_text("Import file").clicked() {
-                    if let Err(error) = self.import() {
-                        error!(?error);
-                    }
-                }
-                if let Some(bytes) = self.file_dialog.take() {
-                    match String::from_utf8(bytes) {
-                        Err(error) => {
-                            error!(%error);
-                            return;
+                ui.separator();
+                if ui.button("Cn").clicked() {
+                    let pane = Pane::Configuration(Default::default());
+                    if self.tree.tiles.find_pane(&pane).is_none() {
+                        let mut children = vec![self.tree.tiles.insert_pane(pane)];
+                        if let Some(root) = self.tree.root {
+                            children.push(root);
                         }
-                        Ok(content) => {
-                            trace!(?content);
-                            let parsed = match content.parse() {
-                                Ok(file) => file,
-                                Err(error) => {
-                                    error!(%error);
-                                    return;
-                                }
-                            };
-                            trace!(?parsed);
-                            self.context.init(parsed);
-                        }
+                        self.tree.root = Some(self.tree.tiles.insert_vertical_tile(children));
                     }
                 }
-                let mut format = Format::Toml;
-                ComboBox::from_id_source("export")
-                    .selected_text(format!("{format:?}"))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut format, Format::Toml, "Toml");
-                    });
-                // Export file
-                if ui.button("📥").on_hover_text("Export file").clicked() {
-                    if let Err(error) = self.export() {
-                        error!(?error);
-                    }
-                }
-                ui.separator();
-                // Settings
-                let tab = LeftTab::Settings;
-                let checked = self.docks.left.state.find_tab(&tab).is_some();
-                if ui
-                    .selectable_label(checked, tab.sign())
-                    .on_hover_text(tab.to_string())
-                    .clicked()
-                {
-                    self.docks.left.toggle(tab);
-                }
-                // Files
-                let tab = LeftTab::Files;
-                let checked = self.docks.left.state.find_tab(&tab).is_some();
-                let text = if checked { "📂" } else { "📁" };
-                if ui
-                    .selectable_label(checked, RichText::new(text))
-                    .on_hover_text(tab.to_string())
-                    .clicked()
-                {
-                    self.docks.left.toggle(tab);
-                }
-                ui.separator();
-                // Configuration
-                let tab = CentralTab::Configuration;
-                let found = self.docks.central.find_tab(&tab);
-                if ui
-                    .selectable_label(found.is_some(), tab.sign())
-                    .on_hover_text(tab.to_string())
-                    .clicked()
-                {
-                    if let Some(index) = found {
-                        self.docks.central.remove_tab(index);
-                    } else {
-                        self.docks.central.push_to_focused_leaf(tab);
-                    }
-                }
-                // Calculation
-                let tab = CentralTab::Calculation;
-                let found = self.docks.central.find_tab(&tab);
-                if ui
-                    .selectable_label(found.is_some(), tab.sign())
-                    .on_hover_text(tab.to_string())
-                    .clicked()
-                {
-                    if let Some(index) = found {
-                        self.docks.central.remove_tab(index);
-                    } else {
-                        self.docks.central.push_to_focused_leaf(tab);
-                    }
-                }
-                // Filtration
-                ui.selectable_label(false, "🔎").on_hover_text("Filtration");
-                // Composition
-                let tab = CentralTab::Composition;
-                let found = self.docks.central.find_tab(&tab);
-                if ui
-                    .selectable_label(found.is_some(), tab.sign())
-                    .on_hover_text(tab.to_string())
-                    .clicked()
-                {
-                    if let Some(index) = found {
-                        self.docks.central.remove_tab(index);
-                    } else {
-                        self.docks.central.push_to_focused_leaf(tab);
-                    }
-                }
-                // Comparison
-                let tab = CentralTab::Comparison;
-                let found = self.docks.central.find_tab(&tab);
-                if ui
-                    .selectable_label(found.is_some(), tab.sign())
-                    .on_hover_text(tab.to_string())
-                    .clicked()
-                {
-                    if let Some(index) = found {
-                        self.docks.central.remove_tab(index);
-                    } else {
-                        self.docks.central.push_to_focused_leaf(tab);
-                    }
-                }
-                // Visualization
-                let tab = CentralTab::Visualization;
-                let found = self.docks.central.find_tab(&tab);
-                if ui
-                    .selectable_label(found.is_some(), tab.sign())
-                    .on_hover_text(tab.to_string())
-                    .clicked()
-                {
-                    if let Some(index) = found {
-                        self.docks.central.remove_tab(index);
-                    } else {
-                        self.docks.central.push_to_focused_leaf(tab);
-                    }
-                }
-                ui.separator();
-                // About
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui
-                        .add(Button::new(RichText::new("ℹ")))
-                        .on_hover_text("About window")
-                        .clicked()
-                    {
-                        self.about.open ^= true;
-                    }
-                    ui.separator();
-                });
+                // if ui.button("Cl").clicked() {
+                //     let mut children = vec![self.tree.tiles.insert_pane(Default::default())];
+                //     if let Some(root) = self.tree.root {
+                //         children.push(root);
+                //     }
+                //     self.tree.root = Some(self.tree.tiles.insert_vertical_tile(children));
+                // }
+                // if ui.button("Cm").clicked() {
+                //     let mut children = vec![self.tree.tiles.insert_pane(Default::default())];
+                //     if let Some(root) = self.tree.root {
+                //         children.push(root);
+                //     }
+                //     self.tree.root = Some(self.tree.tiles.insert_vertical_tile(children));
+                // }
+
+                //     ui.visuals_mut().button_frame = false;
+                //     global_dark_light_mode_switch(ui);
+                //     ui.separator();
+                //     if ui
+                //         .add(Button::new(RichText::new("🗑")))
+                //         .on_hover_text("Reset data")
+                //         .clicked()
+                //     {
+                //         *self = Self {
+                //             docks: take(&mut self.docks),
+                //             ..Default::default()
+                //         };
+                //     }
+                //     // Reset gui
+                //     if ui
+                //         .add(Button::new(RichText::new("🔃")))
+                //         .on_hover_text("Reset gui")
+                //         .clicked()
+                //     {
+                //         ui.with_visuals(|ui, _| ui.memory_mut(|memory| *memory = Default::default()));
+                //     }
+                //     // Organize windows
+                //     if ui
+                //         .add(Button::new(RichText::new("▣")))
+                //         .on_hover_text("Organize windows")
+                //         .clicked()
+                //     {
+                //         self.docks.left = Default::default();
+                //         self.docks.central = Default::default();
+                //         ui.ctx().memory_mut(|memory| memory.reset_areas());
+                //     }
+                //     ui.separator();
+                //     #[derive(Clone, Copy, Debug, PartialEq)]
+                //     enum Format {
+                //         Toml,
+                //     }
+                //     // Import file
+                //     if ui
+                //         .button("G📤")
+                //         .on_hover_text("Load config files")
+                //         .clicked()
+                //     {
+                //         self.github.open ^= true;
+                //     }
+                //     // Import file
+                //     if ui.button("📤").on_hover_text("Import file").clicked() {
+                //         if let Err(error) = self.import() {
+                //             error!(?error);
+                //         }
+                //     }
+                //     if let Some(bytes) = self.file_dialog.take() {
+                //         match String::from_utf8(bytes) {
+                //             Err(error) => {
+                //                 error!(%error);
+                //                 return;
+                //             }
+                //             Ok(content) => {
+                //                 trace!(?content);
+                //                 let parsed = match content.parse() {
+                //                     Ok(file) => file,
+                //                     Err(error) => {
+                //                         error!(%error);
+                //                         return;
+                //                     }
+                //                 };
+                //                 trace!(?parsed);
+                //                 self.context.init(parsed);
+                //             }
+                //         }
+                //     }
+                //     let mut format = Format::Toml;
+                //     ComboBox::from_id_source("export")
+                //         .selected_text(format!("{format:?}"))
+                //         .show_ui(ui, |ui| {
+                //             ui.selectable_value(&mut format, Format::Toml, "Toml");
+                //         });
+                //     // Export file
+                //     if ui.button("📥").on_hover_text("Export file").clicked() {
+                //         if let Err(error) = self.export() {
+                //             error!(?error);
+                //         }
+                //     }
+                //     ui.separator();
+                //     // Settings
+                //     let tab = LeftTab::Settings;
+                //     let checked = self.docks.left.state.find_tab(&tab).is_some();
+                //     if ui
+                //         .selectable_label(checked, tab.sign())
+                //         .on_hover_text(tab.to_string())
+                //         .clicked()
+                //     {
+                //         self.docks.left.toggle(tab);
+                //     }
+                //     // Files
+                //     let tab = LeftTab::Files;
+                //     let checked = self.docks.left.state.find_tab(&tab).is_some();
+                //     let text = if checked { "📂" } else { "📁" };
+                //     if ui
+                //         .selectable_label(checked, RichText::new(text))
+                //         .on_hover_text(tab.to_string())
+                //         .clicked()
+                //     {
+                //         self.docks.left.toggle(tab);
+                //     }
+                //     ui.separator();
+                //     // Configuration
+                //     let tab = CentralTab::Configuration;
+                //     let found = self.docks.central.find_tab(&tab);
+                //     if ui
+                //         .selectable_label(found.is_some(), tab.sign())
+                //         .on_hover_text(tab.to_string())
+                //         .clicked()
+                //     {
+                //         if let Some(index) = found {
+                //             self.docks.central.remove_tab(index);
+                //         } else {
+                //             self.docks.central.push_to_focused_leaf(tab);
+                //         }
+                //     }
+                //     // Calculation
+                //     let tab = CentralTab::Calculation;
+                //     let found = self.docks.central.find_tab(&tab);
+                //     if ui
+                //         .selectable_label(found.is_some(), tab.sign())
+                //         .on_hover_text(tab.to_string())
+                //         .clicked()
+                //     {
+                //         if let Some(index) = found {
+                //             self.docks.central.remove_tab(index);
+                //         } else {
+                //             self.docks.central.push_to_focused_leaf(tab);
+                //         }
+                //     }
+                //     // Filtration
+                //     ui.selectable_label(false, "🔎").on_hover_text("Filtration");
+                //     // Composition
+                //     let tab = CentralTab::Composition;
+                //     let found = self.docks.central.find_tab(&tab);
+                //     if ui
+                //         .selectable_label(found.is_some(), tab.sign())
+                //         .on_hover_text(tab.to_string())
+                //         .clicked()
+                //     {
+                //         if let Some(index) = found {
+                //             self.docks.central.remove_tab(index);
+                //         } else {
+                //             self.docks.central.push_to_focused_leaf(tab);
+                //         }
+                //     }
+                //     // Comparison
+                //     let tab = CentralTab::Comparison;
+                //     let found = self.docks.central.find_tab(&tab);
+                //     if ui
+                //         .selectable_label(found.is_some(), tab.sign())
+                //         .on_hover_text(tab.to_string())
+                //         .clicked()
+                //     {
+                //         if let Some(index) = found {
+                //             self.docks.central.remove_tab(index);
+                //         } else {
+                //             self.docks.central.push_to_focused_leaf(tab);
+                //         }
+                //     }
+                //     // Visualization
+                //     let tab = CentralTab::Visualization;
+                //     let found = self.docks.central.find_tab(&tab);
+                //     if ui
+                //         .selectable_label(found.is_some(), tab.sign())
+                //         .on_hover_text(tab.to_string())
+                //         .clicked()
+                //     {
+                //         if let Some(index) = found {
+                //             self.docks.central.remove_tab(index);
+                //         } else {
+                //             self.docks.central.push_to_focused_leaf(tab);
+                //         }
+                //     }
+                //     ui.separator();
+                //     // About
+                //     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                //         if ui
+                //             .add(Button::new(RichText::new("ℹ")))
+                //             .on_hover_text("About window")
+                //             .clicked()
+                //         {
+                //             self.about.open ^= true;
+                //         }
+                //         ui.separator();
+                //     });
             });
         });
     }
@@ -333,6 +494,7 @@ impl App {
 impl App {
     fn windows(&mut self, ctx: &egui::Context) {
         self.about.window(ctx);
+        // self.github.window(ctx);
     }
 }
 
@@ -377,7 +539,7 @@ impl App {
             //     files,
             //     ..self.docks.left.tabs.files
             // };
-            ctx.data_mut(|data| data.remove_by_type::<Parsed>());
+            ctx.data_mut(|data| data.remove_by_type::<TomlParsed>());
             for dropped in dropped_files {
                 let content = match dropped.content() {
                     Ok(content) => content,
@@ -391,7 +553,7 @@ impl App {
                     }
                 };
                 trace!(content);
-                let parsed = match content.parse() {
+                let parsed: Parsed = match content.parse() {
                     Ok(file) => file,
                     Err(error) => {
                         error!(%error);
@@ -403,91 +565,88 @@ impl App {
                     }
                 };
                 trace!(?parsed);
-                self.context.init(parsed);
+                // self.context.init(parsed);
             }
         }
     }
 
-    fn paste(&mut self, ctx: &egui::Context) {
-        if !ctx.memory(|memory| memory.focused().is_some()) {
-            ctx.input(|input| {
-                for event in &input.raw.events {
-                    if let Event::Paste(paste) = event {
-                        if let Err(error) = self.parse(paste) {
-                            error!(?error);
-                            self.toasts
-                                .error(error.to_string().chars().take(64).collect::<String>())
-                                .set_duration(Some(Duration::from_secs(5)))
-                                .set_closable(true);
-                        }
-                    }
-                }
-            });
-        }
-    }
+    // fn paste(&mut self, ctx: &egui::Context) {
+    //     if !ctx.memory(|memory| memory.focused().is_some()) {
+    //         ctx.input(|input| {
+    //             for event in &input.raw.events {
+    //                 if let Event::Paste(paste) = event {
+    //                     if let Err(error) = self.parse(paste) {
+    //                         error!(?error);
+    //                         self.toasts
+    //                             .error(error.to_string().chars().take(64).collect::<String>())
+    //                             .set_duration(Some(Duration::from_secs(5)))
+    //                             .set_closable(true);
+    //                     }
+    //                 }
+    //             }
+    //         });
+    //     }
+    // }
 
-    fn parse(&mut self, paste: &str) -> Result<()> {
-        use crate::parsers::whitespace::Parser;
+    // fn parse(&mut self, paste: &str) -> Result<()> {
+    //     use crate::parsers::whitespace::Parser;
+    //     let parsed = Parser::parse(paste)?;
+    //     debug!(?parsed);
+    //     for parsed in parsed {
+    //         // self.docks.central.tabs.input.add(match parsed {
+    //         //     Parsed::All(label, (c, n), tag, dag, mag) => FattyAcid {
+    //         //         label,
+    //         //         formula: ether!(c as usize, n as usize),
+    //         //         values: [tag, dag, mag],
+    //         //     },
+    //         //     // Parsed::String(label) => Row { label, ..default() },
+    //         //     // Parsed::Integers(_) => Row { label, ..default() },
+    //         //     // Parsed::Float(tag) => Row { label, ..default() },
+    //         //     _ => unimplemented!(),
+    //         // })?;
+    //         // self.config.push_row(Row {
+    //         //     acylglycerols,
+    //         //     label:  parsed.,
+    //         //     ether: todo!(),
+    //         //     // ..default()
+    //         // })?;
+    //     }
+    //     // let mut rows = Vec::new();
+    //     // for row in paste.split('\n') {
+    //     //     let mut columns = [0.0; COUNT];
+    //     //     for (j, column) in row.split('\t').enumerate() {
+    //     //         ensure!(j < COUNT, "Invalid shape, columns: {COUNT} {j}");
+    //     //         columns[j] = column.replace(',', ".").parse()?;
+    //     //     }
+    //     //     rows.push(columns);
+    //     // }
+    //     // for acylglycerols in rows {
+    //     //     self.config.push_row(Row {
+    //     //         acylglycerol: acylglycerols,
+    //     //         ..default()
+    //     //     })?;
+    //     // }
+    //     Ok(())
+    // }
 
-        let parsed = Parser::parse(paste)?;
-        debug!(?parsed);
-        for parsed in parsed {
-            // self.docks.central.tabs.input.add(match parsed {
-            //     Parsed::All(label, (c, n), tag, dag, mag) => FattyAcid {
-            //         label,
-            //         formula: ether!(c as usize, n as usize),
-            //         values: [tag, dag, mag],
-            //     },
-            //     // Parsed::String(label) => Row { label, ..default() },
-            //     // Parsed::Integers(_) => Row { label, ..default() },
-            //     // Parsed::Float(tag) => Row { label, ..default() },
-            //     _ => unimplemented!(),
-            // })?;
+    // fn export(&self) -> Result<(), impl Debug> {
+    //     let content = to_string(&TomlParsed {
+    //         name: self.context.state.entry().meta.name.clone(),
+    //         fatty_acids: self.context.state.entry().fatty_acids(),
+    //     })
+    //     .unwrap();
+    //     self.file_dialog
+    //         .save(
+    //             &format!("{}.toml", self.context.state.entry().meta.name),
+    //             content,
+    //         )
+    //         .unwrap();
+    //     Ok::<_, ()>(())
+    // }
 
-            // self.config.push_row(Row {
-            //     acylglycerols,
-            //     label:  parsed.,
-            //     ether: todo!(),
-            //     // ..default()
-            // })?;
-        }
-
-        // let mut rows = Vec::new();
-        // for row in paste.split('\n') {
-        //     let mut columns = [0.0; COUNT];
-        //     for (j, column) in row.split('\t').enumerate() {
-        //         ensure!(j < COUNT, "Invalid shape, columns: {COUNT} {j}");
-        //         columns[j] = column.replace(',', ".").parse()?;
-        //     }
-        //     rows.push(columns);
-        // }
-        // for acylglycerols in rows {
-        //     self.config.push_row(Row {
-        //         acylglycerol: acylglycerols,
-        //         ..default()
-        //     })?;
-        // }
-        Ok(())
-    }
-
-    fn export(&self) -> Result<(), impl Debug> {
-        let content = to_string(&TomlParsed {
-            name: self.context.state.entry().meta.name.clone(),
-            fatty_acids: self.context.state.entry().fatty_acids(),
-        })
-        .unwrap();
-        self.file_dialog
-            .save(
-                &format!("{}.toml", self.context.state.entry().meta.name),
-                content,
-            )
-            .unwrap();
-        Ok::<_, ()>(())
-    }
-
-    fn import(&mut self) -> Result<(), impl Debug> {
-        self.file_dialog.load()
-    }
+    // fn import(&mut self) -> Result<(), impl Debug> {
+    //     self.file_dialog.load()
+    // }
 }
 
 impl eframe::App for App {
@@ -505,18 +664,20 @@ impl eframe::App for App {
         self.notifications(ctx);
         // Post update
         self.drag_and_drop(ctx);
-        self.paste(ctx);
+        // self.paste(ctx);
     }
 }
 
-#[derive(Default, Deserialize, Serialize)]
-struct Docks {
-    left: LeftDock,
-    central: CentralDock,
-}
+// #[derive(Default, Deserialize, Serialize)]
+// struct Docks {
+//     left: LeftDock,
+//     central: CentralDock,
+// }
 
-mod computers;
-mod context;
-mod tabs;
-mod view;
+// mod computers;
+// mod context;
+// mod tabs;
+// mod view;
+mod panes;
+mod utils;
 mod windows;

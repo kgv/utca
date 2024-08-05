@@ -1,162 +1,83 @@
-use egui::epaint::util::FloatOrd;
-use molecule::{
-    atom::{isotopes::*, Isotope},
-    counter, Counter,
-};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeSet,
     fmt::{self, Display, Formatter},
-    hash::{Hash, Hasher},
-    num::NonZeroUsize,
 };
 
-pub(crate) macro fatty_acid {
-    ($c:expr) => {
-        fatty_acid!($c, 0)
-    },
-    ($c:expr, $u:expr) => {
-        match (NonZeroUsize::new($c), NonZeroUsize::new(2 * $c - 2 * $u)) {
-            (Some(c), Some(h)) => {
-                counter! {
-                    H => h,
-                    C => c,
-                    O => 2,
-                }
-            },
-            _ => Default::default(),
-        }
-    }
-}
-
-const H: Isotope = Isotope::H(H::One);
-const C: Isotope = Isotope::C(C::Twelve);
-const O: Isotope = Isotope::O(O::Sixteen);
+// 9,12-24:2
+// 20,22=9,12-24
+// 6-9,12-18:3
+// 6-9,12-18
+// 18:1:2
 
 /// Fatty acid
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct FattyAcid {
-    pub label: String,
-    #[serde(with = "formula")]
-    pub formula: Counter,
-    pub data: Data,
+    pub carbon: u8,
+    pub bounds: Bounds,
 }
 
-/// Fatty acid mut
-#[derive(Debug, PartialEq, Serialize)]
-pub struct FattyAcidMut<'a, M = Meta, D = Data> {
-    pub meta: &'a mut M,
-    pub data: &'a mut D,
-}
+impl FattyAcid {
+    pub fn new(carbon: u8, double: Option<Vec<usize>>, triple: Option<Vec<usize>>) -> Self {
+        Self {
+            carbon,
+            bounds: Bounds {
+                double: double
+                    .map(|iter| iter.into_iter().collect())
+                    .unwrap_or_default(),
+                triple: triple
+                    .map(|iter| iter.into_iter().collect())
+                    .unwrap_or_default(),
+            },
+        }
+    }
 
-/// Meta
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub struct Meta {
-    pub label: String,
-    #[serde(with = "formula")]
-    pub formula: Counter,
-}
-
-/// Data
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub struct Data {
-    pub tag123: f64,
-    pub dag1223: f64,
-    pub mag2: f64,
-}
-
-impl Hash for Data {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.tag123.ord().hash(state);
-        self.dag1223.ord().hash(state);
-        self.mag2.ord().hash(state);
+    // C_nH_{2n+2}
+    pub fn h(&self) -> u8 {
+        self.carbon * 2 + 2
     }
 }
 
-mod formula {
-    use molecule::Counter;
-    use serde::{de::Error, Deserialize, Deserializer, Serializer};
-
-    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Counter, D::Error> {
-        String::deserialize(deserializer)?
-            .parse()
-            .map_err(Error::custom)
-    }
-
-    pub(super) fn serialize<S: Serializer>(
-        counter: &Counter,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&counter.to_string())
-    }
-}
-
-// const SUPERSCRIPTS: LazyCell<BTreeMap<u8, &str>> = LazyCell::new(|| {
-//     btreemap! {
-//         0 => "⁰",
-//         1 => "¹",
-//         2 => "²",
-//         3 => "³",
-//         4 => "⁴",
-//         5 => "⁵",
-//         6 => "⁶",
-//         7 => "⁷",
-//         8 => "⁸",
-//         9 => "⁹",
-//     }
-// });
-
-// const SUBSCRIPTS: LazyCell<BTreeMap<u8, &str>> = LazyCell::new(|| {
-//     btreemap! {
-//         0 => "₀",
-//         1 => "₁",
-//         2 => "₂",
-//         3 => "₃",
-//         4 => "₄",
-//         5 => "₅",
-//         6 => "₆",
-//         7 => "₇",
-//         8 => "₈",
-//         9 => "₉",
-//     }
-// });
-
-/// Fatty acid structure `H₃C-(R)-CO₂H`
-///
-/// [iupac](https://iupac.qmul.ac.uk/lipid/appABC.html#appA)
-pub struct Structure<'a> {
-    counter: &'a Counter,
-    double_bounds: &'a [usize],
-}
-
-/// Fatty acid structure `H₃C-(R)-CO₂H`
-///
-/// [iupac](https://iupac.qmul.ac.uk/lipid/appABC.html#appA)
-pub struct H3CRCO2H<'a>(&'a Counter);
-
-impl Display for H3CRCO2H<'_> {
+impl Display for FattyAcid {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "H₃C-[C{}H{}]-CO₂H",
-            self.0.count(C).saturating_sub(1),
-            self.0.count(H).saturating_sub(1),
-        )?;
+        if f.alternate() {
+            if !self.bounds.triple.is_empty() {
+                write!(f, "{}-", self.bounds.triple.iter().format(","))?;
+            }
+            if !self.bounds.double.is_empty() {
+                write!(f, "{}-", self.bounds.double.iter().format(","))?;
+            }
+        }
+        write!(f, "{}:{}", self.carbon, self.bounds.double.len())?;
+        if !self.bounds.triple.is_empty() {
+            write!(f, ":{}", self.bounds.triple.len())?;
+        }
         Ok(())
     }
 }
 
-#[test]
-fn test() {
-    let counter = &counter! {
-        C => 7,
-        H => 15,
-        C => 1,
-        O => 1,
-        O => 1,
-        H => 1,
-    };
-    let structure = H3CRCO2H(counter);
-    println!("structure: {structure}");
+/// Bounds
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct Bounds {
+    pub double: BTreeSet<usize>,
+    pub triple: BTreeSet<usize>,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test() {
+        let saturated = FattyAcid::new(18, None, None);
+        println!("saturated: {saturated}");
+        println!("saturated: {saturated:#}");
+        let unsaturated = FattyAcid::new(18, Some(vec![9, 12]), None);
+        println!("unsaturated: {unsaturated}");
+        println!("unsaturated: {unsaturated:#}");
+        let unsaturated = FattyAcid::new(18, Some(vec![12, 9]), Some(vec![15]));
+        println!("unsaturated: {unsaturated}");
+        println!("unsaturated: {unsaturated:#}");
+    }
 }
