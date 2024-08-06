@@ -7,8 +7,8 @@ use crate::{
 };
 use anyhow::Result;
 use egui::{
-    menu::menu_button, text::LayoutJob, Align, CursorIcon, Direction, DragValue, Id, Layout,
-    RichText, Slider, TextStyle, Ui, WidgetText,
+    menu::menu_button, style::Widgets, text::LayoutJob, Align, Color32, CursorIcon, Direction,
+    DragValue, Id, Layout, RichText, Slider, Stroke, TextStyle, Ui, WidgetText,
 };
 use egui_ext::{TableBodyExt, TableRowExt};
 use egui_extras::{Column, Size, StripBuilder, TableBuilder};
@@ -37,6 +37,13 @@ use uom::{
     },
 };
 
+// ➕➖✖➗
+
+/// Monospace macro
+macro monospace($text:expr) {
+    egui::RichText::new($text).monospace()
+}
+
 const H: Isotope = Isotope::H(H::One);
 const C: Isotope = Isotope::C(C::Twelve);
 
@@ -45,27 +52,6 @@ static FATTY_ACIDS: LazyLock<DocumentMut> = LazyLock::new(|| {
         .parse::<DocumentMut>()
         .unwrap()
 });
-
-// pub(crate) const SCHEMA: LazyLock<Schema> = LazyLock::new(|| {
-//     Schema::from_iter([
-//         // Field::new(
-//         //     "FA",
-//         //     DataType::Struct(vec![
-//         //         Field::new("Label", DataType::String),
-//         //         Field::new("C", DataType::UInt8),
-//         //         // Field::new("=", DataType::List(Box::new(DataType::UInt64))),
-//         //         // Field::new("≡", DataType::List(Box::new(DataType::UInt64))),
-//         //     ]),
-//         // ),
-//         Field::new(FA_LABEL, DataType::String),
-//         Field::new(FA_CARBON, DataType::UInt8),
-//         Field::new(FA_DOUBLE, DataType::List(Box::new(DataType::UInt8))),
-//         Field::new(FA_TRIPLE, DataType::List(Box::new(DataType::UInt8))),
-//         Field::new(TAG, DataType::Float64),
-//         Field::new(DAG, DataType::Float64),
-//         Field::new(MAG, DataType::Float64),
-//     ])
-// });
 
 const FA_LABEL: &str = "FA.Label";
 const FA_CARBON: &str = "FA.Carbon";
@@ -273,17 +259,23 @@ impl Pane {
                         if self.settings.editable {
                             row.col(|ui| {
                                 ui.columns(2, |ui| {
-                                    if ui[0].button(RichText::new("⏶").monospace()).clicked() {
-                                        event = Some(Event::Move { index, offset: -1 });
+                                    if ui[0].button(monospace!("⏶")).clicked() {
+                                        event = Some(Event::Move {
+                                            row: index,
+                                            offset: -1,
+                                        });
                                     }
-                                    if ui[1].button(RichText::new("⏷").monospace()).clicked() {
-                                        event = Some(Event::Move { index, offset: 1 });
+                                    if ui[1].button(monospace!("⏷")).clicked() {
+                                        event = Some(Event::Move {
+                                            row: index,
+                                            offset: 1,
+                                        });
                                     }
                                 });
                             });
                         }
                         // FA
-                        row.left_align_col(|ui| {
+                        row.col(|ui| {
                             let mut label = labels.get(index).unwrap_or_default().to_owned();
                             let mut carbon = carbons.get(index).unwrap_or_default();
                             // let l = doubles.get(index).map(|array| array.into_iter());
@@ -300,33 +292,63 @@ impl Pane {
                                 },
                             );
                             ui.menu_button(title, |ui| {
+                                ui.visuals_mut().widgets = if ui.style().visuals.dark_mode {
+                                    Widgets::dark()
+                                } else {
+                                    Widgets::light()
+                                };
+                                // ui.visuals_mut().widgets.inactive.weak_bg_fill =
+                                //     Color32::from_gray(70);
+                                // ui.visuals_mut().widgets.inactive.bg_fill =
+                                //     Color32::from_gray(70);
                                 // Label
                                 ui.horizontal(|ui| {
                                     ui.label("Label");
                                     if ui.text_edit_singleline(&mut label).changed() {
                                         event = Some(Event::Change {
-                                            index,
-                                            name: FA_LABEL,
+                                            row: index,
+                                            column: FA_LABEL,
                                             value: LiteralValue::String(label),
                                         });
                                     }
                                 });
-                                // Fatty acid
+                                // Carbon
                                 ui.horizontal(|ui| {
-                                    // Carbon
                                     ui.label("C");
                                     if ui
                                         .add(DragValue::new(&mut carbon).range(0..=u8::MAX))
                                         .changed()
                                     {
                                         event = Some(Event::Change {
-                                            index,
-                                            name: FA_CARBON,
+                                            row: index,
+                                            column: FA_CARBON,
                                             value: LiteralValue::UInt8(carbon),
                                         });
                                     }
-                                    // Double
-                                    ui.menu_button(RichText::new("D").monospace(), |ui| {
+                                });
+                                // Double
+                                ui.horizontal(|ui| {
+                                    ui.label("D");
+                                    let mut values: Vec<_> =
+                                        double_series.u8().unwrap().iter().flatten().collect();
+                                    if !values.is_empty() && ui.button(monospace!("➖")).clicked()
+                                    {
+                                    }
+                                    for double in doubles {
+                                        let mut double = double.unwrap_or_default();
+                                        if ui
+                                            .add(DragValue::new(&mut double).range(0..=u8::MAX))
+                                            .changed()
+                                        {}
+                                    }
+                                    if ui.button(monospace!("➕")).clicked() {
+                                        event = Some(Event::Change {
+                                            row: index,
+                                            column: FA_DOUBLE,
+                                            value: LiteralValue::UInt8(0),
+                                        });
+                                    }
+                                    ui.menu_button(monospace!("D"), |ui| {
                                         ui.visuals_mut().widgets = Default::default();
                                         let mut values: Vec<_> =
                                             double_series.u8().unwrap().iter().flatten().collect();
@@ -393,10 +415,7 @@ impl Pane {
                                                                 });
                                                                 strip.cell(|ui| {
                                                                     if ui
-                                                                        .button(
-                                                                            RichText::new("❌")
-                                                                                .monospace(),
-                                                                        )
+                                                                        .button(monospace!("❌"))
                                                                         .clicked()
                                                                     {
                                                                         changed = true;
@@ -424,8 +443,8 @@ impl Pane {
                                             });
                                         if changed {
                                             event = Some(Event::Change {
-                                                index,
-                                                name: FA_DOUBLE,
+                                                row: index,
+                                                column: FA_DOUBLE,
                                                 value: LiteralValue::Series(SpecialEq::new(
                                                     Series::from_iter(values),
                                                 )),
@@ -446,7 +465,7 @@ impl Pane {
                                     //     });
                                     // }
 
-                                    // menu_button(ui, RichText::new("D").monospace(), |ui| {
+                                    // menu_button(ui, monospace!("D"), |ui| {
                                     //     let mut value = ui
                                     //         .data_mut(|data| {
                                     //             data.get_temp::<u8>(Id::new(FA_DOUBLE))
@@ -457,17 +476,11 @@ impl Pane {
                                     //         data.insert_temp(Id::new(FA_DOUBLE), value);
                                     //     });
                                     // });
-                                    for double in doubles {
-                                        let mut double = double.unwrap_or_default();
-                                        if ui
-                                            .add(DragValue::new(&mut double).range(0..=u8::MAX))
-                                            .changed()
-                                        {}
-                                    }
-                                    if ui.button(RichText::new("T").monospace()).clicked() {
+
+                                    if ui.button(monospace!("T")).clicked() {
                                         event = Some(Event::Change {
-                                            index,
-                                            name: FA_TRIPLE,
+                                            row: index,
+                                            column: FA_TRIPLE,
                                             value: LiteralValue::UInt8(0),
                                         });
                                     }
@@ -535,8 +548,8 @@ impl Pane {
                                 );
                                 if response.changed() {
                                     event = Some(Event::Change {
-                                        index,
-                                        name: TAG,
+                                        row: index,
+                                        column: TAG,
                                         value: LiteralValue::Float64(value),
                                     });
                                 }
@@ -557,8 +570,8 @@ impl Pane {
                                 );
                                 if response.changed() {
                                     event = Some(Event::Change {
-                                        index,
-                                        name: DAG,
+                                        row: index,
+                                        column: DAG,
                                         value: LiteralValue::Float64(value),
                                     });
                                 }
@@ -579,8 +592,8 @@ impl Pane {
                                 );
                                 if response.changed() {
                                     event = Some(Event::Change {
-                                        index,
-                                        name: MAG,
+                                        row: index,
+                                        column: MAG,
                                         value: LiteralValue::Float64(value),
                                     });
                                 }
@@ -593,7 +606,7 @@ impl Pane {
                         // Delete row
                         if self.settings.editable {
                             row.col(|ui| {
-                                if ui.button(RichText::new("❌").monospace()).clicked() {
+                                if ui.button(monospace!("❌")).clicked() {
                                     event = Some(Event::Delete(index));
                                     ui.close_menu();
                                 }
@@ -622,7 +635,7 @@ impl Pane {
                         // Add row
                         if self.settings.editable {
                             row.col(|ui| {
-                                ui.menu_button(RichText::new("➕").monospace(), |ui| {
+                                ui.menu_button(monospace!("➕"), |ui| {
                                     event = Some(Event::Add);
                                     ui.close_menu();
                                 });
@@ -634,7 +647,7 @@ impl Pane {
                 // body.row(height, |mut row| {
                 //     if self.settings.editable {
                 //         row.col(|ui| {
-                //             ui.menu_button(RichText::new("+").monospace(), |ui| {
+                //             ui.menu_button(monospace!("+").monospace(){
                 //                 let mut changed = false;
                 //                 let id = Id::new("Add");
                 //                 let mut label = ui
@@ -674,8 +687,7 @@ impl Pane {
                 //                 // }
                 //             });
                 //             // if ui
-                //             //     .button(RichText::new("+").monospace())
-                //             //     .on_hover_text("Add row")
+                //             //     .button(monospace!("+").monospace()           //     .on_hover_text("Add row")
                 //             //     .clicked()
                 //             // {
                 //             //     // context.state.entry_mut().add();
@@ -703,8 +715,8 @@ impl Pane {
                 .collect()?;
             }
             Some(Event::Change {
-                index,
-                name,
+                row,
+                column,
                 mut value,
             }) => {
                 println!("value: {value:?}");
@@ -722,20 +734,14 @@ impl Pane {
                     .lazy()
                     .with_row_index("Index", None)
                     .with_column(
-                        when(col("Index").eq(lit(index as i64)))
+                        when(col("Index").eq(lit(row as i64)))
                             .then({
-                                col(name).list().eval(
-                                    // col("").map(
-                                    //     |_series| {
-                                    //         println!("_series: {_series:?}");
-                                    //         Ok(Some(Series::from_iter([0u8, 1])))
-                                    //     },
-                                    //     GetOutput::same_type(),
-                                    // )
-                                    col("").explode()
-                                    lit(Series::from_iter([0u8, 1])),
-                                    false,
-                                )
+                                if let FA_DOUBLE | FA_TRIPLE = column {
+                                    concat_list([col(column), lit(value)])?
+                                } else {
+                                    lit(value)
+                                }
+
                                 // col(name).map_list(
                                 //     |_series| {
                                 //         println!("_series: {_series:?}");
@@ -750,36 +756,36 @@ impl Pane {
                                 //     lit(value)
                                 // }
                             })
-                            .otherwise(col(name))
-                            .alias(name),
+                            .otherwise(col(column))
+                            .alias(column),
                     )
                     .drop(["Index"])
                     .collect()?;
                 println!("self.data_frame: {}", self.data_frame);
             }
-            Some(Event::Delete(index)) => {
+            Some(Event::Delete(row)) => {
                 // https://stackoverflow.com/questions/71486019/how-to-drop-row-in-polars-python
                 // https://stackoverflow.com/a/71495211/1522758
                 self.data_frame = self
                     .data_frame
-                    .slice(0, index)
-                    .vstack(&self.data_frame.slice((index + 1) as _, MAX))?;
+                    .slice(0, row)
+                    .vstack(&self.data_frame.slice((row + 1) as _, MAX))?;
             }
-            Some(Event::Move { index, offset }) => {
-                if offset < 0 && index > 0 {
+            Some(Event::Move { row, offset }) => {
+                if offset < 0 && row > 0 {
                     self.data_frame = self
                         .data_frame
-                        .slice(0, index - 1)
-                        .vstack(&self.data_frame.slice(index as _, 1))?
-                        .vstack(&self.data_frame.slice((index - 1) as _, 1))?
-                        .vstack(&self.data_frame.slice((index + 1) as _, MAX))?;
-                } else if offset > 0 && index < total_rows {
+                        .slice(0, row - 1)
+                        .vstack(&self.data_frame.slice(row as _, 1))?
+                        .vstack(&self.data_frame.slice((row - 1) as _, 1))?
+                        .vstack(&self.data_frame.slice((row + 1) as _, MAX))?;
+                } else if offset > 0 && row < total_rows {
                     self.data_frame = self
                         .data_frame
-                        .slice(0, index)
-                        .vstack(&self.data_frame.slice((index + 1) as _, 1))?
-                        .vstack(&self.data_frame.slice(index as _, 1))?
-                        .vstack(&self.data_frame.slice((index + 2) as _, MAX))?;
+                        .slice(0, row)
+                        .vstack(&self.data_frame.slice((row + 1) as _, 1))?
+                        .vstack(&self.data_frame.slice(row as _, 1))?
+                        .vstack(&self.data_frame.slice((row + 2) as _, MAX))?;
                 }
             }
             None => {}
@@ -788,7 +794,7 @@ impl Pane {
     }
 
     pub(crate) fn settings_ui(&mut self, ui: &mut Ui) -> UiResponse {
-        ui.collapsing(RichText::new(self.name()).heading(), |ui| {
+        ui.collapsing(monospace!(self.name()), |ui| {
             ui.horizontal(|ui| {
                 ui.toggle_value(&mut self.settings.resizable, "↔ Resizable")
                     .on_hover_text("Resize table columns");
@@ -877,13 +883,13 @@ impl Default for Settings {
 enum Event<'a> {
     Add,
     Change {
-        index: usize,
-        name: &'a str,
+        row: usize,
+        column: &'a str,
         value: LiteralValue,
     },
     Delete(usize),
     Move {
-        index: usize,
+        row: usize,
         offset: i64,
     },
 }
@@ -1083,7 +1089,7 @@ enum Fa {
 //                         //         });
 //                         //     ui.allocate_ui_at_rect(response.rect, |ui| {
 //                         //         ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
-//                         //             ui.label(RichText::new(format!("{c}:{u}")).small());
+//                         //             ui.label(monospace!(format!("{")).small());
 //                         //         });
 //                         //     });
 //                         //     if context.settings.configuration.properties {
@@ -1314,7 +1320,7 @@ enum Fa {
 //                                 });
 //                             // ui.allocate_ui_at_rect(response.rect, |ui| {
 //                             //     ui.with_layout(Layout::right_to_left(Align::TOP), |ui| {
-//                             //         ui.label(RichText::new(format!("{c}:{u}")).small());
+//                             //         ui.label(monospace!(format!("{")).small());
 //                             //     });
 //                             // });
 //                             if context.settings.configuration.properties {
@@ -1440,8 +1446,7 @@ enum Fa {
 //                         if context.settings.configuration.editable {
 //                             row.col(|ui| {
 //                                 keep = !ui
-//                                     .button(RichText::new("-").monospace())
-//                                     .on_hover_text("Delete row")
+//                                     .button(monospace!("-").monospace()                                   .on_hover_text("Delete row")
 //                                     .clicked();
 //                             });
 //                         }
@@ -1484,8 +1489,7 @@ enum Fa {
 //                     if context.settings.configuration.editable {
 //                         row.col(|ui| {
 //                             if ui
-//                                 .button(RichText::new("+").monospace())
-//                                 .on_hover_text("Add row")
+//                                 .button(monospace!("+").monospace()                               .on_hover_text("Add row")
 //                                 .clicked()
 //                             {
 //                                 context.state.entry_mut().add();
