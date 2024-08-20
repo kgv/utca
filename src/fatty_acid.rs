@@ -302,7 +302,11 @@ mod test {
     fn order() {
         let fatty_acid = fatty_acid!(18;9,12,15);
         assert_eq!(fatty_acid.display(Kind::System).to_string(), "18-9c12c15c");
-        assert_eq!(fatty_acid.display(Kind::Common).to_string(), "18-9c12c15c");
+        assert_eq!(fatty_acid.display(Kind::Common).to_string(), "18:3");
+        assert_eq!(
+            format!("{:#}", fatty_acid.display(Kind::Common)),
+            "9,12,15-18:3",
+        );
 
         assert_eq!(
             fatty_acid!(18;15,9,12).display(Kind::System).to_string(),
