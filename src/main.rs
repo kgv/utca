@@ -59,6 +59,7 @@ mod app;
 mod r#const;
 mod ecn;
 mod fatty_acid;
+mod localization;
 mod parsers;
 mod properties;
 mod tree;

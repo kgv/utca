@@ -1,28 +1,32 @@
 use self::{
-    panes::Behavior,
-    panes::Pane,
-    panes::SettingsBehavior,
-    // tabs::{CentralDock, CentralTab, CentralTabs, LeftDock, LeftTab, LeftTabs},
+    panes::{Behavior, Pane},
     windows::About,
 };
-use crate::parsers::toml::Parsed;
 use crate::{
-    // app::context::Context,
-    parsers::toml::{to_string, Parsed as TomlParsed},
+    parsers::toml::{to_string, Parsed, Parsed as TomlParsed},
     widgets::{FileDialog, Github},
 };
 use anyhow::Result;
-use eframe::{get_value, set_value, CreationContext, Frame, Storage, APP_KEY};
+use eframe::{get_value, set_value, CreationContext, Storage, APP_KEY};
 use egui::{
     global_dark_light_mode_switch, menu::bar, warn_if_debug_build, Align, Align2, Button,
-    CentralPanel, Color32, ComboBox, Event, Id, LayerId, Layout, Order, RichText, SidePanel,
-    TextStyle, TopBottomPanel, Visuals, Widget,
+    CentralPanel, Color32, ComboBox, Event, FontDefinitions, Id, LayerId, Layout, Order, RichText,
+    ScrollArea, SidePanel, TextStyle, TopBottomPanel, Ui, Visuals, Widget,
 };
 use egui_dock::{DockArea, Style};
-use egui_ext::{DroppedFileExt, HoveredFileExt, WithVisuals};
+use egui_ext::{DroppedFileExt, HoveredFileExt, LightDarkButton, WithVisuals};
 use egui_notify::Toasts;
+use egui_phosphor::{
+    add_to_fonts,
+    regular::{
+        ARROWS_CLOCKWISE, CALCULATOR, CHART_BAR, FLOPPY_DISK, INTERSECT_THREE, NOTE_PENCIL,
+        SIDEBAR_SIMPLE, TRASH,
+    },
+    Variant,
+};
 use egui_tiles::{Tiles, Tree};
 use ehttp::{fetch, Headers, Request, Response};
+use panes::TreeExt;
 use polars::prelude::*;
 use poll_promise::Promise;
 use serde::{Deserialize, Serialize};
@@ -42,6 +46,8 @@ const MAX_PRECISION: usize = 16;
 const NOTIFICATIONS_DURATION: Duration = Duration::from_secs(15);
 
 // const DESCRIPTION: &str = "Positional-species and positional-type composition of TAG from mature fruit arils of the Euonymus section species, mol % of total TAG";
+
+const SIZE: f32 = 32.0;
 
 fn custom_style(ctx: &egui::Context) {
     let mut style = (*ctx.style()).clone();
@@ -92,7 +98,11 @@ impl App {
     /// Called once before the first frame.
     pub fn new(cc: &CreationContext) -> Self {
         // Customize style of egui.
+        let mut fonts = FontDefinitions::default();
+        add_to_fonts(&mut fonts, Variant::Regular);
+        cc.egui_ctx.set_fonts(fonts);
         custom_style(&cc.egui_ctx);
+
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
         cc.storage
@@ -232,9 +242,14 @@ impl App {
             .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(0.0))
             .resizable(true)
             .show_animated(ctx, self.left_panel, |ui| {
-                let mut style = Style::from_egui(&ctx.style());
-                style.tab_bar.fill_tab_bar = true;
-                self.tree.ui(&mut SettingsBehavior, ui);
+                ScrollArea::vertical().show(ui, |ui| {
+                    self.behavior.settings(ui, &mut self.tree);
+                    ui.separator();
+                });
+                // let mut style = Style::from_egui(&ctx.style());
+                // style.tab_bar.fill_tab_bar = true;
+                // self.tree.ui(&mut SettingsBehavior, ui);
+
                 // DockArea::new(&mut self.docks.left.state)
                 //     .id(Id::new("left_dock"))
                 //     .style(style)
@@ -252,32 +267,61 @@ impl App {
     fn top_panel(&mut self, ctx: &egui::Context) {
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             bar(ui, |ui| {
-                ui.visuals_mut().button_frame = false;
                 // Left panel
-                let text = if self.left_panel { "⮪" } else { "⮩" };
-                ui.toggle_value(&mut self.left_panel, text)
-                    .on_hover_text("Left panel");
+                ui.toggle_value(
+                    &mut self.left_panel,
+                    RichText::new(SIDEBAR_SIMPLE).size(SIZE),
+                )
+                .on_hover_text("Left panel");
                 ui.separator();
-                global_dark_light_mode_switch(ui);
+                // Light/Dark
+                ui.light_dark_button(SIZE);
                 ui.separator();
-                if ui.button("🗑").on_hover_text("Reset application").clicked() {
+                // Reset
+                if ui
+                    .button(RichText::new(TRASH).size(SIZE))
+                    .on_hover_text("Reset application")
+                    .clicked()
+                {
                     *self = Default::default();
                 }
                 ui.separator();
-                if ui.button("🔃").on_hover_text("Reset gui").clicked() {
+                if ui
+                    .button(RichText::new(ARROWS_CLOCKWISE).size(SIZE))
+                    .on_hover_text("Reset gui")
+                    .clicked()
+                {
                     ui.memory_mut(|memory| *memory = Default::default());
                 }
                 ui.separator();
-                if ui.button("Cn").clicked() {
-                    let pane = Pane::Configuration(Default::default());
-                    if self.tree.tiles.find_pane(&pane).is_none() {
-                        let mut children = vec![self.tree.tiles.insert_pane(pane)];
-                        if let Some(root) = self.tree.root {
-                            children.push(root);
+                if ui.button(RichText::new(FLOPPY_DISK).size(SIZE)).clicked() {}
+                ui.separator();
+                let mut toggle = |ui: &mut Ui, pane| {
+                    let tile_id = self.tree.tiles.find_pane(&pane);
+                    if ui
+                        .selectable_label(
+                            tile_id.is_some_and(|tile_id| self.tree.is_visible(tile_id)),
+                            RichText::new(pane.icon()).size(SIZE),
+                        )
+                        .on_hover_text(pane.title())
+                        .clicked()
+                    {
+                        if let Some(id) = tile_id {
+                            self.tree.tiles.toggle_visibility(id);
+                        } else {
+                            self.tree.insert_pane(pane);
                         }
-                        self.tree.root = Some(self.tree.tiles.insert_vertical_tile(children));
                     }
-                }
+                };
+                // Configuration
+                toggle(ui, Pane::Configuration(Default::default()));
+                // Calculation
+                toggle(ui, Pane::Calculation(Default::default()));
+                if ui
+                    .button(RichText::new(INTERSECT_THREE).size(SIZE))
+                    .clicked()
+                {}
+                if ui.button(RichText::new(CHART_BAR).size(SIZE)).clicked() {}
                 // if ui.button("Cl").clicked() {
                 //     let mut children = vec![self.tree.tiles.insert_pane(Default::default())];
                 //     if let Some(root) = self.tree.root {
@@ -654,7 +698,7 @@ impl eframe::App for App {
 
     /// Called each time the UI needs repainting, which may be many times per
     /// second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Pre update
         self.panels(ctx);
         self.windows(ctx);
@@ -671,10 +715,10 @@ impl eframe::App for App {
 //     central: CentralDock,
 // }
 
-// mod computers;
 // mod context;
 // mod tabs;
 // mod view;
+mod computers;
 mod panes;
 mod utils;
 mod windows;
