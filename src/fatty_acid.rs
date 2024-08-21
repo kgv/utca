@@ -1,10 +1,7 @@
 use crate::r#const::relative_atomic_mass::{C, H, O};
 use ordermap::OrderMap;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    fmt::{self, Formatter, Write},
-};
+use std::fmt::{self, Formatter, Write};
 
 // 9,12-24:2
 // 20,22=9,12-24
@@ -59,10 +56,7 @@ impl FattyAcid {
     pub fn display(&self, kind: Kind) -> Display {
         match kind {
             Kind::System => Display::system(self.bounds()),
-            Kind::Common => {
-                let bounds = self.bounds.iter().copied().enumerate().collect();
-                Display::common(bounds)
-            }
+            Kind::Common => Display::common(self.bounds()),
         }
     }
 
@@ -78,9 +72,10 @@ impl FattyAcid {
         self.c() as f64 * C + self.h() as f64 * H + 2f64 * O
     }
 
-    fn bounds(&self) -> BTreeMap<usize, i8> {
-        self.bounds.iter().copied().enumerate().collect()
-        // bounds.sort_by_cached_key(|key, value| (value.abs(), *key));
+    fn bounds(&self) -> OrderMap<usize, i8> {
+        let mut bounds: OrderMap<_, _> = self.bounds.iter().copied().enumerate().collect();
+        bounds.sort_by_cached_key(|key, value| (value.abs(), *key));
+        bounds
     }
 }
 
@@ -98,11 +93,11 @@ pub enum Display {
 }
 
 impl Display {
-    fn common(bounds: Vec<(usize, i8)>) -> Self {
+    fn common(bounds: OrderMap<usize, i8>) -> Self {
         Display::Common(Common { bounds })
     }
 
-    fn system(bounds: BTreeMap<usize, i8>) -> Self {
+    fn system(bounds: OrderMap<usize, i8>) -> Self {
         Display::System(System { bounds })
     }
 }
@@ -119,7 +114,7 @@ impl fmt::Display for Display {
 /// Display system
 #[derive(Clone, Debug, Default)]
 pub struct System {
-    bounds: BTreeMap<usize, i8>,
+    bounds: OrderMap<usize, i8>,
 }
 
 impl fmt::Display for System {
@@ -148,70 +143,37 @@ impl fmt::Display for System {
 /// Display common
 #[derive(Clone, Debug, Default)]
 pub struct Common {
-    bounds: Vec<(usize, i8)>,
+    bounds: OrderMap<usize, i8>,
 }
 
 impl fmt::Display for Common {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let c = self.bounds.len() + 1;
-        let mut doubles = BTreeSet::new();
-        let mut triples = BTreeSet::new();
-        for &(index, bound) in &self.bounds {
-            let isomerism = if bound < 0 {
-                Isomerism::Trans
-            } else {
-                Isomerism::Cis
-            };
+        let mut doubles = 0;
+        let mut triples = 0;
+        for (index, &bound) in &self.bounds {
             match bound {
-                1 => {
-                    doubles.insert((index, isomerism));
-                }
-                2 => {
-                    triples.insert((index, isomerism));
-                }
+                1 => doubles += 1,
+                2 => triples += 1,
                 _ => continue,
             }
-        }
-        let (c, d, t, bounds) = self.bounds.iter().fold(
-            (1, 0, 0, BTreeSet::new()),
-            |(mut c, mut d, mut t, mut bounds), bound| {
-                c += 1;
-                if bound.1 == 1 {
-                    d += 1;
-                    bounds.insert(bound.0);
-                } else if bound.1 == 2 {
-                    t += 1;
+            if f.alternate() {
+                if doubles + triples != 1 {
+                    f.write_char(',')?;
                 }
-                (c, d, t, bounds)
-            },
-        );
-        write!(f, "{c}:{}", d + t)?;
-
-        // if triples != 0 {
-        //     write!(f, ":{triples}")?;
-        // }
-        // let mut doubles = 0;
-        // let mut triples = 0;
-        // for (index, &bound) in &self.bounds {
-        //     match bound {
-        //         1 => doubles += 1,
-        //         2 => triples += 1,
-        //         _ => continue,
-        //     }
-        //     if f.alternate() {
-        //         if doubles + triples != 1 {
-        //             f.write_char(',')?;
-        //         }
-        //         write!(f, "{}", index + 1)?;
-        //         if bound < 0 {
-        //             f.write_char('t')?;
-        //         }
-        //     }
-        // }
-        // if f.alternate() && doubles + triples != 0 {
-        //     f.write_char('-')?;
-        // }
-
+                write!(f, "{}", index + 1)?;
+                if bound < 0 {
+                    f.write_char('t')?;
+                }
+            }
+        }
+        if f.alternate() && doubles + triples != 0 {
+            f.write_char('-')?;
+        }
+        let c = self.bounds.len() + 1;
+        write!(f, "{c}:{doubles}")?;
+        if triples != 0 {
+            write!(f, ":{triples}")?;
+        }
         Ok(())
     }
 }
@@ -222,14 +184,6 @@ pub enum Kind {
     #[default]
     System,
     Common,
-}
-
-/// Common view
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub enum View {
-    #[default]
-    Delta,
-    Omega,
 }
 
 // /// Elision
@@ -249,13 +203,13 @@ pub enum View {
 //     Triple(Isomerism),
 // }
 
-/// Isomerism
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
-enum Isomerism {
-    #[default]
-    Cis,
-    Trans,
-}
+// /// Isomerism
+// #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+// enum Isomerism {
+//     #[default]
+//     Cis,
+//     Trans,
+// }
 
 // impl fmt::Display for Isomerism {
 //     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -353,32 +307,32 @@ mod test {
             "9,12,15-18:3",
         );
 
-        // assert_eq!(
-        //     fatty_acid!(18;15,9,12).display(Kind::System).to_string(),
-        //     "18-9c12c15c",
-        // );
-        // assert_eq!(
-        //     fatty_acid!(18;12,15,9).display(Kind::System).to_string(),
-        //     "18-9c12c15c",
-        // );
-        // //
-        // assert_eq!(
-        //     fatty_acid!(18;9,12;15).display(Kind::System).to_string(),
-        //     "18-9c12c-15c",
-        // );
-        // //
-        // assert_eq!(
-        //     fatty_acid!(18;9,12,15;3,6)
-        //         .display(Kind::System)
-        //         .to_string(),
-        //     "18-9c12c15c-3c6c",
-        // );
-        // assert_eq!(
-        //     fatty_acid!(18;15,9,12;6,3)
-        //         .display(Kind::System)
-        //         .to_string(),
-        //     "18-9c12c15c-3c6c",
-        // );
+        assert_eq!(
+            fatty_acid!(18;15,9,12).display(Kind::System).to_string(),
+            "18-9c12c15c",
+        );
+        assert_eq!(
+            fatty_acid!(18;12,15,9).display(Kind::System).to_string(),
+            "18-9c12c15c",
+        );
+        //
+        assert_eq!(
+            fatty_acid!(18;9,12;15).display(Kind::System).to_string(),
+            "18-9c12c-15c",
+        );
+        //
+        assert_eq!(
+            fatty_acid!(18;9,12,15;3,6)
+                .display(Kind::System)
+                .to_string(),
+            "18-9c12c15c-3c6c",
+        );
+        assert_eq!(
+            fatty_acid!(18;15,9,12;6,3)
+                .display(Kind::System)
+                .to_string(),
+            "18-9c12c15c-3c6c",
+        );
     }
 
     #[test]
