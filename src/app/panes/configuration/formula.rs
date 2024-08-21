@@ -36,7 +36,7 @@ impl Widget for Formula<'_> {
                             let len = fatty_acid.bounds.len();
                             for _ in 0..bounds.abs_diff(len) {
                                 if bounds > len {
-                                    fatty_acid.bounds.push(1);
+                                    fatty_acid.bounds.push(0);
                                 } else {
                                     fatty_acid.bounds.pop();
                                 }
@@ -47,7 +47,11 @@ impl Widget for Formula<'_> {
                             for (index, bound) in fatty_acid.bounds.iter_mut().enumerate() {
                                 ui.horizontal(|ui| {
                                     ui.label(format!("{}", index + 1));
-                                    response |= ui.add(DragValue::new(bound).range(1..=3));
+                                    response |= ui.add(
+                                        DragValue::new(bound)
+                                            .range(0..=2)
+                                            .custom_formatter(|bound, _| (bound + 1.0).to_string()),
+                                    );
                                 });
                             }
                         }

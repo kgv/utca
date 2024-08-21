@@ -13,7 +13,6 @@ use egui::{
     CentralPanel, Color32, ComboBox, Event, FontDefinitions, Id, LayerId, Layout, Order, RichText,
     ScrollArea, SidePanel, TextStyle, TopBottomPanel, Ui, Visuals, Widget,
 };
-use egui_dock::{DockArea, Style};
 use egui_ext::{DroppedFileExt, HoveredFileExt, LightDarkButton, WithVisuals};
 use egui_notify::Toasts;
 use egui_phosphor::{
@@ -294,8 +293,6 @@ impl App {
                     ui.memory_mut(|memory| *memory = Default::default());
                 }
                 ui.separator();
-                if ui.button(RichText::new(FLOPPY_DISK).size(SIZE)).clicked() {}
-                ui.separator();
                 let mut toggle = |ui: &mut Ui, pane| {
                     let tile_id = self.tree.tiles.find_pane(&pane);
                     if ui
@@ -322,6 +319,9 @@ impl App {
                     .clicked()
                 {}
                 if ui.button(RichText::new(CHART_BAR).size(SIZE)).clicked() {}
+                ui.separator();
+                if ui.button(RichText::new(FLOPPY_DISK).size(SIZE)).clicked() {}
+
                 // if ui.button("Cl").clicked() {
                 //     let mut children = vec![self.tree.tiles.insert_pane(Default::default())];
                 //     if let Some(root) = self.tree.root {

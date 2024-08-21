@@ -1130,16 +1130,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 
 [[package]]
-name = "duplicate"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de78e66ac9061e030587b2a2e75cc88f22304913c907b11307bca737141230cb"
-dependencies = [
- "heck 0.4.1",
- "proc-macro-error",
-]
-
-[[package]]
 name = "dyn-clone"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1259,26 +1249,14 @@ dependencies = [
 
 [[package]]
 name = "egui_dnd"
-version = "0.9.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c485135fa6dcb0cfef807dc55a5c9dbd8d24c060da75def84bfb02337b1731f5"
+checksum = "0ccfb4f23619d5638dfc3eaf125984da37be112b8dbcb949694b29e9916f627d"
 dependencies = [
  "egui",
  "egui_animation",
  "simple-easing",
  "web-time 1.1.0",
-]
-
-[[package]]
-name = "egui_dock"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "629a8b0e440d69996795669ceacc0dd839a997843489273600d31d16c9cb3500"
-dependencies = [
- "duplicate",
- "egui",
- "paste",
- "serde",
 ]
 
 [[package]]
@@ -2746,15 +2724,6 @@ checksum = "9aa2b01e1d916879f73a53d01d1d6cee68adbb31d6d9177a8cfce093cced1d50"
 dependencies = [
  "futures-core",
  "pin-project-lite",
-]
-
-[[package]]
-name = "ordermap"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61d7d835be600a7ac71b24e39c92fe6fad9e818b3c71bfc379e3ba65e327d77f"
-dependencies = [
- "indexmap",
 ]
 
 [[package]]
@@ -4647,7 +4616,6 @@ dependencies = [
  "egui-phosphor",
  "egui_animation",
  "egui_dnd",
- "egui_dock",
  "egui_ext",
  "egui_extras",
  "egui_plot",
@@ -4664,7 +4632,6 @@ dependencies = [
  "molecule",
  "nom",
  "ordered-float",
- "ordermap",
  "peroxide",
  "polars",
  "poll-promise",

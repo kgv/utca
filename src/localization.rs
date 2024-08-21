@@ -1,27 +1,37 @@
 use fluent::{concurrent::FluentBundle, FluentError, FluentResource};
 use intl_memoizer::concurrent::IntlLangMemoizer;
-use std::{fs::read_to_string, io, sync::Arc};
+use std::{
+    fs::read_to_string,
+    io,
+    sync::{Arc, LazyLock},
+};
 use thiserror::Error;
 use tracing::{enabled, error, Level};
 use unic_langid::{langid, LanguageIdentifier, LanguageIdentifierError};
+
+static EN: &[&str] = &[
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/ftl/en/fatty_acids.ftl",
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/ftl/en/properties.ftl",
+    )),
+];
 
 pub(crate) type Localization = Arc<FluentBundle<FluentResource>>;
 
 pub(crate) fn bundle() -> Result<Arc<FluentBundle<FluentResource>>> {
     println!("localization");
-    let bundle = load("en", ["fatty_acids.ftl", "properties.ftl"])?;
+    let bundle = load("en", EN)?;
     Ok(Arc::new(bundle))
 }
 
-pub(crate) fn load(
-    language: &str,
-    files: impl IntoIterator<Item = &str>,
-) -> Result<FluentBundle<FluentResource>> {
+pub(crate) fn load(language: &str, sources: &[&str]) -> Result<FluentBundle<FluentResource>> {
     let mut bundle = FluentBundle::new_concurrent(vec![language.parse()?]);
-    for file in files {
-        let path = format!("ftl/{language}/{file}");
-        let source = read_to_string(path)?;
-        let resource = match FluentResource::try_new(source) {
+    for &source in sources {
+        let resource = match FluentResource::try_new(source.to_owned()) {
             Ok(resource) => resource,
             Err((resource, errors)) => {
                 if enabled!(Level::WARN) {

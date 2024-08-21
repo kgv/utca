@@ -26,9 +26,14 @@ impl Pane {
         let response = ui.heading(TITLE).on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         if let Err(error) = || -> Result<()> {
+            let Some(data_frame) = ui.data_mut(|data| data.get_temp(Id::new("Configuration")))
+            else {
+                ui.spinner();
+                return Ok(());
+            };
             let data_frame = ui.memory_mut(|memory| {
                 memory.caches.cache::<Calculated>().get(CalculatorKey {
-                    data_frame: &self.data_frame,
+                    data_frame: &data_frame,
                 })
             });
             Ok(())

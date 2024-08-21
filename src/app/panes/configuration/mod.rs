@@ -1,7 +1,7 @@
 use self::{area::Area, formula::Formula, names::Names, properties::Properties};
 use crate::{
     app::{panes::Settings as PanesSettings, MAX_PRECISION},
-    fatty_acid::{fatty_acid, FattyAcid},
+    fatty_acid::{fatty_acid, FattyAcid, Kind},
     localization::{bundle, Localization},
     utils::ui::{SubscriptedTextFormat, UiExt},
 };
@@ -40,6 +40,7 @@ pub(crate) const TITLE: &str = "Configuration";
 
 const FA_LABEL: &str = "FA.Label";
 const FA_FORMULA: &str = "FA.Formula";
+
 const TAG: &str = "TAG";
 const DAG: &str = "DAG";
 const MAG: &str = "MAG";
@@ -283,7 +284,7 @@ impl Pane {
                             let text = if label.is_empty() { "C" } else { label };
                             let title = ui.subscripted_text(
                                 text,
-                                &format!("{fatty_acid:#}"),
+                                &fatty_acid.display(Kind::Common).to_string(),
                                 SubscriptedTextFormat {
                                     widget: true,
                                     ..Default::default()
@@ -488,7 +489,7 @@ impl Pane {
             Some(Event::Add) => {
                 let data_frame = df! {
                     FA_LABEL => &[""],
-                    FA_FORMULA => &[Series::from_iter(empty::<u8>())],
+                    FA_FORMULA => &[Series::from_iter(empty::<i8>())],
                     TAG => &[0.0],
                     DAG => &[0.0],
                     MAG => &[0.0],
@@ -530,7 +531,7 @@ impl Pane {
                                                 "",
                                                 total_rows,
                                                 24,
-                                                DataType::UInt8,
+                                                DataType::Int8,
                                             );
                                         for _ in 0..total_rows {
                                             builder.append_slice(&list);
@@ -583,6 +584,7 @@ impl Pane {
             }
             None => {}
         }
+        ui.data_mut(|data| data.insert_temp(Id::new("Configuration"), self.data_frame.clone()));
         Ok(())
     }
 }
