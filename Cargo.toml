@@ -23,7 +23,7 @@ egui_tiles = "0.9.0"
 ehttp = { version = "0.5.0", features = ["json"] }
 fluent = "0.16.1"
 fluent_content = "0.0.5"
-indexmap = { version = "2.3.0", features = ["serde"] }
+indexmap = { version = "2.4.0", features = ["serde"] }
 intl-memoizer = "0.5.2"
 itertools = "0.13.0"
 maplit = "1.0.2"
@@ -42,7 +42,7 @@ poll-promise = { version = "0.3.0", features = ["web"] }
 rawpointer = "0.2.1"
 rfd = "0.14.1"
 ron = "0.8.1"
-serde = { version = "1.0.204", features = ["derive", "std"] }
+serde = { version = "1.0.208", features = ["derive", "std"] }
 simple-easing = "1.0.1"
 tabled = "0.16.0"
 thiserror = "1.0.63"
@@ -64,11 +64,11 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"
 getrandom = { version = "0.2.15", features = ["js"] }
-js-sys = "0.3.69"
+js-sys = "0.3.70"
 tracing-wasm = "0.2.1"
-wasm-bindgen = "0.2.92"
-wasm-bindgen-futures = "0.4.42"
-web-sys = { version = "0.3.69", features = ["FilePropertyBag"] }
+wasm-bindgen = "0.2.93"
+wasm-bindgen-futures = "0.4.43"
+web-sys = { version = "0.3.70", features = ["FilePropertyBag"] }
 # File, FilePropertyBag
 
 [profile.release]

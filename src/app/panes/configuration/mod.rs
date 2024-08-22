@@ -1,6 +1,6 @@
 use self::{area::Area, formula::Formula, names::Names, properties::Properties};
 use crate::{
-    app::{panes::Settings as PanesSettings, MAX_PRECISION},
+    app::{context::ContextExt, panes::Settings as PanesSettings, MAX_PRECISION},
     fatty_acid::{fatty_acid, FattyAcid, Kind},
     localization::{bundle, Localization},
     utils::ui::{SubscriptedTextFormat, UiExt},
@@ -42,8 +42,8 @@ const FA_LABEL: &str = "FA.Label";
 const FA_FORMULA: &str = "FA.Formula";
 
 const TAG: &str = "TAG";
-const DAG: &str = "DAG";
-const MAG: &str = "MAG";
+const DAG: &str = "DAG1223";
+const MAG: &str = "MAG2";
 
 static FATTY_ACIDS: LazyLock<DocumentMut> = LazyLock::new(|| {
     include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/fatty_acids.toml"))
@@ -584,7 +584,7 @@ impl Pane {
             }
             None => {}
         }
-        ui.data_mut(|data| data.insert_temp(Id::new("Configuration"), self.data_frame.clone()));
+        ui.ctx().configure(&self.data_frame);
         Ok(())
     }
 }

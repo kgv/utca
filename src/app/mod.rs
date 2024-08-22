@@ -102,12 +102,12 @@ impl App {
         cc.egui_ctx.set_fonts(fonts);
         custom_style(&cc.egui_ctx);
 
+        // return Default::default();
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
         cc.storage
             .and_then(|storage| get_value(storage, APP_KEY))
             .unwrap_or_default()
-        // Default::default()
     }
 
     // pub fn load_configs(&mut self) {
@@ -719,6 +719,7 @@ impl eframe::App for App {
 // mod tabs;
 // mod view;
 mod computers;
+mod context;
 mod panes;
 mod utils;
 mod windows;

@@ -25,29 +25,21 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
             // Normalized
             .with_columns([
                 (col("TAG") / sum("TAG")).name().suffix(".Normalized"),
-                (col("DAG") / sum("DAG")).name().suffix(".Normalized"),
-                (col("MAG") / sum("MAG")).name().suffix(".Normalized"),
+                (col("DAG1223") / sum("DAG1223"))
+                    .name()
+                    .suffix(".Normalized"),
+                (col("MAG2") / sum("MAG2")).name().suffix(".Normalized"),
             ])
             // Theoretical
             .with_columns([
-                ((lit(4) * col("DAG") - col("MAG")) / lit(3))
-                    .name()
-                    .suffix("TAG.Theoretical"),
-                ((lit(3) * col("TAG") + col("MAG")) / lit(4))
-                    .name()
-                    .suffix("DAG.Theoretical"),
-                (lit(4) * col("DAG") - lit(3) * col("TAG"))
-                    .name()
-                    .suffix("MAG.Theoretical"),
+                ((lit(4) * col("DAG1223") - col("MAG2")) / lit(3)).alias("TAG.Theoretical"),
+                ((lit(3) * col("TAG") + col("MAG2")) / lit(4)).alias("DAG1223.Theoretical"),
+                (lit(4) * col("DAG1223") - lit(3) * col("TAG")).alias("MAG2.Theoretical"),
             ])
             // Calculated
             .with_columns([
-                (lit(3) * col("TAG") - lit(2) * col("DAG"))
-                    .name()
-                    .suffix("DAG.Calculated.FromDag"),
-                ((lit(3) * col("TAG") - col("MAG")) / lit(2))
-                    .name()
-                    .suffix("DAG.Calculated.FromMag"),
+                (lit(3) * col("TAG") - lit(2) * col("DAG1223")).alias("DAG13.DAG1223.Calculated"),
+                ((lit(3) * col("TAG") - col("MAG2")) / lit(2)).alias("DAG13.MAG2.Calculated"),
             ])
             .collect()
             .unwrap()

@@ -1,10 +1,14 @@
 use crate::app::{
     computers::calculator::{Calculated, Key as CalculatorKey},
+    context::ContextExt,
     panes::Settings as PanesSettings,
     MAX_PRECISION,
 };
 use anyhow::Result;
-use egui::{Color32, CursorIcon, Direction, Id, Layout, Response, RichText, Sense, Slider, Ui};
+use egui::{
+    Color32, ComboBox, CursorIcon, Direction, Id, Key, KeyboardShortcut, Layout, Modifiers,
+    Response, RichText, Sense, Slider, Ui,
+};
 use egui_ext::{ClickedLabel, TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
 use egui_tiles::UiResponse;
@@ -26,16 +30,89 @@ impl Pane {
         let response = ui.heading(TITLE).on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         if let Err(error) = || -> Result<()> {
-            let Some(data_frame) = ui.data_mut(|data| data.get_temp(Id::new("Configuration")))
-            else {
+            let Some(data_frame) = ui.ctx().calculate() else {
                 ui.spinner();
                 return Ok(());
             };
-            let data_frame = ui.memory_mut(|memory| {
-                memory.caches.cache::<Calculated>().get(CalculatorKey {
-                    data_frame: &data_frame,
+            let height = ui.spacing().interact_size.y;
+            let width = ui.spacing().interact_size.x;
+            let total_rows = self.data_frame.height();
+
+            println!("data_frame: {data_frame}");
+            self.data_frame = data_frame;
+            let tags = self.data_frame["TAG.Normalized"].f64()?;
+            let dags1223 = self.data_frame["DAG1223.Normalized"].f64()?;
+            let mags2 = self.data_frame["MAG2.Normalized"].f64()?;
+            let dags13 = match self.settings.from {
+                From::Dag1223 => self.data_frame["DAG13.DAG1223.Calculated"].f64()?,
+                From::Mag2 => self.data_frame["DAG13.MAG2.Calculated"].f64()?,
+            };
+            TableBuilder::new(ui)
+                .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
+                .column(Column::auto_with_initial_suggestion(width))
+                .columns(Column::auto(), 4)
+                .auto_shrink(false)
+                .resizable(settings.resizable)
+                .striped(true)
+                .header(height, |mut row| {
+                    let mut response = row.col(|_| {}).1;
+                    response.sense = Sense::click();
+                    // 1,2,3-TAGs
+                    row.col(|ui| {
+                        response |= ui.heading("1,2,3").on_hover_text("1,2,3-TAGs");
+                    });
+                    // 1,2/2,3-DAGs
+                    row.col(|ui| {
+                        response |= ui.heading("1,2/2,3").on_hover_text("1,2/2,3-DAGs");
+                    });
+                    // 2-MAGs
+                    row.col(|ui| {
+                        response |= ui.heading("2").on_hover_text("2-MAGs");
+                    });
+                    // 1,3-DAGs
+                    row.col(|ui| {
+                        response |= ui.heading("1,3").on_hover_text("1,3-DAGs");
+                    })
+                    .1
+                    .context_menu(|ui| {
+                        // ComboBox::from_label("Select one!")
+                        //     .selected_text(format!("{selected:?}"))
+                        //     .show_ui(ui, |ui| {
+                        //         ui.selectable_value(&mut selected, Enum::First, "First");
+                        //         ui.selectable_value(&mut selected, Enum::Second, "Second");
+                        //         ui.selectable_value(&mut selected, Enum::Third, "Third");
+                        //     });
+                    });
                 })
-            });
+                .body(|body| {
+                    // let precision = |value| format!("{value:.*}", self.settings.precision);
+                    body.rows(height, total_rows + 1, |mut row| {
+                        let index = row.index();
+                        if index < total_rows {
+                            row.col(|_| {});
+                            // TAG
+                            row.col(|ui| {
+                                let mut value = tags.get(index).unwrap_or_default();
+                                ui.label(value.to_string());
+                            });
+                            // DAG
+                            row.col(|ui| {
+                                let mut value = dags1223.get(index).unwrap_or_default();
+                                ui.label(value.to_string());
+                            });
+                            // MAG
+                            row.col(|ui| {
+                                let mut value = mags2.get(index).unwrap_or_default();
+                                ui.label(value.to_string());
+                            });
+                            row.col(|ui| {
+                                let mut value = dags13.get(index).unwrap_or_default();
+                                ui.label(value.to_string());
+                            });
+                        } else {
+                        }
+                    });
+                });
             Ok(())
         }() {
             error!(%error);
@@ -50,7 +127,7 @@ impl Pane {
     fn try_ui(self, ui: &mut Ui, settings: &PanesSettings) {
         // context.calculate(ui);
         // let data_frame = ui.memory_mut(|memory| memory.caches.cache::<Calculated>().get(Key {}));
-        // let p = context.settings.calculation.precision;
+        // let p = self.precision;
         // let height = ui.spacing().interact_size.y;
         // let width = ui.spacing().interact_size.x;
         // TableBuilder::new(ui)
@@ -58,7 +135,7 @@ impl Pane {
         //     .column(Column::auto_with_initial_suggestion(width))
         //     .columns(Column::auto(), COLUMNS)
         //     .auto_shrink(false)
-        //     .resizable(context.settings.calculation.resizable)
+        //     .resizable(self.resizable)
         //     .striped(true)
         //     .header(height, |mut row| {
         //         let mut response = row.col(|_| {}).1;
@@ -120,7 +197,7 @@ impl Pane {
         //                 });
         //                 // 1,2,3-TAGs
         //                 row.right_align_col(|ui| {
-        //                     if context.settings.calculation.percent {
+        //                     if self.percent {
         //                         tag123.experimental.normalized *= 100.0;
         //                         tag123.theoretical.normalized *= 100.0;
         //                     }
@@ -130,31 +207,31 @@ impl Pane {
         //                         // .label(format!("{:.p$}", tag123.theoretical.normalized))
         //                         .on_hover_ui(|ui| {
         //                             ui.vertical(|ui| {
-        //                                 if context.settings.calculation.theoretical {
+        //                                 if self.theoretical {
         //                                     ui.heading("Experimental:");
         //                                 }
         //                                 ui.label(tag123.experimental.normalized.to_string());
-        //                                 if context.settings.calculation.unnormalized {
+        //                                 if self.unnormalized {
         //                                     let mut unnormalized = tag123.experimental.unnormalized;
-        //                                     if context.settings.calculation.pchelkin {
+        //                                     if self.pchelkin {
         //                                         unnormalized *= 10.0;
         //                                     }
         //                                     ui.label(format!("Unnormalized: {unnormalized}"));
         //                                 }
         //                             });
         //                         });
-        //                     if context.settings.calculation.theoretical {
+        //                     if self.theoretical {
         //                         response.on_hover_ui(|ui| {
         //                             ui.heading("Theoretical:");
         //                             ui.label(tag123.theoretical.normalized.to_string());
-        //                             if context.settings.calculation.unnormalized {
+        //                             if self.unnormalized {
         //                                 let mut unnormalized = tag123.theoretical.unnormalized;
-        //                                 if context.settings.calculation.pchelkin {
+        //                                 if self.pchelkin {
         //                                     unnormalized *= 10.0;
         //                                 }
         //                                 ui.label(format!("Unnormalized: {unnormalized}"));
         //                             }
-        //                             if context.settings.calculation.selectivity {
+        //                             if self.selectivity {
         //                                 let selectivity = tag123.theoretical.normalized
         //                                     / tag123.experimental.unnormalized;
         //                                 ui.label(format!("Selectivity: {selectivity}"));
@@ -164,7 +241,7 @@ impl Pane {
         //                 });
         //                 // 1,2/2,3-DAGs
         //                 row.right_align_col(|ui| {
-        //                     if context.settings.calculation.percent {
+        //                     if self.percent {
         //                         dag1223.experimental.normalized *= 100.0;
         //                         dag1223.theoretical.normalized *= 100.0;
         //                     }
@@ -180,32 +257,32 @@ impl Pane {
         //                                 );
         //                                 ui.label(dag1223.theoretical.normalized.to_string());
         //                             } else {
-        //                                 if context.settings.calculation.theoretical {
+        //                                 if self.theoretical {
         //                                     ui.heading("Experimental:");
         //                                 }
         //                                 ui.label(dag1223.experimental.normalized.to_string());
-        //                                 if context.settings.calculation.unnormalized {
+        //                                 if self.unnormalized {
         //                                     let mut unnormalized =
         //                                         dag1223.experimental.unnormalized;
-        //                                     if context.settings.calculation.pchelkin {
+        //                                     if self.pchelkin {
         //                                         unnormalized *= 10.0;
         //                                     }
         //                                     ui.label(format!("Unnormalized: {unnormalized}"));
         //                                 }
         //                             }
         //                         });
-        //                     if context.settings.calculation.theoretical {
+        //                     if self.theoretical {
         //                         response.on_hover_ui(|ui| {
         //                             ui.heading("Theoretical:");
         //                             ui.label(dag1223.theoretical.normalized.to_string());
-        //                             if context.settings.calculation.unnormalized {
+        //                             if self.unnormalized {
         //                                 let mut unnormalized = dag1223.theoretical.unnormalized;
-        //                                 if context.settings.calculation.pchelkin {
+        //                                 if self.pchelkin {
         //                                     unnormalized *= 10.0;
         //                                 }
         //                                 ui.label(format!("Unnormalized: {unnormalized}"));
         //                             }
-        //                             if context.settings.calculation.selectivity {
+        //                             if self.selectivity {
         //                                 let selectivity = dag1223.theoretical.normalized
         //                                     / tag123.experimental.unnormalized;
         //                                 ui.label(format!("Selectivity: {selectivity}"));
@@ -215,7 +292,7 @@ impl Pane {
         //                 });
         //                 // 2-MAGs
         //                 row.right_align_col(|ui| {
-        //                     if context.settings.calculation.percent {
+        //                     if self.percent {
         //                         mag2.experimental.normalized *= 100.0;
         //                         mag2.theoretical.normalized *= 100.0;
         //                     }
@@ -231,18 +308,18 @@ impl Pane {
         //                                 );
         //                                 ui.label(mag2.theoretical.normalized.to_string());
         //                             } else {
-        //                                 if context.settings.calculation.theoretical {
+        //                                 if self.theoretical {
         //                                     ui.heading("Experimental:");
         //                                 }
         //                                 ui.label(mag2.experimental.normalized.to_string());
-        //                                 if context.settings.calculation.unnormalized {
+        //                                 if self.unnormalized {
         //                                     let mut unnormalized = mag2.experimental.unnormalized;
-        //                                     if context.settings.calculation.pchelkin {
+        //                                     if self.pchelkin {
         //                                         unnormalized *= 10.0;
         //                                     }
         //                                     ui.label(format!("Unnormalized: {unnormalized}"));
         //                                 }
-        //                                 if context.settings.calculation.selectivity_factor {
+        //                                 if self.selectivity_factor {
         //                                     let selectivity_factor = mag2.experimental.normalized
         //                                         / tag123.experimental.normalized;
         //                                     ui.label(format!(
@@ -251,18 +328,18 @@ impl Pane {
         //                                 }
         //                             }
         //                         });
-        //                     if context.settings.calculation.theoretical {
+        //                     if self.theoretical {
         //                         response.on_hover_ui(|ui| {
         //                             ui.heading("Theoretical:");
         //                             ui.label(mag2.theoretical.normalized.to_string());
-        //                             if context.settings.calculation.unnormalized {
+        //                             if self.unnormalized {
         //                                 let mut unnormalized = mag2.theoretical.unnormalized;
-        //                                 if context.settings.calculation.pchelkin {
+        //                                 if self.pchelkin {
         //                                     unnormalized *= 10.0;
         //                                 }
         //                                 ui.label(format!("Unnormalized: {unnormalized}"));
         //                             }
-        //                             if context.settings.calculation.selectivity {
+        //                             if self.selectivity {
         //                                 let selectivity = mag2.theoretical.normalized
         //                                     / tag123.experimental.unnormalized;
         //                                 ui.label(format!("Selectivity: {selectivity}"));
@@ -414,6 +491,7 @@ impl Pane {
 pub(crate) struct Settings {
     pub(crate) percent: bool,
     pub(crate) precision: usize,
+    pub(crate) from: From,
 }
 
 impl Default for Settings {
@@ -421,6 +499,7 @@ impl Default for Settings {
         Self {
             percent: true,
             precision: 1,
+            from: From::Mag2,
         }
     }
 }
@@ -435,8 +514,78 @@ impl Settings {
                 ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
             });
             ui.separator();
+            ui.horizontal(|ui| {
+                if ui.input_mut(|input| {
+                    input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::Num1))
+                }) {
+                    self.from = From::Dag1223;
+                }
+                if ui.input_mut(|input| {
+                    input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::Num2))
+                }) {
+                    self.from = From::Mag2;
+                }
+                ui.label("1,3-DAG:");
+                ComboBox::from_id_source("1,3")
+                    .selected_text(self.from.text())
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.from, From::Dag1223, From::Dag1223.text())
+                            .on_hover_text(From::Dag1223.hover_text());
+                        ui.selectable_value(&mut self.from, From::Mag2, From::Mag2.text())
+                            .on_hover_text(From::Mag2.hover_text());
+                    })
+                    .response
+                    .on_hover_text(self.from.hover_text());
+            });
         });
         UiResponse::None
+    }
+}
+
+/// Signedness
+#[derive(Clone, Copy, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
+pub(crate) enum Signedness {
+    Signed,
+    #[default]
+    Unsigned,
+}
+
+impl Signedness {
+    pub(crate) const fn text(self) -> &'static str {
+        match self {
+            Self::Signed => "Signed",
+            Self::Unsigned => "Unsigned",
+        }
+    }
+
+    pub(crate) const fn hover_text(self) -> &'static str {
+        match self {
+            Self::Signed => "Theoretically calculated negative values are as is",
+            Self::Unsigned => "Theoretically calculated negative values are replaced with zeros",
+        }
+    }
+}
+
+/// From
+#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+pub(crate) enum From {
+    Dag1223,
+    Mag2,
+}
+
+impl From {
+    pub(crate) const fn text(self) -> &'static str {
+        match self {
+            Self::Dag1223 => "1,2/2,3-DAGs",
+            Self::Mag2 => "2-MAGs",
+        }
+    }
+
+    pub(crate) const fn hover_text(self) -> &'static str {
+        match self {
+            Self::Dag1223 => "Calculate 1,3-DAGs from 1,2/2,3-DAGs",
+            Self::Mag2 => "Calculate 1,3-DAGs from 2-MAGs",
+        }
     }
 }
 
