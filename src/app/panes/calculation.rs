@@ -59,33 +59,25 @@ impl Pane {
                     response.sense = Sense::click();
                     // 1,2,3-TAGs
                     row.col(|ui| {
-                        response |= ui.heading("1,2,3").on_hover_text("1,2,3-TAGs");
+                        response |= ui.heading("TAG").on_hover_text("Triglycerol");
                     });
                     // 1,2/2,3-DAGs
                     row.col(|ui| {
-                        response |= ui.heading("1,2/2,3").on_hover_text("1,2/2,3-DAGs");
+                        response |= ui
+                            .heading("1,2/2,3-DAG")
+                            .on_hover_text("sn-1,2/2,3 Diacylglycerol");
                     });
                     // 2-MAGs
                     row.col(|ui| {
-                        response |= ui.heading("2").on_hover_text("2-MAGs");
+                        response |= ui.heading("2-MAG").on_hover_text("sn-2 Monoacylglycerol");
                     });
                     // 1,3-DAGs
                     row.col(|ui| {
-                        response |= ui.heading("1,3").on_hover_text("1,3-DAGs");
-                    })
-                    .1
-                    .context_menu(|ui| {
-                        // ComboBox::from_label("Select one!")
-                        //     .selected_text(format!("{selected:?}"))
-                        //     .show_ui(ui, |ui| {
-                        //         ui.selectable_value(&mut selected, Enum::First, "First");
-                        //         ui.selectable_value(&mut selected, Enum::Second, "Second");
-                        //         ui.selectable_value(&mut selected, Enum::Third, "Third");
-                        //     });
+                        response |= ui.heading("1,3-DAG").on_hover_text("sn-1,3 Diacylglycerol");
                     });
                 })
                 .body(|body| {
-                    // let precision = |value| format!("{value:.*}", self.settings.precision);
+                    let precision = |value| format!("{value:.*}", self.settings.precision);
                     body.rows(height, total_rows + 1, |mut row| {
                         let index = row.index();
                         if index < total_rows {
@@ -93,21 +85,22 @@ impl Pane {
                             // TAG
                             row.col(|ui| {
                                 let mut value = tags.get(index).unwrap_or_default();
-                                ui.label(value.to_string());
+
+                                ui.label(precision(value)).on_hover_text(value.to_string());
                             });
                             // DAG
                             row.col(|ui| {
                                 let mut value = dags1223.get(index).unwrap_or_default();
-                                ui.label(value.to_string());
+                                ui.label(precision(value)).on_hover_text(value.to_string());
                             });
                             // MAG
                             row.col(|ui| {
                                 let mut value = mags2.get(index).unwrap_or_default();
-                                ui.label(value.to_string());
+                                ui.label(precision(value)).on_hover_text(value.to_string());
                             });
                             row.col(|ui| {
                                 let mut value = dags13.get(index).unwrap_or_default();
-                                ui.label(value.to_string());
+                                ui.label(precision(value)).on_hover_text(value.to_string());
                             });
                         } else {
                         }

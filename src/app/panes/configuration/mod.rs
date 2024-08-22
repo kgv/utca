@@ -123,13 +123,14 @@ impl Pane {
                     ui.heading("FA").on_hover_text("Fatty acid");
                 });
                 row.col(|ui| {
-                    ui.heading(TAG).on_hover_text("1,2,3-TAG");
+                    ui.heading("TAG").on_hover_text("Triglycerol");
                 });
                 row.col(|ui| {
-                    ui.heading(DAG).on_hover_text("1,2/2,3-DAG");
+                    ui.heading("1,2/2,3-DAG")
+                        .on_hover_text("sn-1,2/2,3 Diacylglycerol");
                 });
                 row.col(|ui| {
-                    ui.heading(MAG).on_hover_text("2-MAG");
+                    ui.heading("2-MAG").on_hover_text("sn-2 Monocylglycerol");
                 });
             })
             .body(|body| {
