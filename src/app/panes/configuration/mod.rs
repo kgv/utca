@@ -41,9 +41,9 @@ pub(crate) const TITLE: &str = "Configuration";
 const FA_LABEL: &str = "FA.Label";
 const FA_FORMULA: &str = "FA.Formula";
 
-const TAG: &str = "TAG";
-const DAG: &str = "DAG1223";
-const MAG: &str = "MAG2";
+// const "TAG": &str = "TAG";
+// const "DAG1223": &str = ""DAG1223"";
+// const "MAG2": &str = ""MAG2"";
 
 static FATTY_ACIDS: LazyLock<DocumentMut> = LazyLock::new(|| {
     include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/fatty_acids.toml"))
@@ -95,9 +95,9 @@ impl Pane {
 
         let labels = self.data_frame[FA_LABEL].str()?;
         let formulas = self.data_frame[FA_FORMULA].list()?;
-        let tags = self.data_frame[TAG].f64()?;
-        let dags = self.data_frame[DAG].f64()?;
-        let mags = self.data_frame[MAG].f64()?;
+        let tags = self.data_frame["TAG"].f64()?;
+        let dags1223 = self.data_frame["DAG1223"].f64()?;
+        let mags2 = self.data_frame["MAG2"].f64()?;
         let mut event = None;
         let mut builder = TableBuilder::new(ui)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight));
@@ -339,7 +339,7 @@ impl Pane {
                                 });
                             }
                         });
-                        // TAG
+                        // "TAG"
                         row.col(|ui| {
                             let mut value = tags.get(index).unwrap_or_default();
                             if ui
@@ -352,14 +352,14 @@ impl Pane {
                             {
                                 event = Some(Event::Edit {
                                     row: index,
-                                    column: TAG,
+                                    column: "TAG",
                                     value: Value::Float64(value),
                                 });
                             }
                         });
                         // DAG
                         row.col(|ui| {
-                            let mut value = dags.get(index).unwrap_or_default();
+                            let mut value = dags1223.get(index).unwrap_or_default();
                             if ui
                                 .add(Area::new(
                                     &mut value,
@@ -370,14 +370,14 @@ impl Pane {
                             {
                                 event = Some(Event::Edit {
                                     row: index,
-                                    column: DAG,
+                                    column: "DAG1223",
                                     value: Value::Float64(value),
                                 });
                             }
                         });
                         // MAG
                         row.col(|ui| {
-                            let mut value = mags.get(index).unwrap_or_default();
+                            let mut value = mags2.get(index).unwrap_or_default();
                             if ui
                                 .add(Area::new(
                                     &mut value,
@@ -388,7 +388,7 @@ impl Pane {
                             {
                                 event = Some(Event::Edit {
                                     row: index,
-                                    column: MAG,
+                                    column: "MAG2",
                                     value: Value::Float64(value),
                                 });
                             }
@@ -407,19 +407,19 @@ impl Pane {
                             row.col(|_ui| {});
                         }
                         row.col(|_ui| {});
-                        // TAG
+                        // "TAG"
                         row.col(|ui| {
                             let value = tags.sum().unwrap_or(NAN);
                             ui.label(precision(value)).on_hover_text(value.to_string());
                         });
                         // DAG
                         row.col(|ui| {
-                            let value = dags.sum().unwrap_or(NAN);
+                            let value = dags1223.sum().unwrap_or(NAN);
                             ui.label(precision(value)).on_hover_text(value.to_string());
                         });
                         // MAG
                         row.col(|ui| {
-                            let value = mags.sum().unwrap_or(NAN);
+                            let value = mags2.sum().unwrap_or(NAN);
                             ui.label(precision(value)).on_hover_text(value.to_string());
                         });
                         // Add row
@@ -457,7 +457,7 @@ impl Pane {
                 //                 //     let data_frame1 = df! {
                 //                 //         "Label" => vec![label],
                 //                 //         "Formula" => vec![formula],
-                //                 //         TAG => vec![0.0],
+                //                 //         "TAG" => vec![0.0],
                 //                 //         DAG => vec![0.0],
                 //                 //         MAG => vec![0.0],
                 //                 //     }
@@ -491,9 +491,9 @@ impl Pane {
                 let data_frame = df! {
                     FA_LABEL => &[""],
                     FA_FORMULA => &[Series::from_iter(empty::<i8>())],
-                    TAG => &[0.0],
-                    DAG => &[0.0],
-                    MAG => &[0.0],
+                    "TAG" => &[0.0],
+                    "DAG1223" => &[0.0],
+                    "MAG2" => &[0.0],
                 }?;
                 self.data_frame = concat(
                     [self.data_frame.clone().lazy(), data_frame.clone().lazy()],
@@ -597,9 +597,9 @@ impl Default for Pane {
             data_frame: DataFrame::empty_with_schema(&Schema::from_iter([
                 Field::new(FA_LABEL, DataType::String),
                 Field::new(FA_FORMULA, DataType::List(Box::new(DataType::Int8))),
-                Field::new(TAG, DataType::Float64),
-                Field::new(DAG, DataType::Float64),
-                Field::new(MAG, DataType::Float64),
+                Field::new("TAG", DataType::Float64),
+                Field::new("DAG1223", DataType::Float64),
+                Field::new("MAG2", DataType::Float64),
             ])),
         }
     }
@@ -722,7 +722,7 @@ enum Value {
 //                     ui.heading("FA").on_hover_text("Fatty acid");
 //                 });
 //                 row.col(|ui| {
-//                     ui.heading("1,2,3-TAG");
+//                     ui.heading("1,2,3-"TAG"");
 //                 });
 //                 row.col(|ui| {
 //                     ui.heading("1,2/2,3-DAG");

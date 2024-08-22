@@ -1,5 +1,8 @@
 use crate::r#const::relative_atomic_mass::CH2;
-use egui::util::cache::{ComputerMut, FrameCache};
+use egui::{
+    emath::OrderedFloat,
+    util::cache::{ComputerMut, FrameCache},
+};
 use polars::prelude::*;
 use std::{
     hash::{Hash, Hasher},
@@ -129,7 +132,19 @@ pub struct Key<'a> {
 
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.data_frame.shape().hash(state);
+        for label in self.data_frame["FA.Label"].str().unwrap() {
+            label.hash(state);
+        }
+        for tag in self.data_frame["TAG"].f64().unwrap() {
+            tag.map(OrderedFloat).hash(state);
+        }
+        for dag1223 in self.data_frame["DAG1223"].f64().unwrap() {
+            dag1223.map(OrderedFloat).hash(state);
+        }
+        for mag2 in self.data_frame["MAG2"].f64().unwrap() {
+            mag2.map(OrderedFloat).hash(state);
+        }
+        // self.data_frame.shape().hash(state);
         // self.context.settings.calculation.hash(state);
         // self.context.state.entry().meta.hash(state);
         // self.context.state.entry().data.configured.hash(state);

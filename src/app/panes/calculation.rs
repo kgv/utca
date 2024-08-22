@@ -1,8 +1,12 @@
-use crate::app::{
-    computers::calculator::{Calculated, Key as CalculatorKey},
-    context::ContextExt,
-    panes::Settings as PanesSettings,
-    MAX_PRECISION,
+use crate::{
+    app::{
+        computers::calculator::{Calculated, Key as CalculatorKey},
+        context::ContextExt,
+        panes::Settings as PanesSettings,
+        MAX_PRECISION,
+    },
+    fatty_acid::{FattyAcid, Kind},
+    utils::ui::{SubscriptedTextFormat, UiExt},
 };
 use anyhow::Result;
 use egui::{
@@ -12,7 +16,8 @@ use egui::{
 use egui_ext::{ClickedLabel, TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
 use egui_tiles::UiResponse;
-use polars::frame::DataFrame;
+use itertools::Itertools;
+use polars::{frame::DataFrame, prelude::*};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
@@ -40,6 +45,8 @@ impl Pane {
 
             println!("data_frame: {data_frame}");
             self.data_frame = data_frame;
+            let labels = self.data_frame["FA.Label"].str()?;
+            let formulas = self.data_frame["FA.Formula"].list()?;
             let tags = self.data_frame["TAG.Normalized"].f64()?;
             let dags1223 = self.data_frame["DAG1223.Normalized"].f64()?;
             let mags2 = self.data_frame["MAG2.Normalized"].f64()?;
@@ -55,25 +62,26 @@ impl Pane {
                 .resizable(settings.resizable)
                 .striped(true)
                 .header(height, |mut row| {
-                    let mut response = row.col(|_| {}).1;
-                    response.sense = Sense::click();
+                    // Fatty acid
+                    row.col(|ui| {
+                        ui.heading("FA").on_hover_text("Fatty acid");
+                    });
                     // 1,2,3-TAGs
                     row.col(|ui| {
-                        response |= ui.heading("TAG").on_hover_text("Triglycerol");
+                        ui.heading("TAG").on_hover_text("Triglycerol");
                     });
                     // 1,2/2,3-DAGs
                     row.col(|ui| {
-                        response |= ui
-                            .heading("1,2/2,3-DAG")
+                        ui.heading("1,2/2,3-DAG")
                             .on_hover_text("sn-1,2/2,3 Diacylglycerol");
                     });
                     // 2-MAGs
                     row.col(|ui| {
-                        response |= ui.heading("2-MAG").on_hover_text("sn-2 Monoacylglycerol");
+                        ui.heading("2-MAG").on_hover_text("sn-2 Monoacylglycerol");
                     });
                     // 1,3-DAGs
                     row.col(|ui| {
-                        response |= ui.heading("1,3-DAG").on_hover_text("sn-1,3 Diacylglycerol");
+                        ui.heading("1,3-DAG").on_hover_text("sn-1,3 Diacylglycerol");
                     });
                 })
                 .body(|body| {
@@ -81,7 +89,30 @@ impl Pane {
                     body.rows(height, total_rows + 1, |mut row| {
                         let index = row.index();
                         if index < total_rows {
-                            row.col(|_| {});
+                            // FA
+                            row.left_align_col(|ui| {
+                                let label = labels.get(index).unwrap_or_default();
+                                let bounds = {
+                                    let series = formulas.get_as_series(index).unwrap_or_default();
+                                    series
+                                        .i8()
+                                        .unwrap()
+                                        .to_vec_null_aware()
+                                        .left()
+                                        .unwrap_or_default()
+                                };
+                                let fatty_acid = &mut FattyAcid::new(bounds);
+                                let text = if label.is_empty() { "C" } else { label };
+                                let title = ui.subscripted_text(
+                                    text,
+                                    &fatty_acid.display(Kind::Common).to_string(),
+                                    SubscriptedTextFormat {
+                                        widget: true,
+                                        ..Default::default()
+                                    },
+                                );
+                                ui.label(title);
+                            });
                             // TAG
                             row.col(|ui| {
                                 let mut value = tags.get(index).unwrap_or_default();
