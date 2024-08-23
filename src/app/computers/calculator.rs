@@ -44,9 +44,25 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
             ])
             // Theoretical
             .with_columns([
-                clip((lit(4) * col("DAG1223") - col("MAG2")) / lit(3)).alias("TAG.Theoretical"),
-                ((lit(3) * col("TAG") + col("MAG2")) / lit(4)).alias("DAG1223.Theoretical"),
-                clip(lit(4) * col("DAG1223") - lit(3) * col("TAG")).alias("MAG2.Theoretical"),
+                clip((lit(4) * col("DAG1223") - col("MAG2")) / lit(3))
+                    .alias("TAG.Theoretical.Unnormalized"),
+                ((lit(3) * col("TAG") + col("MAG2")) / lit(4))
+                    .alias("DAG1223.Theoretical.Unnormalized"),
+                clip(lit(4) * col("DAG1223") - lit(3) * col("TAG"))
+                    .alias("MAG2.Theoretical.Unnormalized"),
+            ])
+            .with_columns([
+                (col("TAG.Theoretical.Unnormalized") / sum("TAG.Theoretical.Unnormalized"))
+                    .alias("TAG.Theoretical"),
+                (col("DAG1223.Theoretical.Unnormalized") / sum("DAG1223.Theoretical.Unnormalized"))
+                    .alias("DAG1223.Theoretical"),
+                (col("MAG2.Theoretical.Unnormalized") / sum("MAG2.Theoretical.Unnormalized"))
+                    .alias("MAG2.Theoretical"),
+            ])
+            .drop([
+                "TAG.Theoretical.Unnormalized",
+                "DAG1223.Theoretical.Unnormalized",
+                "MAG2.Theoretical.Unnormalized",
             ])
             // Calculated
             .with_columns([

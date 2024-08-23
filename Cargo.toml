@@ -4,6 +4,7 @@ name = "utca"
 version = "0.5.5"
 
 [dependencies]
+Inflector = "0.11.4"
 anyhow = "1.0.86"
 eframe = { version = "0.28.1", default-features = false, features = [
     "accesskit",

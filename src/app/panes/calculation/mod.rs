@@ -1,14 +1,11 @@
-use std::f64::NAN;
-
 use crate::{
     app::{
         computers::calculator::{Calculated, Key as CalculatorKey},
-        context::ContextExt,
         panes::Settings as PanesSettings,
         MAX_PRECISION,
     },
     fatty_acid::{FattyAcid, Kind},
-    localization::{bundle, Localization},
+    localization::{bundle, ContextExt, Localization},
     utils::ui::{SubscriptedTextFormat, UiExt},
 };
 use anyhow::Result;
@@ -20,10 +17,13 @@ use egui_ext::{ClickedLabel, TableBodyExt, TableRowExt};
 use egui_extras::{Column, TableBuilder};
 use egui_tiles::UiResponse;
 use fluent_content::Content;
+use inflector::Inflector;
 use itertools::Itertools;
 use polars::{frame::DataFrame, prelude::*};
 use serde::{Deserialize, Serialize};
+use std::f64::NAN;
 use tracing::error;
+use widgets::Cell;
 
 pub(crate) const TITLE: &str = "Calculation";
 
@@ -36,6 +36,7 @@ pub(crate) struct Pane {
 
 impl Pane {
     pub(crate) fn ui(&mut self, ui: &mut Ui, settings: &PanesSettings) -> UiResponse {
+        let localization = &ui.ctx().localization();
         let response = ui.heading(TITLE).on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         if let Err(error) = || -> Result<()> {
@@ -50,18 +51,6 @@ impl Pane {
                     settings: &self.settings,
                 })
             });
-            let localization = ui.data_mut(|data| -> Result<_> {
-                Ok(
-                    match data.get_temp::<Localization>(Id::new("Localization")) {
-                        Some(localization) => localization,
-                        None => {
-                            let localization = bundle()?;
-                            data.insert_temp(Id::new("Localization"), localization.clone());
-                            localization
-                        }
-                    },
-                )
-            })?;
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
             let total_rows = self.data_frame.height();
@@ -146,35 +135,35 @@ impl Pane {
                             });
                             // TAG
                             row.col(|ui| {
-                                let mut value = tags.0.get(index).unwrap_or(NAN);
-                                ui.label(precision(value)).on_hover_text(value.to_string());
+                                ui.add(Cell {
+                                    experimental: tags.0.get(index),
+                                    theoretical: tags.1.get(index),
+                                    enabled: true,
+                                    precision: self.settings.precision,
+                                    percent: self.settings.percent,
+                                    localization,
+                                });
                             });
                             // DAG1223
                             row.col(|ui| {
-                                let mut value = dags1223.0.get(index).unwrap_or(NAN);
-                                if let From::Mag2 = self.settings.from {
-                                    ui.disable();
-                                }
-                                ui.label(precision(value)).on_hover_text(value.to_string());
+                                ui.add(Cell {
+                                    experimental: dags1223.0.get(index),
+                                    theoretical: dags1223.1.get(index),
+                                    enabled: self.settings.from == From::Dag1223,
+                                    precision: self.settings.precision,
+                                    percent: self.settings.percent,
+                                    localization,
+                                });
                             });
                             // MAG2
                             row.col(|ui| {
-                                let mut value = mags2.0.get(index).unwrap_or(NAN);
-                                if let From::Dag1223 = self.settings.from {
-                                    ui.disable();
-                                }
-                                let mut response = ui.label(precision(value)).on_hover_ui(|ui| {
-                                    ui.heading(
-                                        localization.content("properties").unwrap_or_default(),
-                                    );
-                                    ui.label(format!(
-                                        "Experimental: {}",
-                                        mags2.0.get(index).unwrap_or(NAN),
-                                    ));
-                                    ui.label(format!(
-                                        "Theoretical: {}",
-                                        mags2.1.get(index).unwrap_or(NAN),
-                                    ));
+                                ui.add(Cell {
+                                    experimental: mags2.0.get(index),
+                                    theoretical: mags2.1.get(index),
+                                    enabled: self.settings.from == From::Mag2,
+                                    precision: self.settings.precision,
+                                    percent: self.settings.percent,
+                                    localization,
                                 });
                             });
                             // DAG13
@@ -183,9 +172,7 @@ impl Pane {
                                 let response = ui.label(precision(value));
                                 if true {
                                     response.on_hover_ui(|ui| {
-                                        ui.heading(
-                                            localization.content("properties").unwrap_or_default(),
-                                        );
+                                        ui.heading(localization.get_sentence_case("properties"));
                                         let selectivity_factor = mags2
                                             .0
                                             .get(index)
@@ -193,7 +180,8 @@ impl Pane {
                                             .map(|(mag2, tag)| mag2 / tag)
                                             .unwrap_or(NAN);
                                         ui.label(format!(
-                                            "Selectivity factor: {selectivity_factor}",
+                                            "{}: {selectivity_factor}",
+                                            localization.get_sentence_case("selectivity_factor"),
                                         ));
                                     });
                                 }
@@ -219,6 +207,45 @@ impl Pane {
                                 // });
                             });
                         } else {
+                            row.col(|_ui| {});
+                            // TAG
+                            row.col(|ui| {
+                                ui.add(Cell {
+                                    experimental: tags.0.sum(),
+                                    theoretical: tags.1.sum(),
+                                    enabled: true,
+                                    precision: self.settings.precision,
+                                    percent: self.settings.percent,
+                                    localization,
+                                });
+                            });
+                            // DAG1223
+                            row.col(|ui| {
+                                ui.add(Cell {
+                                    experimental: dags1223.0.sum(),
+                                    theoretical: dags1223.1.sum(),
+                                    enabled: self.settings.from == From::Dag1223,
+                                    precision: self.settings.precision,
+                                    percent: self.settings.percent,
+                                    localization,
+                                });
+                            });
+                            // MAG2
+                            row.col(|ui| {
+                                ui.add(Cell {
+                                    experimental: mags2.0.sum(),
+                                    theoretical: mags2.1.sum(),
+                                    enabled: self.settings.from == From::Mag2,
+                                    precision: self.settings.precision,
+                                    percent: self.settings.percent,
+                                    localization,
+                                });
+                            });
+                            // DAG13
+                            row.col(|ui| {
+                                let value = dags13.sum().unwrap_or(NAN);
+                                ui.label(precision(value)).on_hover_text(value.to_string());
+                            });
                         }
                     });
                 });
@@ -262,6 +289,10 @@ impl Settings {
             ui.horizontal(|ui| {
                 ui.label("Precision:");
                 ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
+            });
+            ui.horizontal(|ui| {
+                ui.label("Percent:");
+                ui.checkbox(&mut self.percent, "");
             });
             ui.separator();
             ui.horizontal(|ui| {
@@ -368,3 +399,5 @@ impl From {
 //     EnrichmentFactor,
 //     SelectivityFactor,
 // }
+
+mod widgets;

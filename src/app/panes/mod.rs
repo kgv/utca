@@ -3,6 +3,8 @@ use egui_phosphor::regular::{ARROWS_HORIZONTAL, CALCULATOR, NOTE_PENCIL, PENCIL}
 use egui_tiles::{Tile, TileId, Tree, UiResponse};
 use serde::{Deserialize, Serialize};
 
+use crate::localization::{bundle, Localization};
+
 const SIZE: f32 = 16.0;
 
 /// Central pane

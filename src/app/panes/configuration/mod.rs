@@ -1,8 +1,8 @@
 use self::{area::Area, formula::Formula, names::Names, properties::Properties};
 use crate::{
-    app::{context::ContextExt, panes::Settings as PanesSettings, MAX_PRECISION},
+    app::{panes::Settings as PanesSettings, MAX_PRECISION},
     fatty_acid::{fatty_acid, FattyAcid, Kind},
-    localization::{bundle, Localization},
+    localization::{bundle, ContextExt, Localization},
     utils::ui::{SubscriptedTextFormat, UiExt},
 };
 use anyhow::Result;
@@ -67,25 +67,10 @@ impl Pane {
     }
 
     fn try_ui(&mut self, ui: &mut Ui, settings: &PanesSettings) -> Result<()> {
+        let localization = ui.ctx().localization();
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
         let total_rows = self.data_frame.height();
-
-        let localization = ui.data_mut(|data| -> Result<_> {
-            Ok(
-                match data.get_temp::<Localization>(Id::new("Localization")) {
-                    Some(localization) => localization,
-                    None => {
-                        let localization = bundle()?;
-                        data.insert_temp(Id::new("Localization"), localization.clone());
-                        localization
-                    }
-                },
-            )
-        })?;
-        // // let hello_world = localization.content("hello.world?arg=brave new");
-        // let abbreviation = localization.content("abbreviation_c18-9c12c15c");
-        // println!("abbreviation: {abbreviation:?}");
 
         let labels = self.data_frame[FA_LABEL].str()?;
         let formulas = self.data_frame[FA_FORMULA].list()?;
@@ -355,7 +340,7 @@ impl Pane {
                                             ListPrimitiveChunkedBuilder::new(
                                                 "",
                                                 total_rows,
-                                                24,
+                                                64,
                                                 DataType::Int8,
                                             );
                                         for _ in 0..total_rows {
