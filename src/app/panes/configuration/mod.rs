@@ -41,15 +41,9 @@ pub(crate) const TITLE: &str = "Configuration";
 const FA_LABEL: &str = "FA.Label";
 const FA_FORMULA: &str = "FA.Formula";
 
-// const "TAG": &str = "TAG";
-// const "DAG1223": &str = ""DAG1223"";
-// const "MAG2": &str = ""MAG2"";
-
-static FATTY_ACIDS: LazyLock<DocumentMut> = LazyLock::new(|| {
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/fatty_acids.toml"))
-        .parse::<DocumentMut>()
-        .unwrap()
-});
+// const TAG: &str = "TAG";
+// const DAG1223: &str = "DAG1223";
+// const MAG2: &str = "MAG2";
 
 /// Central configuration pane
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -134,118 +128,6 @@ impl Pane {
                 });
             })
             .body(|body| {
-                // body.rows(height, total_rows, |mut row| {
-                //     let row_index = row.index();
-                //     row.left_align_col(|ui| {
-                //         if let Some(value) = mass_to_charge.get(row_index) {
-                //             ui.label(format!(
-                //                 "{value:.*}",
-                //                 context.settings.mass_to_charge.precision,
-                //             ))
-                //             .on_hover_text(value.to_string());
-                //         } else {
-                //             ui.label("null");
-                //         }
-                //     });
-                //     row.left_align_col(|ui| {
-                //         if let Some(value) = retention_time.get_as_series(row_index) {
-                //             let chunked_array = value.i32().unwrap();
-                //             ui.label(
-                //                 chunked_array
-                //                     .display(|value| {
-                //                         let time = Time::new::<millisecond>(value as _);
-                //                         let value = match context.settings.retention_time.units {
-                //                             TimeUnits::Millisecond => time.get::<millisecond>(),
-                //                             TimeUnits::Second => time.get::<second>(),
-                //                             TimeUnits::Minute => time.get::<minute>(),
-                //                         };
-                //                         format!(
-                //                             "{value:.*}",
-                //                             context.settings.retention_time.precision,
-                //                         )
-                //                     })
-                //                     .to_string(),
-                //             )
-                //             .on_hover_ui(|ui| {
-                //                 if let Ok(value) = &data_frame["RetentionTime.Count"].get(row_index)
-                //                 {
-                //                     ui.horizontal(|ui| {
-                //                         ui.label("Count:");
-                //                         ui.label(format!("{value}"));
-                //                     });
-                //                 }
-                //                 if let Ok(value) = &data_frame["RetentionTime.Min"].get(row_index) {
-                //                     ui.horizontal(|ui| {
-                //                         ui.label("Min:");
-                //                         ui.label(format!("{value}"));
-                //                     });
-                //                 }
-                //                 if let Ok(value) = &data_frame["RetentionTime.Max"].get(row_index) {
-                //                     ui.horizontal(|ui| {
-                //                         ui.label("Max:");
-                //                         ui.label(format!("{value}"));
-                //                     });
-                //                 }
-                //             })
-                //             .context_menu(|ui| {
-                //                 if ui.button("🗐 Copy").clicked() {
-                //                     ui.output_mut(|output| {
-                //                         output.copied_text = chunked_array.iter().join(", ")
-                //                     });
-                //                 };
-                //                 ui.separator();
-                //                 ScrollArea::vertical().show(ui, |ui| {
-                //                     for value in chunked_array {
-                //                         if let Some(value) = value {
-                //                             let time = Time::new::<millisecond>(value as _);
-                //                             let value = match context.settings.retention_time.units
-                //                             {
-                //                                 TimeUnits::Millisecond => time.get::<millisecond>(),
-                //                                 TimeUnits::Second => time.get::<second>(),
-                //                                 TimeUnits::Minute => time.get::<minute>(),
-                //                             };
-                //                             ui.label(format!(
-                //                                 "{value:.*}",
-                //                                 context.settings.retention_time.precision,
-                //                             ));
-                //                         }
-                //                     }
-                //                 });
-                //             });
-                //         }
-                //     });
-                //     row.left_align_col(|ui| {
-                //         if let Some(value) = signal.get_as_series(row_index) {
-                //             ui.label(value.fmt_list()).on_hover_ui(|ui| {
-                //                 if let Ok(value) = &data_frame["Signal.Count"].get(row_index) {
-                //                     ui.horizontal(|ui| {
-                //                         ui.label("Count:");
-                //                         ui.label(value.to_string());
-                //                     });
-                //                 }
-                //                 if let Ok(value) = &data_frame["Signal.Min"].get(row_index) {
-                //                     ui.horizontal(|ui| {
-                //                         ui.label("Min:");
-                //                         ui.label(value.to_string());
-                //                     });
-                //                 }
-                //                 if let Ok(value) = &data_frame["Signal.Max"].get(row_index) {
-                //                     ui.horizontal(|ui| {
-                //                         ui.label("Max:");
-                //                         ui.label(value.to_string());
-                //                     });
-                //                 }
-                //                 if let Ok(value) = &data_frame["Signal.Sum"].get(row_index) {
-                //                     ui.horizontal(|ui| {
-                //                         ui.label("Sum:");
-                //                         ui.label(value.to_string());
-                //                     });
-                //                 }
-                //             });
-                //         }
-                //     });
-                // });
-
                 let precision = |value| format!("{value:.*}", self.settings.precision);
                 body.rows(height, total_rows + 1, |mut row| {
                     let index = row.index();
@@ -339,7 +221,7 @@ impl Pane {
                                 });
                             }
                         });
-                        // "TAG"
+                        // TAG
                         row.col(|ui| {
                             let mut value = tags.get(index).unwrap_or_default();
                             if ui
@@ -407,7 +289,7 @@ impl Pane {
                             row.col(|_ui| {});
                         }
                         row.col(|_ui| {});
-                        // "TAG"
+                        // TAG
                         row.col(|ui| {
                             let value = tags.sum().unwrap_or(NAN);
                             ui.label(precision(value)).on_hover_text(value.to_string());
@@ -432,58 +314,6 @@ impl Pane {
                         }
                     }
                 });
-
-                // body.row(height, |mut row| {
-                //     if self.settings.editable {
-                //         row.col(|ui| {
-                //             ui.menu_button(monospace!("+").monospace(){
-                //                 let mut changed = false;
-                //                 let id = Id::new("Add");
-                //                 let mut label = ui
-                //                     .data_mut(|data| data.get_temp::<String>(id.with("Label")))
-                //                     .unwrap_or_default();
-                //                 ui.horizontal(|ui| {
-                //                     ui.label("Label");
-                //                     changed |= ui.text_edit_singleline(&mut label).changed();
-                //                 });
-                //                 let mut formula = ui
-                //                     .data_mut(|data| data.get_temp::<String>(id.with("Formula")))
-                //                     .unwrap_or_default();
-                //                 ui.horizontal(|ui| {
-                //                     ui.label("Formula");
-                //                     changed |= ui.text_edit_singleline(&mut formula).changed();
-                //                 });
-                //                 // if ui.button("Add").clicked() {
-                //                 //     let data_frame1 = df! {
-                //                 //         "Label" => vec![label],
-                //                 //         "Formula" => vec![formula],
-                //                 //         "TAG" => vec![0.0],
-                //                 //         DAG => vec![0.0],
-                //                 //         MAG => vec![0.0],
-                //                 //     }
-                //                 //     .unwrap();
-                //                 //     self.data_frame = self.data_frame.vstack(&data_frame1).unwrap();
-                //                 //     ui.data_mut(|data| {
-                //                 //         data.remove_temp::<String>(id.with("Label"));
-                //                 //         data.remove_temp::<String>(id.with("Formula"));
-                //                 //     });
-                //                 //     ui.close_menu();
-                //                 // } else if changed {
-                //                 ui.data_mut(|data| {
-                //                     data.insert_temp(id.with("Label"), label);
-                //                     data.insert_temp(id.with("Formula"), formula);
-                //                 });
-                //                 // }
-                //             });
-                //             // if ui
-                //             //     .button(monospace!("+").monospace()           //     .on_hover_text("Add row")
-                //             //     .clicked()
-                //             // {
-                //             //     // context.state.entry_mut().add();
-                //             // }
-                //         });
-                //     }
-                // });
             });
         // Mutable
         match event {
@@ -518,12 +348,6 @@ impl Pane {
                     .with_column(
                         when(col("Index").eq(lit(row as i64)))
                             .then({
-                                // if let FA_FORMULA = column {
-                                //     // concat_list([col(column), lit(value)])?
-                                //     lit(value)
-                                // } else {
-                                //     lit(value)
-                                // }
                                 match value {
                                     Value::Float64(float) => lit(float),
                                     Value::List(list) => {
@@ -585,7 +409,7 @@ impl Pane {
             }
             None => {}
         }
-        ui.ctx().configure(&self.data_frame);
+        ui.data_mut(|data| data.insert_temp("Configuration".into(), self.data_frame.clone()));
         Ok(())
     }
 }

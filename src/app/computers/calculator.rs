@@ -1,4 +1,7 @@
-use crate::r#const::relative_atomic_mass::CH2;
+use crate::{
+    app::panes::calculation::{Settings, Signedness},
+    r#const::relative_atomic_mass::CH2,
+};
 use egui::{
     emath::OrderedFloat,
     util::cache::{ComputerMut, FrameCache},
@@ -22,6 +25,12 @@ pub(in crate::app) struct Calculator;
 // FA.Label ┆ FA.Formula  ┆ TAG ┆ DAG ┆ MAG
 impl ComputerMut<Key<'_>, Value> for Calculator {
     fn compute(&mut self, key: Key) -> Value {
+        // Clip
+        let clip = |expr: Expr| match key.settings.signedness {
+            Signedness::Signed => expr,
+            Signedness::Unsigned => expr.clip_min(lit(0)),
+        };
+
         key.data_frame
             .clone()
             .lazy()
@@ -35,14 +44,15 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
             ])
             // Theoretical
             .with_columns([
-                ((lit(4) * col("DAG1223") - col("MAG2")) / lit(3)).alias("TAG.Theoretical"),
+                clip((lit(4) * col("DAG1223") - col("MAG2")) / lit(3)).alias("TAG.Theoretical"),
                 ((lit(3) * col("TAG") + col("MAG2")) / lit(4)).alias("DAG1223.Theoretical"),
-                (lit(4) * col("DAG1223") - lit(3) * col("TAG")).alias("MAG2.Theoretical"),
+                clip(lit(4) * col("DAG1223") - lit(3) * col("TAG")).alias("MAG2.Theoretical"),
             ])
             // Calculated
             .with_columns([
-                (lit(3) * col("TAG") - lit(2) * col("DAG1223")).alias("DAG13.DAG1223.Calculated"),
-                ((lit(3) * col("TAG") - col("MAG2")) / lit(2)).alias("DAG13.MAG2.Calculated"),
+                clip(lit(3) * col("TAG") - lit(2) * col("DAG1223"))
+                    .alias("DAG13.DAG1223.Calculated"),
+                clip((lit(3) * col("TAG") - col("MAG2")) / lit(2)).alias("DAG13.MAG2.Calculated"),
             ])
             .collect()
             .unwrap()
@@ -128,6 +138,7 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
 #[derive(Clone, Copy, Debug)]
 pub struct Key<'a> {
     pub(crate) data_frame: &'a DataFrame,
+    pub(crate) settings: &'a Settings,
 }
 
 impl Hash for Key<'_> {
@@ -144,10 +155,7 @@ impl Hash for Key<'_> {
         for mag2 in self.data_frame["MAG2"].f64().unwrap() {
             mag2.map(OrderedFloat).hash(state);
         }
-        // self.data_frame.shape().hash(state);
-        // self.context.settings.calculation.hash(state);
-        // self.context.state.entry().meta.hash(state);
-        // self.context.state.entry().data.configured.hash(state);
+        self.settings.hash(state);
     }
 }
 

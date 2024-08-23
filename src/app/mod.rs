@@ -220,18 +220,6 @@ impl App {
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
             .show(ctx, |ui| {
                 self.tree.ui(&mut self.behavior, ui);
-                // if let Some(id) = self.behavior.close {
-                //     self.tree.tiles.remove(id);
-                // }
-                // DockArea::new(&mut self.docks.central)
-                //     .id(Id::new("central_dock"))
-                //     .style(Style::from_egui(&ctx.style()))
-                //     .show_inside(
-                //         ui,
-                //         &mut CentralTabs {
-                //             context: &mut self.context,
-                //         },
-                //     );
             });
     }
 
