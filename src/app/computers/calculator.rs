@@ -34,13 +34,13 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
         key.data_frame
             .clone()
             .lazy()
-            // Normalized
+            // Experimental
             .with_columns([
-                (col("TAG") / sum("TAG")).name().suffix(".Normalized"),
+                (col("TAG") / sum("TAG")).name().suffix(".Experimental"),
                 (col("DAG1223") / sum("DAG1223"))
                     .name()
-                    .suffix(".Normalized"),
-                (col("MAG2") / sum("MAG2")).name().suffix(".Normalized"),
+                    .suffix(".Experimental"),
+                (col("MAG2") / sum("MAG2")).name().suffix(".Experimental"),
             ])
             // Theoretical
             .with_columns([

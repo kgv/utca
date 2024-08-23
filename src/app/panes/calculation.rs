@@ -1,3 +1,5 @@
+use std::f64::NAN;
+
 use crate::{
     app::{
         computers::calculator::{Calculated, Key as CalculatorKey},
@@ -65,15 +67,23 @@ impl Pane {
             let total_rows = self.data_frame.height();
 
             println!("data_frame: {data_frame}");
-            let labels = self.data_frame["FA.Label"].str()?;
-            let formulas = self.data_frame["FA.Formula"].list()?;
-            let tags = self.data_frame["TAG.Normalized"].f64()?;
-            let dags1223 = self.data_frame["DAG1223.Normalized"].f64()?;
-            let mags2 = self.data_frame["MAG2.Normalized"].f64()?;
-            let theoretical_mags2 = self.data_frame["MAG2.Theoretical"].f64()?;
+            let labels = self.data_frame["FA.Label"].str().unwrap();
+            let formulas = self.data_frame["FA.Formula"].list().unwrap();
+            let tags = (
+                self.data_frame["TAG.Experimental"].f64().unwrap(),
+                self.data_frame["TAG.Theoretical"].f64().unwrap(),
+            );
+            let dags1223 = (
+                self.data_frame["DAG1223.Experimental"].f64().unwrap(),
+                self.data_frame["DAG1223.Theoretical"].f64().unwrap(),
+            );
+            let mags2 = (
+                self.data_frame["MAG2.Experimental"].f64().unwrap(),
+                self.data_frame["MAG2.Theoretical"].f64().unwrap(),
+            );
             let dags13 = match self.settings.from {
-                From::Dag1223 => self.data_frame["DAG13.DAG1223.Calculated"].f64()?,
-                From::Mag2 => self.data_frame["DAG13.MAG2.Calculated"].f64()?,
+                From::Dag1223 => self.data_frame["DAG13.DAG1223.Calculated"].f64().unwrap(),
+                From::Mag2 => self.data_frame["DAG13.MAG2.Calculated"].f64().unwrap(),
             };
             TableBuilder::new(ui)
                 .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
@@ -136,12 +146,12 @@ impl Pane {
                             });
                             // TAG
                             row.col(|ui| {
-                                let mut value = tags.get(index).unwrap_or_default();
+                                let mut value = tags.0.get(index).unwrap_or(NAN);
                                 ui.label(precision(value)).on_hover_text(value.to_string());
                             });
                             // DAG1223
                             row.col(|ui| {
-                                let mut value = dags1223.get(index).unwrap_or_default();
+                                let mut value = dags1223.0.get(index).unwrap_or(NAN);
                                 if let From::Mag2 = self.settings.from {
                                     ui.disable();
                                 }
@@ -149,7 +159,7 @@ impl Pane {
                             });
                             // MAG2
                             row.col(|ui| {
-                                let mut value = mags2.get(index).unwrap_or_default();
+                                let mut value = mags2.0.get(index).unwrap_or(NAN);
                                 if let From::Dag1223 = self.settings.from {
                                     ui.disable();
                                 }
@@ -157,32 +167,31 @@ impl Pane {
                                     ui.heading(
                                         localization.content("properties").unwrap_or_default(),
                                     );
-                                    let experimental = self.data_frame["MAG2.Normalized"]
-                                        .f64()
-                                        .unwrap()
-                                        .get(index)
-                                        .unwrap();
-                                    ui.label(format!("Experimental: {experimental}"));
-                                    let theoretical = self.data_frame["MAG2.Theoretical"]
-                                        .f64()
-                                        .unwrap()
-                                        .get(index)
-                                        .unwrap();
-                                    ui.label(format!("Theoretical: {theoretical}"));
+                                    ui.label(format!(
+                                        "Experimental: {}",
+                                        mags2.0.get(index).unwrap_or(NAN),
+                                    ));
+                                    ui.label(format!(
+                                        "Theoretical: {}",
+                                        mags2.1.get(index).unwrap_or(NAN),
+                                    ));
                                 });
                             });
                             // DAG13
                             row.col(|ui| {
-                                let mut value = dags13.get(index).unwrap_or_default();
-                                let mut response = ui.label(precision(value));
+                                let mut value = dags13.get(index).unwrap_or(NAN);
+                                let response = ui.label(precision(value));
                                 if true {
                                     response.on_hover_ui(|ui| {
-                                        ui.heading("Theoretical");
+                                        ui.heading(
+                                            localization.content("properties").unwrap_or_default(),
+                                        );
                                         let selectivity_factor = mags2
+                                            .0
                                             .get(index)
-                                            .zip(tags.get(index))
+                                            .zip(tags.0.get(index))
                                             .map(|(mag2, tag)| mag2 / tag)
-                                            .unwrap_or_default();
+                                            .unwrap_or(NAN);
                                         ui.label(format!(
                                             "Selectivity factor: {selectivity_factor}",
                                         ));
