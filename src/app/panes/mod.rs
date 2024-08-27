@@ -1,9 +1,9 @@
 use egui::{menu::bar, RichText, Ui, WidgetText};
-use egui_phosphor::regular::{ARROWS_HORIZONTAL, CALCULATOR, NOTE_PENCIL, PENCIL};
+use egui_phosphor::regular::{ARROWS_HORIZONTAL, CALCULATOR, INTERSECT_THREE, NOTE_PENCIL, PENCIL};
 use egui_tiles::{Tile, TileId, Tree, UiResponse};
 use serde::{Deserialize, Serialize};
 
-use crate::localization::{bundle, Localization};
+use crate::localization::{CALCULATION, COMPOSITION, CONFIGURATION, EDIT, RESIZE};
 
 const SIZE: f32 = 16.0;
 
@@ -12,6 +12,7 @@ const SIZE: f32 = 16.0;
 pub(crate) enum Pane {
     Configuration(configuration::Pane),
     Calculation(calculation::Pane),
+    Composition(composition::Pane),
 }
 
 impl Pane {
@@ -19,13 +20,15 @@ impl Pane {
         match self {
             Self::Configuration(_) => NOTE_PENCIL,
             Self::Calculation(_) => CALCULATOR,
+            Self::Composition(_) => INTERSECT_THREE,
         }
     }
 
-    pub(crate) const fn title(&self) -> &str {
+    pub(crate) fn title(&self) -> &str {
         match self {
-            Self::Configuration(_) => configuration::TITLE,
-            Self::Calculation(_) => calculation::TITLE,
+            Self::Configuration(_) => &CONFIGURATION,
+            Self::Calculation(_) => &CALCULATION,
+            Self::Composition(_) => &COMPOSITION,
         }
     }
 
@@ -33,6 +36,7 @@ impl Pane {
         match self {
             Self::Configuration(pane) => pane.ui(ui, settings),
             Self::Calculation(pane) => pane.ui(ui, settings),
+            Self::Composition(pane) => pane.ui(ui, settings),
         }
     }
 
@@ -40,6 +44,7 @@ impl Pane {
         match self {
             Self::Configuration(pane) => pane.settings.ui(ui),
             Self::Calculation(pane) => pane.settings.ui(ui),
+            Self::Composition(pane) => pane.settings.ui(ui),
         }
     }
 }
@@ -49,6 +54,7 @@ impl From<&Pane> for Kind {
         match value {
             Pane::Configuration(_) => Self::Configuration,
             Pane::Calculation(_) => Self::Calculation,
+            Pane::Composition(_) => Self::Composition,
         }
     }
 }
@@ -64,6 +70,7 @@ impl PartialEq for Pane {
 pub(crate) enum Kind {
     Configuration,
     Calculation,
+    Composition,
 }
 
 /// Behavior
@@ -80,12 +87,12 @@ impl Behavior {
                 &mut self.settings.resizable,
                 RichText::new(ARROWS_HORIZONTAL).size(SIZE),
             )
-            .on_hover_text("Resize table columns");
+            .on_hover_text(&RESIZE);
             ui.toggle_value(
                 &mut self.settings.editable,
                 RichText::new(PENCIL).size(SIZE),
             )
-            .on_hover_text("Edit table");
+            .on_hover_text(&EDIT);
         });
         ui.separator();
         for tile_id in tree.active_tiles() {
@@ -161,4 +168,5 @@ impl TreeExt for Tree<Pane> {
 // }
 
 pub(crate) mod calculation;
+pub(crate) mod composition;
 pub(crate) mod configuration;

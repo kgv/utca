@@ -3,6 +3,7 @@ use self::{
     windows::About,
 };
 use crate::{
+    localization::{LEFT_PANEL, RESET_APPLICATION, RESET_GUI},
     parsers::toml::{to_string, Parsed, Parsed as TomlParsed},
     widgets::{FileDialog, Github},
 };
@@ -23,7 +24,7 @@ use egui_phosphor::{
     },
     Variant,
 };
-use egui_tiles::{Tiles, Tree};
+use egui_tiles::{Tile, Tiles, Tree};
 use ehttp::{fetch, Headers, Request, Response};
 use panes::TreeExt;
 use polars::prelude::*;
@@ -32,6 +33,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     borrow::BorrowMut,
     fmt::{Debug, Write},
+    fs,
     mem::take,
     str,
     time::Duration,
@@ -259,7 +261,7 @@ impl App {
                     &mut self.left_panel,
                     RichText::new(SIDEBAR_SIMPLE).size(SIZE),
                 )
-                .on_hover_text("Left panel");
+                .on_hover_text(&LEFT_PANEL);
                 ui.separator();
                 // Light/Dark
                 ui.light_dark_button(SIZE);
@@ -267,7 +269,7 @@ impl App {
                 // Reset
                 if ui
                     .button(RichText::new(TRASH).size(SIZE))
-                    .on_hover_text("Reset application")
+                    .on_hover_text(&RESET_APPLICATION)
                     .clicked()
                 {
                     *self = Default::default();
@@ -275,7 +277,7 @@ impl App {
                 ui.separator();
                 if ui
                     .button(RichText::new(ARROWS_CLOCKWISE).size(SIZE))
-                    .on_hover_text("Reset gui")
+                    .on_hover_text(&RESET_GUI)
                     .clicked()
                 {
                     ui.memory_mut(|memory| *memory = Default::default());
@@ -302,13 +304,22 @@ impl App {
                 toggle(ui, Pane::Configuration(Default::default()));
                 // Calculation
                 toggle(ui, Pane::Calculation(Default::default()));
-                if ui
-                    .button(RichText::new(INTERSECT_THREE).size(SIZE))
-                    .clicked()
-                {}
+                // Composition
+                toggle(ui, Pane::Composition(Default::default()));
                 if ui.button(RichText::new(CHART_BAR).size(SIZE)).clicked() {}
                 ui.separator();
-                if ui.button(RichText::new(FLOPPY_DISK).size(SIZE)).clicked() {}
+                // Save
+                if ui.button(RichText::new(FLOPPY_DISK).size(SIZE)).clicked() {
+                    if let Some(pane) = self.tree.tiles.tiles().find_map(|tile| match tile {
+                        Tile::Pane(Pane::Configuration(pane)) => Some(pane),
+                        _ => None,
+                    }) {
+                        let contents =
+                            ron::ser::to_string_pretty(&pane.data_frame, Default::default())
+                                .unwrap();
+                        fs::write("df.utca.ron", contents).unwrap();
+                    }
+                }
 
                 // if ui.button("Cl").clicked() {
                 //     let mut children = vec![self.tree.tiles.insert_pane(Default::default())];
@@ -568,7 +579,7 @@ impl App {
             //     files,
             //     ..self.docks.left.tabs.files
             // };
-            ctx.data_mut(|data| data.remove_by_type::<TomlParsed>());
+            // ctx.data_mut(|data| data.remove_by_type::<TomlParsed>());
             for dropped in dropped_files {
                 let content = match dropped.content() {
                     Ok(content) => content,
@@ -582,8 +593,8 @@ impl App {
                     }
                 };
                 trace!(content);
-                let parsed: Parsed = match content.parse() {
-                    Ok(file) => file,
+                let data_frame: DataFrame = match ron::de::from_str(&content) {
+                    Ok(data_frame) => data_frame,
                     Err(error) => {
                         error!(%error);
                         self.toasts
@@ -593,7 +604,13 @@ impl App {
                         continue;
                     }
                 };
-                trace!(?parsed);
+                trace!(?data_frame);
+                if let Some(pane) = self.tree.tiles.tiles_mut().find_map(|tile| match tile {
+                    Tile::Pane(Pane::Configuration(pane)) => Some(pane),
+                    _ => None,
+                }) {
+                    pane.data_frame = data_frame;
+                }
                 // self.context.init(parsed);
             }
         }

@@ -1,18 +1,14 @@
-use crate::{fatty_acid::FattyAcid, localization::Localization};
+use crate::fatty_acid::FattyAcid;
 use egui::{style::Widgets, DragValue, Response, ScrollArea, Ui, Widget};
 
 /// Formula
 pub(crate) struct Formula<'a> {
     pub(crate) fatty_acid: &'a mut FattyAcid,
-    pub(crate) localization: &'a Localization,
 }
 
 impl<'a> Formula<'a> {
-    pub(crate) fn new(fatty_acid: &'a mut FattyAcid, localization: &'a Localization) -> Self {
-        Self {
-            fatty_acid,
-            localization,
-        }
+    pub(crate) fn new(fatty_acid: &'a mut FattyAcid) -> Self {
+        Self { fatty_acid }
     }
 }
 

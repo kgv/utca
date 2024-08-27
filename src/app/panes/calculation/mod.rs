@@ -1,31 +1,26 @@
+use self::settings::{From, Settings};
 use crate::{
     app::{
         computers::calculator::{Calculated, Key as CalculatorKey},
         panes::Settings as PanesSettings,
-        MAX_PRECISION,
     },
     fatty_acid::{FattyAcid, Kind},
-    localization::{bundle, ContextExt, Localization},
+    localization::{
+        CALCULATION, DAG, DIACYLGLYCEROL, FA, FATTY_ACID, MAG, MONOACYLGLYCEROL, PROPERTIES,
+        SELECTIVITY_FACTOR, TAG, TRIACYLGLYCEROL,
+    },
     utils::ui::{SubscriptedTextFormat, UiExt},
 };
 use anyhow::Result;
-use egui::{
-    Color32, ComboBox, CursorIcon, Direction, Id, Key, KeyboardShortcut, Layout, Modifiers,
-    Response, RichText, Sense, Slider, Ui,
-};
-use egui_ext::{ClickedLabel, TableBodyExt, TableRowExt};
+use egui::{CursorIcon, Direction, Layout, Ui};
+use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
 use egui_tiles::UiResponse;
-use fluent_content::Content;
-use inflector::Inflector;
-use itertools::Itertools;
 use polars::{frame::DataFrame, prelude::*};
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
 use tracing::error;
 use widgets::Cell;
-
-pub(crate) const TITLE: &str = "Calculation";
 
 /// Central calculation pane
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -36,8 +31,7 @@ pub(crate) struct Pane {
 
 impl Pane {
     pub(crate) fn ui(&mut self, ui: &mut Ui, settings: &PanesSettings) -> UiResponse {
-        let localization = &ui.ctx().localization();
-        let response = ui.heading(TITLE).on_hover_cursor(CursorIcon::Grab);
+        let response = ui.heading(&CALCULATION).on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         if let Err(error) = || -> Result<()> {
             let Some(ref data_frame) = ui.data_mut(|data| data.get_temp("Configuration".into()))
@@ -54,8 +48,6 @@ impl Pane {
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
             let total_rows = self.data_frame.height();
-
-            println!("data_frame: {data_frame}");
             let labels = self.data_frame["FA.Label"].str().unwrap();
             let formulas = self.data_frame["FA.Formula"].list().unwrap();
             let tags = (
@@ -84,24 +76,26 @@ impl Pane {
                 .header(height, |mut row| {
                     // Fatty acid
                     row.col(|ui| {
-                        ui.heading("FA").on_hover_text("Fatty acid");
+                        ui.heading(&FA).on_hover_text(&FATTY_ACID);
                     });
                     // 1,2,3-TAGs
                     row.col(|ui| {
-                        ui.heading("TAG").on_hover_text("Triglycerol");
+                        ui.heading(&TAG).on_hover_text(&TRIACYLGLYCEROL);
                     });
                     // 1,2/2,3-DAGs
                     row.col(|ui| {
-                        ui.heading("1,2/2,3-DAG")
-                            .on_hover_text("sn-1,2/2,3 Diacylglycerol");
+                        ui.heading(format!("1,2/2,3-{DAG}"))
+                            .on_hover_text(format!("sn-1,2/2,3 {DIACYLGLYCEROL}"));
                     });
                     // 2-MAGs
                     row.col(|ui| {
-                        ui.heading("2-MAG").on_hover_text("sn-2 Monoacylglycerol");
+                        ui.heading(format!("2-{MAG}"))
+                            .on_hover_text(format!("sn-2 {MONOACYLGLYCEROL}"));
                     });
                     // 1,3-DAGs
                     row.col(|ui| {
-                        ui.heading("1,3-DAG").on_hover_text("sn-1,3 Diacylglycerol");
+                        ui.heading(format!("1,3-{DAG}"))
+                            .on_hover_text(format!("sn-1,3 {DIACYLGLYCEROL}"));
                     });
                 })
                 .body(|body| {
@@ -140,8 +134,6 @@ impl Pane {
                                     theoretical: tags.1.get(index),
                                     enabled: true,
                                     precision: self.settings.precision,
-                                    percent: self.settings.percent,
-                                    localization,
                                 });
                             });
                             // DAG1223
@@ -151,8 +143,6 @@ impl Pane {
                                     theoretical: dags1223.1.get(index),
                                     enabled: self.settings.from == From::Dag1223,
                                     precision: self.settings.precision,
-                                    percent: self.settings.percent,
-                                    localization,
                                 });
                             });
                             // MAG2
@@ -162,17 +152,15 @@ impl Pane {
                                     theoretical: mags2.1.get(index),
                                     enabled: self.settings.from == From::Mag2,
                                     precision: self.settings.precision,
-                                    percent: self.settings.percent,
-                                    localization,
                                 });
                             });
                             // DAG13
                             row.col(|ui| {
-                                let mut value = dags13.get(index).unwrap_or(NAN);
+                                let value = dags13.get(index).unwrap_or(NAN);
                                 let response = ui.label(precision(value));
                                 if true {
                                     response.on_hover_ui(|ui| {
-                                        ui.heading(localization.get_sentence_case("properties"));
+                                        ui.heading(&PROPERTIES);
                                         let selectivity_factor = mags2
                                             .0
                                             .get(index)
@@ -180,33 +168,13 @@ impl Pane {
                                             .map(|(mag2, tag)| mag2 / tag)
                                             .unwrap_or(NAN);
                                         ui.label(format!(
-                                            "{}: {selectivity_factor}",
-                                            localization.get_sentence_case("selectivity_factor"),
+                                            "{SELECTIVITY_FACTOR}: {selectivity_factor}",
                                         ));
                                     });
                                 }
-                                // .on_hover_ui(|ui| {
-                                //     if context.settings.calculation.theoretical {
-                                //         ui.heading("Experimental:");
-                                //     }
-                                //     ui.label(mag2.experimental.normalized.to_string());
-                                //     if context.settings.calculation.unnormalized {
-                                //         let mut unnormalized = mag2.experimental.unnormalized;
-                                //         if context.settings.calculation.pchelkin {
-                                //             unnormalized *= 10.0;
-                                //         }
-                                //         ui.label(format!("Unnormalized: {unnormalized}"));
-                                //     }
-                                //     if context.settings.calculation.selectivity_factor {
-                                //         let selectivity_factor = mag2.experimental.normalized
-                                //             / tag123.experimental.normalized;
-                                //         ui.label(format!(
-                                //             "Selectivity factor: {selectivity_factor}"
-                                //         ));
-                                //     }
-                                // });
                             });
                         } else {
+                            // FA
                             row.col(|_ui| {});
                             // TAG
                             row.col(|ui| {
@@ -215,8 +183,6 @@ impl Pane {
                                     theoretical: tags.1.sum(),
                                     enabled: true,
                                     precision: self.settings.precision,
-                                    percent: self.settings.percent,
-                                    localization,
                                 });
                             });
                             // DAG1223
@@ -226,8 +192,6 @@ impl Pane {
                                     theoretical: dags1223.1.sum(),
                                     enabled: self.settings.from == From::Dag1223,
                                     precision: self.settings.precision,
-                                    percent: self.settings.percent,
-                                    localization,
                                 });
                             });
                             // MAG2
@@ -237,8 +201,6 @@ impl Pane {
                                     theoretical: mags2.1.sum(),
                                     enabled: self.settings.from == From::Mag2,
                                     precision: self.settings.precision,
-                                    percent: self.settings.percent,
-                                    localization,
                                 });
                             });
                             // DAG13
@@ -249,6 +211,7 @@ impl Pane {
                         }
                     });
                 });
+                ui.data_mut(|data| data.insert_temp("Calculation".into(), self.data_frame.clone()));
             Ok(())
         }() {
             error!(%error);
@@ -261,143 +224,6 @@ impl Pane {
     }
 }
 
-/// Calculation settings
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) struct Settings {
-    pub(crate) percent: bool,
-    pub(crate) precision: usize,
-    pub(crate) from: From,
-    pub(crate) signedness: Signedness,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            percent: true,
-            precision: 1,
-            from: From::Mag2,
-            signedness: Signedness::Unsigned,
-        }
-    }
-}
-
-impl Settings {
-    pub(crate) fn ui(&mut self, ui: &mut Ui) -> UiResponse {
-        ui.visuals_mut().collapsing_header_frame = true;
-        ui.collapsing(RichText::new(TITLE).heading(), |ui| {
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Precision:");
-                ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
-            });
-            ui.horizontal(|ui| {
-                ui.label("Percent:");
-                ui.checkbox(&mut self.percent, "");
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                if ui.input_mut(|input| {
-                    input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::Num1))
-                }) {
-                    self.from = From::Dag1223;
-                }
-                if ui.input_mut(|input| {
-                    input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::Num2))
-                }) {
-                    self.from = From::Mag2;
-                }
-                ui.label("Calculate 1,3-DAG:");
-                ComboBox::from_id_source("1,3")
-                    .selected_text(self.from.text())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.from, From::Dag1223, From::Dag1223.text())
-                            .on_hover_text(From::Dag1223.hover_text());
-                        ui.selectable_value(&mut self.from, From::Mag2, From::Mag2.text())
-                            .on_hover_text(From::Mag2.hover_text());
-                    })
-                    .response
-                    .on_hover_text(self.from.hover_text());
-            });
-            ui.horizontal(|ui| {
-                ui.label("Signedness:");
-                ComboBox::from_id_source("signedness")
-                    .selected_text(self.signedness.text())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            &mut self.signedness,
-                            Signedness::Signed,
-                            Signedness::Signed.text(),
-                        )
-                        .on_hover_text(Signedness::Signed.hover_text());
-                        ui.selectable_value(
-                            &mut self.signedness,
-                            Signedness::Unsigned,
-                            Signedness::Unsigned.text(),
-                        )
-                        .on_hover_text(Signedness::Unsigned.hover_text());
-                    })
-                    .response
-                    .on_hover_text(self.signedness.hover_text());
-            });
-        });
-        UiResponse::None
-    }
-}
-
-/// Signedness
-#[derive(Clone, Copy, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) enum Signedness {
-    Signed,
-    #[default]
-    Unsigned,
-}
-
-impl Signedness {
-    pub(crate) const fn text(self) -> &'static str {
-        match self {
-            Self::Signed => "Signed",
-            Self::Unsigned => "Unsigned",
-        }
-    }
-
-    pub(crate) const fn hover_text(self) -> &'static str {
-        match self {
-            Self::Signed => "Theoretically calculated negative values are as is",
-            Self::Unsigned => "Theoretically calculated negative values are replaced with zeros",
-        }
-    }
-}
-
-/// From
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) enum From {
-    Dag1223,
-    Mag2,
-}
-
-impl From {
-    pub(crate) const fn text(self) -> &'static str {
-        match self {
-            Self::Dag1223 => "1,2/2,3-DAGs",
-            Self::Mag2 => "2-MAGs",
-        }
-    }
-
-    pub(crate) const fn hover_text(self) -> &'static str {
-        match self {
-            Self::Dag1223 => "Calculate 1,3-DAGs from 1,2/2,3-DAGs",
-            Self::Mag2 => "Calculate 1,3-DAGs from 2-MAGs",
-        }
-    }
-}
-
-// /// Column show
-// #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-// enum Show {
-//     #[default]
-//     ExperimentalValue,
-//     EnrichmentFactor,
-//     SelectivityFactor,
-// }
+pub(crate) mod settings;
 
 mod widgets;

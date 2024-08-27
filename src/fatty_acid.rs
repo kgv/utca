@@ -4,12 +4,6 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Formatter, Write};
 
-// 9,12-24:2
-// 20,22=9,12-24
-// 6-9,12-18:3
-// 6-9,12-18
-// 18:1:2
-
 pub macro fatty_acid {
     ($c:expr; $($d:expr),*; $($t:expr),*) => {{
         let mut fatty_acid = fatty_acid!($c; $($d),*);
@@ -36,6 +30,114 @@ pub macro fatty_acid {
     }},
     () => {
         FattyAcid::new(vec![])
+    }
+}
+
+/// Fatty acid
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct NewFattyAcid {
+    c: u8,
+    bounds: [Bound; 32],
+}
+
+impl fmt::Display for NewFattyAcid {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let c = self.c;
+        write!(f, "{c}")?;
+        let double = self.bounds.map(|bound| match bound {
+            Bound::Double(isomerism) => Some(isomerism),
+            _ => None,
+        });
+        let mut last = 0;
+        for (index, &bound) in &self.bounds {
+            if bound != 0 {
+                while last < bound.abs() {
+                    f.write_char('-')?;
+                    last += 1;
+                }
+                write!(f, "{}", index + 1)?;
+                if bound < 0 {
+                    f.write_char('t')?;
+                } else {
+                    f.write_char('c')?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+// impl NewFattyAcid {
+//     pub fn singles(&self) -> u64 {
+//         !(self.bounds[0] | self.bounds[1])
+//     }
+
+//     pub fn doubles(&self) -> u64 {
+//         self.bounds[0] ^ self.bounds[1]
+//     }
+
+//     pub fn triples(&self) -> u64 {
+//         self.bounds[0] & self.bounds[1]
+//     }
+
+//     pub fn d(&self) -> u32 {
+//         self.doubles().count_ones()
+//     }
+
+//     pub fn t(&self) -> u32 {
+//         self.triples().count_ones()
+//     }
+// }
+
+/// Bounds
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct Bounds(u64);
+
+impl Bounds {
+    pub fn singles(&self) -> u64 {
+        !self.0
+    }
+}
+
+/// Bounds iter
+pub struct Iter {
+    bounds: u64,
+}
+
+impl Iter {
+    pub fn new(bounds: u64) -> Self {
+        Self { bounds }
+    }
+}
+
+impl Iterator for Iter {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.bounds {
+            0 => None,
+            bounds => {
+                let index = bounds.trailing_zeros();
+                self.bounds ^= 1 << index;
+                // self.bounds &= !(1 << index);
+                Some(index as u8)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test1 {
+    use super::*;
+
+    #[test]
+    fn test() {
+        for i in Iter::new(0b_1000_0000_1100) {
+            println!("i: {i}");
+        }
+        for i in Iter::new(u64::MAX) {
+            println!("i: {i}");
+        }
     }
 }
 
@@ -68,11 +170,16 @@ impl FattyAcid {
     }
 
     pub fn h(&self) -> usize {
-        self.c() * 2
+        2 * self.c()
+            - 2 * self
+                .bounds
+                .iter()
+                .map(|bound| bound.abs() as usize)
+                .sum::<usize>()
     }
 
     pub fn mass(&self) -> f64 {
-        self.c() as f64 * C + self.h() as f64 * H + 2f64 * O
+        self.c() as f64 * C + self.h() as f64 * H + 2. * O
     }
 }
 
@@ -187,14 +294,14 @@ pub enum Kind {
 //     Implicit,
 // }
 
-// /// Bound
-// #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
-// enum Bound {
-//     #[default]
-//     Single,
-//     Double(Isomerism),
-//     Triple(Isomerism),
-// }
+/// Bound
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+enum Bound {
+    #[default]
+    Single,
+    Double(Isomerism),
+    Triple(Isomerism),
+}
 
 /// Isomerism
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]

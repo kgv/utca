@@ -1,20 +1,18 @@
-use crate::{fatty_acid::FattyAcid, localization::Localization};
+use crate::{
+    fatty_acid::FattyAcid,
+    localization::{localize, ABBREVIATION, COMMON_NAME, NAMES, SYSTEMATIC_NAME},
+};
 use egui::{Response, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
-use fluent_content::Content;
 
 /// Names
 pub(crate) struct Names<'a> {
     pub(crate) fatty_acid: &'a FattyAcid,
-    pub(crate) localization: &'a Localization,
 }
 
 impl<'a> Names<'a> {
-    pub(crate) fn new(fatty_acid: &'a mut FattyAcid, localization: &'a Localization) -> Self {
-        Self {
-            fatty_acid,
-            localization,
-        }
+    pub(crate) fn new(fatty_acid: &'a mut FattyAcid) -> Self {
+        Self { fatty_acid }
     }
 }
 
@@ -46,7 +44,7 @@ impl Widget for Names<'_> {
     //     response
     // }
     fn ui(self, ui: &mut Ui) -> Response {
-        let response = ui.heading(self.localization.content("names").unwrap_or_default());
+        let response = ui.heading(&NAMES);
         let height = ui.spacing().interact_size.y;
         TableBuilder::new(ui)
             .striped(true)
@@ -55,15 +53,9 @@ impl Widget for Names<'_> {
             .body(|mut body| {
                 let id = self.fatty_acid.id();
                 body.row(height, |mut row| {
-                    if let Some(abbreviation) =
-                        self.localization.content(&format!("fa_{id}.abbreviation"))
-                    {
+                    if let Some(abbreviation) = localize(&format!("fa_{id}.abbreviation")) {
                         row.col(|ui| {
-                            ui.label(
-                                self.localization
-                                    .content("abbreviation")
-                                    .unwrap_or_default(),
-                            );
+                            ui.label(&ABBREVIATION);
                         });
                         row.col(|ui| {
                             ui.label(abbreviation);
@@ -71,11 +63,9 @@ impl Widget for Names<'_> {
                     }
                 });
                 body.row(height, |mut row| {
-                    if let Some(common_name) =
-                        self.localization.content(&format!("fa_{id}.common_name"))
-                    {
+                    if let Some(common_name) = localize(&format!("fa_{id}.common_name")) {
                         row.col(|ui| {
-                            ui.label(self.localization.content("common_name").unwrap_or_default());
+                            ui.label(&COMMON_NAME);
                         });
                         row.col(|ui| {
                             ui.label(common_name);
@@ -83,16 +73,9 @@ impl Widget for Names<'_> {
                     }
                 });
                 body.row(height, |mut row| {
-                    if let Some(systematic_name) = self
-                        .localization
-                        .content(&format!("fa_{id}.systematic_name"))
-                    {
+                    if let Some(systematic_name) = localize(&format!("fa_{id}.systematic_name")) {
                         row.col(|ui| {
-                            ui.label(
-                                self.localization
-                                    .content("systematic_name")
-                                    .unwrap_or_default(),
-                            );
+                            ui.label(&SYSTEMATIC_NAME);
                         });
                         row.col(|ui| {
                             ui.label(systematic_name);

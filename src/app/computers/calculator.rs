@@ -1,17 +1,13 @@
 use crate::{
-    app::panes::calculation::{Settings, Signedness},
-    r#const::relative_atomic_mass::CH2,
+    app::panes::calculation::settings::{Fraction, Settings, Sign},
+    r#const::relative_atomic_mass::{C, CH2, H, O},
 };
 use egui::{
     emath::OrderedFloat,
     util::cache::{ComputerMut, FrameCache},
 };
 use polars::prelude::*;
-use std::{
-    hash::{Hash, Hasher},
-    iter::zip,
-    sync::Arc,
-};
+use std::hash::{Hash, Hasher};
 use tracing::trace;
 
 /// Calculated
@@ -21,57 +17,107 @@ pub(in crate::app) type Calculated = FrameCache<Value, Calculator>;
 #[derive(Default)]
 pub(in crate::app) struct Calculator;
 
-// stereospecific numbering (1,2,3-TAGs; 1,2/2,3-DAGs; 2-MAGs; 1,3-DAGs).\
-// FA.Label ┆ FA.Formula  ┆ TAG ┆ DAG ┆ MAG
+// mass fraction
+fn mass_fraction(name: &str) -> Expr {
+    col(name) / sum(name)
+}
+
+// mole fraction
+fn mole_fraction(name: &str) -> Expr {
+    col(name) / molar_mass("FA.Formula") / (col(name) / molar_mass("FA.Formula")).sum()
+}
+
+fn temp_fraction(name: &str) -> Expr {
+    col(name) / (col(name) * molar_mass("FA.Formula") / lit(10)).sum()
+}
+
+// Fatty acid methyl ester molar mass
+fn molar_mass(name: &str) -> Expr {
+    (c(name) + lit(1)) * lit(C) + (h(name) + lit(2)) * lit(H) + lit(2) * lit(O)
+}
+
+fn c(name: &str) -> Expr {
+    col(name).list().len() + lit(1)
+}
+
+fn h(name: &str) -> Expr {
+    lit(2) * c(name) - lit(2) * col(name).list().eval(col("").abs(), true).list().sum()
+}
+
 impl ComputerMut<Key<'_>, Value> for Calculator {
     fn compute(&mut self, key: Key) -> Value {
         // Clip
         let clip = |expr: Expr| match key.settings.signedness {
-            Signedness::Signed => expr,
-            Signedness::Unsigned => expr.clip_min(lit(0)),
+            Sign::Signed => expr,
+            Sign::Unsigned => expr.clip_min(lit(0)),
         };
 
-        key.data_frame
-            .clone()
-            .lazy()
-            // Experimental
+        let mut lazy_frame = key.data_frame.clone().lazy();
+        // Experimental
+        lazy_frame = match key.settings.fraction {
+            Fraction::Mass => lazy_frame.with_columns([
+                mass_fraction("TAG").name().suffix(".Experimental"),
+                mass_fraction("DAG1223").name().suffix(".Experimental"),
+                mass_fraction("MAG2").name().suffix(".Experimental"),
+            ]),
+            Fraction::Mole { mixture: false } => lazy_frame.with_columns([
+                mole_fraction("TAG").name().suffix(".Experimental"),
+                mole_fraction("DAG1223").name().suffix(".Experimental"),
+                mole_fraction("MAG2").name().suffix(".Experimental"),
+            ]),
+            Fraction::Mole { mixture: true } => lazy_frame
+                .with_columns([
+                    temp_fraction("TAG").name().suffix(".Experimental"),
+                    temp_fraction("DAG1223").name().suffix(".Experimental"),
+                    temp_fraction("MAG2").name().suffix(".Experimental"),
+                ])
+                .with_columns([
+                    (col("TAG.Experimental") / sum("TAG.Experimental")),
+                    (col("DAG1223.Experimental") / sum("DAG1223.Experimental")),
+                    (col("MAG2.Experimental") / sum("MAG2.Experimental")),
+                ]),
+        };
+        lazy_frame = lazy_frame.with_column(molar_mass("FA.Formula").alias("FA.MolarMass"));
+        println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
+        // Theoretical
+        lazy_frame = lazy_frame
             .with_columns([
-                (col("TAG") / sum("TAG")).name().suffix(".Experimental"),
-                (col("DAG1223") / sum("DAG1223"))
-                    .name()
-                    .suffix(".Experimental"),
-                (col("MAG2") / sum("MAG2")).name().suffix(".Experimental"),
-            ])
-            // Theoretical
-            .with_columns([
-                clip((lit(4) * col("DAG1223") - col("MAG2")) / lit(3))
-                    .alias("TAG.Theoretical.Unnormalized"),
-                ((lit(3) * col("TAG") + col("MAG2")) / lit(4))
-                    .alias("DAG1223.Theoretical.Unnormalized"),
-                clip(lit(4) * col("DAG1223") - lit(3) * col("TAG"))
-                    .alias("MAG2.Theoretical.Unnormalized"),
-            ])
-            .with_columns([
-                (col("TAG.Theoretical.Unnormalized") / sum("TAG.Theoretical.Unnormalized"))
+                clip((lit(4) * col("DAG1223.Experimental") - col("MAG2.Experimental")) / lit(3))
                     .alias("TAG.Theoretical"),
-                (col("DAG1223.Theoretical.Unnormalized") / sum("DAG1223.Theoretical.Unnormalized"))
+                ((lit(3) * col("TAG.Experimental") + col("MAG2.Experimental")) / lit(4))
                     .alias("DAG1223.Theoretical"),
-                (col("MAG2.Theoretical.Unnormalized") / sum("MAG2.Theoretical.Unnormalized"))
+                clip(lit(4) * col("DAG1223.Experimental") - lit(3) * col("TAG.Experimental"))
                     .alias("MAG2.Theoretical"),
             ])
-            .drop([
-                "TAG.Theoretical.Unnormalized",
-                "DAG1223.Theoretical.Unnormalized",
-                "MAG2.Theoretical.Unnormalized",
+            .with_columns([
+                (col("TAG.Theoretical") / sum("TAG.Theoretical")),
+                (col("DAG1223.Theoretical") / sum("DAG1223.Theoretical")),
+                (col("MAG2.Theoretical") / sum("MAG2.Theoretical")),
             ])
             // Calculated
             .with_columns([
-                clip(lit(3) * col("TAG") - lit(2) * col("DAG1223"))
+                clip(lit(3) * col("TAG.Experimental") - lit(2) * col("DAG1223.Experimental"))
                     .alias("DAG13.DAG1223.Calculated"),
-                clip((lit(3) * col("TAG") - col("MAG2")) / lit(2)).alias("DAG13.MAG2.Calculated"),
+                clip((lit(3) * col("TAG.Experimental") - col("MAG2.Experimental")) / lit(2))
+                    .alias("DAG13.MAG2.Calculated"),
             ])
-            .collect()
-            .unwrap()
+            .with_columns([
+                (col("DAG13.DAG1223.Calculated") / sum("DAG13.DAG1223.Calculated")),
+                (col("DAG13.MAG2.Calculated") / sum("DAG13.MAG2.Calculated")),
+            ]);
+        // if key.settings.percent {
+        //     lazy_frame = lazy_frame.with_columns([
+        //         col("TAG.Experimental") * lit(100),
+        //         col("DAG1223.Experimental") * lit(100),
+        //         col("MAG2.Experimental") * lit(100),
+        //         col("TAG.Theoretical") * lit(100),
+        //         col("DAG1223.Theoretical") * lit(100),
+        //         col("MAG2.Theoretical") * lit(100),
+        //         col("DAG13.DAG1223.Calculated") * lit(100),
+        //         col("DAG13.MAG2.Calculated") * lit(100),
+        //     ]);
+        // }
+        lazy_frame.collect().unwrap()
         // // Fractioner
         // let fractioner = Fractioner {
         //     fraction: context.settings.calculation.fraction,
