@@ -98,6 +98,7 @@ pub(crate) static VALUE_DESCRIPTION: Localized = localized!("value_description")
 pub(crate) static VALUE: Localized = localized!("value");
 pub(crate) static VANDER_WAL_DESCRIPTION: Localized = localized!("vander_wal_description");
 pub(crate) static VANDER_WAL: Localized = localized!("vander_wal");
+pub(crate) static GROUP: Localized = localized!("group");
 
 // pub(crate) static MASS: Localized = localized!("mass");
 // pub(crate) static MOLAR_MASS: Localized = localized!("molar_mass");

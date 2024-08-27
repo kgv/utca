@@ -40,32 +40,32 @@ pub struct NewFattyAcid {
     bounds: [Bound; 32],
 }
 
-impl fmt::Display for NewFattyAcid {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let c = self.c;
-        write!(f, "{c}")?;
-        let double = self.bounds.map(|bound| match bound {
-            Bound::Double(isomerism) => Some(isomerism),
-            _ => None,
-        });
-        let mut last = 0;
-        for (index, &bound) in &self.bounds {
-            if bound != 0 {
-                while last < bound.abs() {
-                    f.write_char('-')?;
-                    last += 1;
-                }
-                write!(f, "{}", index + 1)?;
-                if bound < 0 {
-                    f.write_char('t')?;
-                } else {
-                    f.write_char('c')?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
+// impl fmt::Display for NewFattyAcid {
+//     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+//         let c = self.c;
+//         write!(f, "{c}")?;
+//         let double = self.bounds.map(|bound| match bound {
+//             Bound::Double(isomerism) => Some(isomerism),
+//             _ => None,
+//         });
+//         let mut last = 0;
+//         for (index, &bound) in &self.bounds {
+//             if bound != 0 {
+//                 while last < bound.abs() {
+//                     f.write_char('-')?;
+//                     last += 1;
+//                 }
+//                 write!(f, "{}", index + 1)?;
+//                 if bound < 0 {
+//                     f.write_char('t')?;
+//                 } else {
+//                     f.write_char('c')?;
+//                 }
+//             }
+//         }
+//         Ok(())
+//     }
+// }
 
 // impl NewFattyAcid {
 //     pub fn singles(&self) -> u64 {

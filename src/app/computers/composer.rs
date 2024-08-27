@@ -1,15 +1,17 @@
 use crate::{
     acylglycerol::{Sn, Stereospecificity::Positional, Tag},
-    app::panes::composition::settings::{Order, Settings, Sort},
+    app::panes::composition::settings::{
+        Order, Settings, Sort, MC, NC, PMC, PNC, PSC, PTC, SC, SMC, SNC, SSC, STC, TC,
+    },
     r#const::relative_atomic_mass::{C, CH2, H, O},
 };
 use egui::{
     emath::OrderedFloat,
     util::cache::{ComputerMut, FrameCache},
 };
-use polars::prelude::*;
+use polars::{lazy::dsl, prelude::*};
+use polars_plan::dsl::functions::horizontal::min_horizontal;
 use std::hash::{Hash, Hasher};
-use tracing::trace;
 
 /// Composed
 pub(in crate::app) type Composed = FrameCache<Value, Composer>;
@@ -19,19 +21,17 @@ pub(in crate::app) type Composed = FrameCache<Value, Composer>;
 pub(in crate::app) struct Composer;
 
 fn s() -> Expr {
-    col("TAG.Experimental").filter(saturated()).sum()
+    col("TAG.Experimental")
+        .filter(saturated("FA.Formula"))
+        .sum()
 }
 
 fn u() -> Expr {
     lit(1) - s()
 }
 
-fn saturated() -> Expr {
-    col("FA.Formula")
-        .list()
-        .eval(col("").eq(lit(0)), true)
-        .list()
-        .all()
+fn saturated(name: &str) -> Expr {
+    col(name).list().eval(col("").eq(lit(0)), true).list().all()
 }
 
 fn cartesian_product() -> Expr {
@@ -75,7 +75,7 @@ impl Composer {
         lazy_frame = lazy_frame.with_columns([
             s().alias("S"),
             u().alias("U"),
-            saturated().alias("FA.Saturated"),
+            saturated("FA.Formula").alias("FA.Saturated"),
         ]);
         println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
         lazy_frame.collect().unwrap()
@@ -89,7 +89,7 @@ impl Composer {
     // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
     fn vander_wal(&mut self, key: Key) -> DataFrame {
         let mut lazy_frame = key.data_frame.clone().lazy();
-        lazy_frame = lazy_frame.with_row_index("Index", None);
+        // lazy_frame = lazy_frame.with_row_index("Index", None);
         // .select([
         //     col("FA.Label"),
         //     col("FA.Formula"),
@@ -126,7 +126,6 @@ impl Composer {
                 ]),
                 Some("3".to_owned()),
             );
-        println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
         lazy_frame = lazy_frame.select([
             if false {
                 max("FA.Formula", "FA.Formula3").alias("FA.Formula1")
@@ -144,7 +143,11 @@ impl Composer {
             // concat_list([col(r#"^FA\.Formula\d*$"#)]).unwrap(),
             (col("Value1") * col("Value2") * col("Value3")).alias("Value"),
         ]);
-        println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
+        // Group
+        println!(
+            "!!!!!!!!!!9 data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
         // .group_by([col(r#"^Index\d*$"#)])
         // lazy_frame = lazy_frame
         //     .group_by([col("FA.Formula1"), col("FA.Formula2"), col("FA.Formula3")])
@@ -153,6 +156,58 @@ impl Composer {
         //     //     .unwrap()
         //     //     .alias("TEMP")])
         //     ;
+        lazy_frame = match key.settings.group {
+            NC => lazy_frame,
+            PNC => lazy_frame,
+            SNC => lazy_frame,
+            MC => lazy_frame,
+            PMC => lazy_frame,
+            SMC => lazy_frame,
+            SC => lazy_frame,
+            PSC => lazy_frame,
+            SSC => lazy_frame,
+            TC | PTC | STC => {
+                lazy_frame = lazy_frame.with_columns([
+                    when(saturated("FA.Formula1"))
+                        .then(lit("S"))
+                        .otherwise(lit("U"))
+                        .alias("FA.Type.SN1"),
+                    when(saturated("FA.Formula2"))
+                        .then(lit("S"))
+                        .otherwise(lit("U"))
+                        .alias("FA.Type.SN2"),
+                    when(saturated("FA.Formula3"))
+                        .then(lit("S"))
+                        .otherwise(lit("U"))
+                        .alias("FA.Type.SN3"),
+                ]);
+                if key.settings.group == TC {
+                    lazy_frame = lazy_frame.with_columns([min_horizontal([
+                        col("FA.Type.SN1"),
+                        col("FA.Type.SN3"),
+                    ])
+                    .unwrap()]);
+                }
+                lazy_frame
+                    .group_by([col(r#"^FA\.Type.SN\d+$"#)])
+                    .agg([col("FA.Label").alias("FA.Children"), col("Value").sum()])
+            }
+        };
+        println!(
+            "!!!!!!!!!!0 data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
+        lazy_frame = lazy_frame.select([
+            // col("FA.Type").list().join(lit(""), true).alias("FA.Label"),
+            concat_str([col(r#"^FA\.Type.SN\d+$"#)], "", true).alias("FA.Label"),
+            col("FA.Children"),
+            col("Value"),
+        ]);
+        println!(
+            "!!!!!!!!!!1 data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
+        // Sort
         let mut sort_options = SortMultipleOptions::default();
         if let Order::Descending = key.settings.order {
             sort_options = sort_options.with_order_descending(true);
@@ -161,7 +216,7 @@ impl Composer {
             Sort::Key => lazy_frame.sort_by_exprs(&[col("FA.Label")], sort_options),
             Sort::Value => lazy_frame.sort_by_exprs(&[col("Value")], sort_options),
         };
-        println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
+        // println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
         lazy_frame.collect().unwrap()
 
         // let Key { context } = key;

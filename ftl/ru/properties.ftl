@@ -17,6 +17,7 @@ fatty_acid = { -fatty_acid_term }
 fatty_acid_mass = { mass } { -fatty_acid_term(genus: "genitive") }
 formula = формула
 fraction = доля
+group = группировка
 gunstone = Ганстоун
 gunstone_description = вычисление по теории Ганстоуна
 key = ключ

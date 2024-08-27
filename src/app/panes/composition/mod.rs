@@ -1,10 +1,8 @@
 use self::settings::Settings;
+use super::Behavior;
 use crate::{
-    app::{
-        computers::composer::{Composed, Key as CompositionKey},
-        panes::Settings as PanesSettings,
-    },
-    localization::{COMPOSITION, FA, TAG, TRIACYLGLYCEROL, VALUE},
+    app::computers::composer::{Composed, Key as CompositionKey},
+    localization::{COMPOSITION, FA, PROPERTIES, TAG, TRIACYLGLYCEROL, VALUE},
 };
 use anyhow::Result;
 use egui::{CursorIcon, Ui};
@@ -19,46 +17,41 @@ use tracing::error;
 /// Central composition pane
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(crate) struct Pane {
-    pub(crate) data_frame: DataFrame,
+    /// Composition special settings
     pub(crate) settings: Settings,
 }
 
 impl Pane {
-    pub(crate) fn ui(&mut self, ui: &mut Ui, settings: &PanesSettings) -> UiResponse {
+    pub(crate) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
         let response = ui.heading(&COMPOSITION).on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         if let Err(error) = || -> Result<()> {
-            let Some(ref data_frame) = ui.data_mut(|data| data.get_temp("Calculation".into()))
-            else {
-                ui.spinner();
-                return Ok(());
-            };
-            self.data_frame = ui.memory_mut(|memory| {
+            let data_frame = ui.memory_mut(|memory| {
                 memory.caches.cache::<Composed>().get(CompositionKey {
-                    data_frame,
+                    data_frame: &behavior.data_frame,
                     settings: &self.settings,
                 })
             });
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
-            let total_rows = self.data_frame.height();
-            let labels = self.data_frame["FA.Label"].str().unwrap();
-            // let formulas = self.data_frame["FA.Formula"].list().unwrap();
-            let values = self.data_frame["Value"].f64().unwrap();
+            let total_rows = data_frame.height();
+            let labels = data_frame["FA.Label"].str().unwrap();
+            // let formulas = data_frame["FA.Formula"].list().unwrap();
+            let values = data_frame["Value"].f64().unwrap();
             TableBuilder::new(ui)
                 .column(Column::auto_with_initial_suggestion(width))
                 .column(Column::remainder())
                 .auto_shrink(false)
-                .resizable(settings.resizable)
+                .resizable(behavior.settings.resizable)
                 .striped(true)
                 .header(height, |mut row| {
-                    // Triacylglycerol
+                    // TAG
                     row.col(|ui| {
-                        ui.heading(&FA).on_hover_text(&TRIACYLGLYCEROL);
+                        ui.heading(&TAG).on_hover_text(&TRIACYLGLYCEROL);
                     });
                     // Value
                     row.col(|ui| {
-                        ui.heading(&TAG).on_hover_text(&VALUE);
+                        ui.heading(&VALUE);
                     });
                 })
                 .body(|body| {
@@ -96,7 +89,10 @@ impl Pane {
                                 if self.settings.percent {
                                     sum *= 100.;
                                 }
-                                ui.heading(precision(sum));
+                                ui.heading(precision(sum)).on_hover_ui(|ui| {
+                                    ui.heading(&PROPERTIES);
+                                    ui.label(format!("Count: {}", values.len()));
+                                });
                             });
                         }
                     });

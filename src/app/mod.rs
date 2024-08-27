@@ -26,7 +26,7 @@ use egui_phosphor::{
 };
 use egui_tiles::{Tile, Tiles, Tree};
 use ehttp::{fetch, Headers, Request, Response};
-use panes::TreeExt;
+use panes::{Settings, TreeExt};
 use polars::prelude::*;
 use poll_promise::Promise;
 use serde::{Deserialize, Serialize};
@@ -68,8 +68,9 @@ pub struct App {
     left_panel: bool,
     // Panes
     tree: Tree<Pane>,
-    #[serde(skip)]
-    behavior: Behavior,
+    // Data
+    data_frame: DataFrame,
+    settings: Settings,
 
     #[serde(skip)]
     file_dialog: FileDialog,
@@ -86,8 +87,14 @@ impl Default for App {
         Self {
             left_panel: true,
             tree: Tree::empty("central_tree"),
-            behavior: Default::default(),
-
+            data_frame: DataFrame::empty_with_schema(&Schema::from_iter([
+                Field::new("FA.Label", DataType::String),
+                Field::new("FA.Formula", DataType::List(Box::new(DataType::Int8))),
+                Field::new("TAG", DataType::Float64),
+                Field::new("DAG1223", DataType::Float64),
+                Field::new("MAG2", DataType::Float64),
+            ])),
+            settings: Default::default(),
             toasts: Default::default(),
             file_dialog: Default::default(),
             about: Default::default(),
@@ -221,7 +228,12 @@ impl App {
         CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
             .show(ctx, |ui| {
-                self.tree.ui(&mut self.behavior, ui);
+                let mut behavior = Behavior {
+                    data_frame: &mut self.data_frame,
+                    settings: &self.settings,
+                    close: None,
+                };
+                self.tree.ui(&mut behavior, ui);
             });
     }
 
@@ -232,7 +244,7 @@ impl App {
             .resizable(true)
             .show_animated(ctx, self.left_panel, |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
-                    self.behavior.settings(ui, &mut self.tree);
+                    self.settings.ui(ui, &mut self.tree);
                     ui.separator();
                 });
                 // let mut style = Style::from_egui(&ctx.style());
@@ -310,15 +322,9 @@ impl App {
                 ui.separator();
                 // Save
                 if ui.button(RichText::new(FLOPPY_DISK).size(SIZE)).clicked() {
-                    if let Some(pane) = self.tree.tiles.tiles().find_map(|tile| match tile {
-                        Tile::Pane(Pane::Configuration(pane)) => Some(pane),
-                        _ => None,
-                    }) {
-                        let contents =
-                            ron::ser::to_string_pretty(&pane.data_frame, Default::default())
-                                .unwrap();
-                        fs::write("df.utca.ron", contents).unwrap();
-                    }
+                    let contents =
+                        ron::ser::to_string_pretty(&self.data_frame, Default::default()).unwrap();
+                    fs::write("df.utca.ron", contents).unwrap();
                 }
 
                 // if ui.button("Cl").clicked() {
@@ -575,12 +581,8 @@ impl App {
             (!input.raw.dropped_files.is_empty()).then_some(input.raw.dropped_files.clone())
         }) {
             info!(?dropped_files);
-            // self.docks.left.tabs.files = Files {
-            //     files,
-            //     ..self.docks.left.tabs.files
-            // };
-            // ctx.data_mut(|data| data.remove_by_type::<TomlParsed>());
             for dropped in dropped_files {
+                trace!(?dropped);
                 let content = match dropped.content() {
                     Ok(content) => content,
                     Err(error) => {
@@ -592,7 +594,7 @@ impl App {
                         continue;
                     }
                 };
-                trace!(content);
+                error!(content);
                 let data_frame: DataFrame = match ron::de::from_str(&content) {
                     Ok(data_frame) => data_frame,
                     Err(error) => {
@@ -604,14 +606,8 @@ impl App {
                         continue;
                     }
                 };
-                trace!(?data_frame);
-                if let Some(pane) = self.tree.tiles.tiles_mut().find_map(|tile| match tile {
-                    Tile::Pane(Pane::Configuration(pane)) => Some(pane),
-                    _ => None,
-                }) {
-                    pane.data_frame = data_frame;
-                }
-                // self.context.init(parsed);
+                error!(?data_frame);
+                self.data_frame = data_frame;
             }
         }
     }

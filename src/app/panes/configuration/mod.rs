@@ -1,8 +1,8 @@
 use self::{
     area::Area, formula::Formula, names::Names, properties::Properties, settings::Settings,
 };
+use super::Behavior;
 use crate::{
-    app::panes::Settings as PanesSettings,
     fatty_acid::{FattyAcid, Kind},
     localization::{
         CONFIGURATION, DAG, DIACYLGLYCEROL, FA, FATTY_ACID, FORMULA, MAG, MONOACYLGLYCEROL, TAG,
@@ -29,49 +29,45 @@ macro monospace($text:expr) {
 const FA_LABEL: &str = "FA.Label";
 const FA_FORMULA: &str = "FA.Formula";
 
-// const TAG: &str = "TAG";
-// const DAG1223: &str = "DAG1223";
-// const MAG2: &str = "MAG2";
-
 /// Central configuration pane
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(crate) struct Pane {
-    pub(crate) data_frame: DataFrame,
+    /// Configuration special settings
     pub(crate) settings: Settings,
 }
 
 impl Pane {
-    pub(crate) fn ui(&mut self, ui: &mut Ui, settings: &PanesSettings) -> UiResponse {
+    pub(crate) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
         let response = ui.heading(&CONFIGURATION).on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         if let Err(error) = || -> Result<()> {
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
-            let total_rows = self.data_frame.height();
+            let total_rows = behavior.data_frame.height();
 
-            let labels = self.data_frame[FA_LABEL].str()?;
-            let formulas = self.data_frame[FA_FORMULA].list()?;
-            let tags = self.data_frame["TAG"].f64()?;
-            let dags1223 = self.data_frame["DAG1223"].f64()?;
-            let mags2 = self.data_frame["MAG2"].f64()?;
+            let labels = behavior.data_frame[FA_LABEL].str()?;
+            let formulas = behavior.data_frame[FA_FORMULA].list()?;
+            let tags = behavior.data_frame["TAG"].f64()?;
+            let dags1223 = behavior.data_frame["DAG1223"].f64()?;
+            let mags2 = behavior.data_frame["MAG2"].f64()?;
             let mut event = None;
             let mut builder = TableBuilder::new(ui)
                 .cell_layout(Layout::centered_and_justified(Direction::LeftToRight));
-            if settings.editable {
+            if behavior.settings.editable {
                 builder = builder.columns(Column::exact(width / 2.), 2);
             }
             builder = builder
                 .column(Column::auto_with_initial_suggestion(width))
                 .columns(Column::auto(), 3);
-            if settings.editable {
+            if behavior.settings.editable {
                 builder = builder.column(Column::exact(width));
             }
             builder
                 .auto_shrink(false)
-                .resizable(settings.resizable)
+                .resizable(behavior.settings.resizable)
                 .striped(true)
                 .header(height, |mut row| {
-                    if settings.editable {
+                    if behavior.settings.editable {
                         row.col(|_ui| {});
                         row.col(|_ui| {});
                     }
@@ -96,7 +92,7 @@ impl Pane {
                         let index = row.index();
                         if index < total_rows {
                             // Move row
-                            if settings.editable {
+                            if behavior.settings.editable {
                                 row.col(|ui| {
                                     if ui.button(RichText::new(ARROW_FAT_LINE_UP)).clicked() {
                                         event = Some(Event::Move {
@@ -136,7 +132,7 @@ impl Pane {
                                         ..Default::default()
                                     },
                                 );
-                                let mut response = if settings.editable {
+                                let mut response = if behavior.settings.editable {
                                     ui.menu_button(title, |ui| {
                                         // Label
                                         ui.horizontal(|ui| {
@@ -195,7 +191,7 @@ impl Pane {
                                 if ui
                                     .add(Area::new(
                                         &mut value,
-                                        settings.editable,
+                                        behavior.settings.editable,
                                         self.settings.precision,
                                     ))
                                     .changed()
@@ -213,7 +209,7 @@ impl Pane {
                                 if ui
                                     .add(Area::new(
                                         &mut value,
-                                        settings.editable,
+                                        behavior.settings.editable,
                                         self.settings.precision,
                                     ))
                                     .changed()
@@ -231,7 +227,7 @@ impl Pane {
                                 if ui
                                     .add(Area::new(
                                         &mut value,
-                                        settings.editable,
+                                        behavior.settings.editable,
                                         self.settings.precision,
                                     ))
                                     .changed()
@@ -244,7 +240,7 @@ impl Pane {
                                 }
                             });
                             // Delete row
-                            if settings.editable {
+                            if behavior.settings.editable {
                                 row.col(|ui| {
                                     if ui.button(RichText::new(X)).clicked() {
                                         event = Some(Event::Delete(index));
@@ -252,7 +248,7 @@ impl Pane {
                                 });
                             }
                         } else {
-                            if settings.editable {
+                            if behavior.settings.editable {
                                 row.col(|_ui| {});
                                 row.col(|_ui| {});
                             }
@@ -273,7 +269,7 @@ impl Pane {
                                 ui.label(precision(value)).on_hover_text(value.to_string());
                             });
                             // Add row
-                            if settings.editable {
+                            if behavior.settings.editable {
                                 row.col(|ui| {
                                     if ui.button(RichText::new(PLUS)).clicked() {
                                         event = Some(Event::Add);
@@ -293,8 +289,11 @@ impl Pane {
                         "DAG1223" => &[0.0],
                         "MAG2" => &[0.0],
                     }?;
-                    self.data_frame = concat(
-                        [self.data_frame.clone().lazy(), data_frame.clone().lazy()],
+                    *behavior.data_frame = concat(
+                        [
+                            behavior.data_frame.clone().lazy(),
+                            data_frame.clone().lazy(),
+                        ],
                         Default::default(),
                     )?
                     .collect()?;
@@ -302,13 +301,13 @@ impl Pane {
                 Some(Event::Delete(row)) => {
                     // https://stackoverflow.com/questions/71486019/how-to-drop-row-in-polars-python
                     // https://stackoverflow.com/a/71495211/1522758
-                    self.data_frame = self
+                    *behavior.data_frame = behavior
                         .data_frame
                         .slice(0, row)
-                        .vstack(&self.data_frame.slice((row + 1) as _, usize::MAX))?;
+                        .vstack(&behavior.data_frame.slice((row + 1) as _, usize::MAX))?;
                 }
                 Some(Event::Edit { row, column, value }) => {
-                    self.data_frame = self
+                    *behavior.data_frame = behavior
                         .data_frame
                         .clone()
                         .lazy()
@@ -356,28 +355,27 @@ impl Pane {
                         )
                         .drop(["Index"])
                         .collect()?;
-                    println!("self.data_frame: {}", self.data_frame);
+                    println!("self.data_frame: {}", behavior.data_frame);
                 }
                 Some(Event::Move { row, offset }) => {
                     if offset < 0 && row > 0 {
-                        self.data_frame = self
+                        *behavior.data_frame = behavior
                             .data_frame
                             .slice(0, row - 1)
-                            .vstack(&self.data_frame.slice(row as _, 1))?
-                            .vstack(&self.data_frame.slice((row - 1) as _, 1))?
-                            .vstack(&self.data_frame.slice((row + 1) as _, usize::MAX))?;
+                            .vstack(&behavior.data_frame.slice(row as _, 1))?
+                            .vstack(&behavior.data_frame.slice((row - 1) as _, 1))?
+                            .vstack(&behavior.data_frame.slice((row + 1) as _, usize::MAX))?;
                     } else if offset > 0 && row < total_rows {
-                        self.data_frame = self
+                        *behavior.data_frame = behavior
                             .data_frame
                             .slice(0, row)
-                            .vstack(&self.data_frame.slice((row + 1) as _, 1))?
-                            .vstack(&self.data_frame.slice(row as _, 1))?
-                            .vstack(&self.data_frame.slice((row + 2) as _, usize::MAX))?;
+                            .vstack(&behavior.data_frame.slice((row + 1) as _, 1))?
+                            .vstack(&behavior.data_frame.slice(row as _, 1))?
+                            .vstack(&behavior.data_frame.slice((row + 2) as _, usize::MAX))?;
                     }
                 }
                 None => {}
             }
-            ui.data_mut(|data| data.insert_temp("Configuration".into(), self.data_frame.clone()));
             Ok(())
         }() {
             error!(%error);
@@ -386,21 +384,6 @@ impl Pane {
             UiResponse::DragStarted
         } else {
             UiResponse::None
-        }
-    }
-}
-
-impl Default for Pane {
-    fn default() -> Self {
-        Self {
-            settings: Default::default(),
-            data_frame: DataFrame::empty_with_schema(&Schema::from_iter([
-                Field::new(FA_LABEL, DataType::String),
-                Field::new(FA_FORMULA, DataType::List(Box::new(DataType::Int8))),
-                Field::new("TAG", DataType::Float64),
-                Field::new("DAG1223", DataType::Float64),
-                Field::new("MAG2", DataType::Float64),
-            ])),
         }
     }
 }

@@ -1,9 +1,7 @@
 use self::settings::{From, Settings};
+use super::Behavior;
 use crate::{
-    app::{
-        computers::calculator::{Calculated, Key as CalculatorKey},
-        panes::Settings as PanesSettings,
-    },
+    app::computers::calculator::{Calculated, Key as CalculatorKey},
     fatty_acid::{FattyAcid, Kind},
     localization::{
         CALCULATION, DAG, DIACYLGLYCEROL, FA, FATTY_ACID, MAG, MONOACYLGLYCEROL, PROPERTIES,
@@ -16,7 +14,7 @@ use egui::{CursorIcon, Direction, Layout, Ui};
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
 use egui_tiles::UiResponse;
-use polars::{frame::DataFrame, prelude::*};
+use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
 use tracing::error;
@@ -25,53 +23,50 @@ use widgets::Cell;
 /// Central calculation pane
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(crate) struct Pane {
-    pub(crate) data_frame: DataFrame,
+    /// Calculation special settings
     pub(crate) settings: Settings,
 }
 
 impl Pane {
-    pub(crate) fn ui(&mut self, ui: &mut Ui, settings: &PanesSettings) -> UiResponse {
+    pub(crate) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
         let response = ui.heading(&CALCULATION).on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         if let Err(error) = || -> Result<()> {
-            let Some(ref data_frame) = ui.data_mut(|data| data.get_temp("Configuration".into()))
-            else {
-                ui.spinner();
-                return Ok(());
-            };
-            self.data_frame = ui.memory_mut(|memory| {
+            *behavior.data_frame = ui.memory_mut(|memory| {
                 memory.caches.cache::<Calculated>().get(CalculatorKey {
-                    data_frame,
+                    data_frame: &behavior.data_frame,
                     settings: &self.settings,
                 })
             });
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
-            let total_rows = self.data_frame.height();
-            let labels = self.data_frame["FA.Label"].str().unwrap();
-            let formulas = self.data_frame["FA.Formula"].list().unwrap();
+            let total_rows = behavior.data_frame.height();
+            let labels = behavior.data_frame["FA.Label"].str().unwrap();
+            let formulas = behavior.data_frame["FA.Formula"].list().unwrap();
             let tags = (
-                self.data_frame["TAG.Experimental"].f64().unwrap(),
-                self.data_frame["TAG.Theoretical"].f64().unwrap(),
+                behavior.data_frame["TAG.Experimental"].f64().unwrap(),
+                behavior.data_frame["TAG.Theoretical"].f64().unwrap(),
             );
             let dags1223 = (
-                self.data_frame["DAG1223.Experimental"].f64().unwrap(),
-                self.data_frame["DAG1223.Theoretical"].f64().unwrap(),
+                behavior.data_frame["DAG1223.Experimental"].f64().unwrap(),
+                behavior.data_frame["DAG1223.Theoretical"].f64().unwrap(),
             );
             let mags2 = (
-                self.data_frame["MAG2.Experimental"].f64().unwrap(),
-                self.data_frame["MAG2.Theoretical"].f64().unwrap(),
+                behavior.data_frame["MAG2.Experimental"].f64().unwrap(),
+                behavior.data_frame["MAG2.Theoretical"].f64().unwrap(),
             );
             let dags13 = match self.settings.from {
-                From::Dag1223 => self.data_frame["DAG13.DAG1223.Calculated"].f64().unwrap(),
-                From::Mag2 => self.data_frame["DAG13.MAG2.Calculated"].f64().unwrap(),
+                From::Dag1223 => behavior.data_frame["DAG13.DAG1223.Calculated"]
+                    .f64()
+                    .unwrap(),
+                From::Mag2 => behavior.data_frame["DAG13.MAG2.Calculated"].f64().unwrap(),
             };
             TableBuilder::new(ui)
                 .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
                 .column(Column::auto_with_initial_suggestion(width))
                 .columns(Column::auto(), 4)
                 .auto_shrink(false)
-                .resizable(settings.resizable)
+                .resizable(behavior.settings.resizable)
                 .striped(true)
                 .header(height, |mut row| {
                     // Fatty acid
@@ -133,6 +128,7 @@ impl Pane {
                                     experimental: tags.0.get(index),
                                     theoretical: tags.1.get(index),
                                     enabled: true,
+                                    percent: self.settings.percent,
                                     precision: self.settings.precision,
                                 });
                             });
@@ -142,6 +138,7 @@ impl Pane {
                                     experimental: dags1223.0.get(index),
                                     theoretical: dags1223.1.get(index),
                                     enabled: self.settings.from == From::Dag1223,
+                                    percent: self.settings.percent,
                                     precision: self.settings.precision,
                                 });
                             });
@@ -151,6 +148,7 @@ impl Pane {
                                     experimental: mags2.0.get(index),
                                     theoretical: mags2.1.get(index),
                                     enabled: self.settings.from == From::Mag2,
+                                    percent: self.settings.percent,
                                     precision: self.settings.precision,
                                 });
                             });
@@ -182,6 +180,7 @@ impl Pane {
                                     experimental: tags.0.sum(),
                                     theoretical: tags.1.sum(),
                                     enabled: true,
+                                    percent: self.settings.percent,
                                     precision: self.settings.precision,
                                 });
                             });
@@ -191,6 +190,7 @@ impl Pane {
                                     experimental: dags1223.0.sum(),
                                     theoretical: dags1223.1.sum(),
                                     enabled: self.settings.from == From::Dag1223,
+                                    percent: self.settings.percent,
                                     precision: self.settings.precision,
                                 });
                             });
@@ -200,18 +200,21 @@ impl Pane {
                                     experimental: mags2.0.sum(),
                                     theoretical: mags2.1.sum(),
                                     enabled: self.settings.from == From::Mag2,
+                                    percent: self.settings.percent,
                                     precision: self.settings.precision,
                                 });
                             });
                             // DAG13
                             row.col(|ui| {
-                                let value = dags13.sum().unwrap_or(NAN);
-                                ui.label(precision(value)).on_hover_text(value.to_string());
+                                let mut sum = dags13.sum().unwrap_or(NAN);
+                                if self.settings.percent {
+                                    sum *= 100.;
+                                }
+                                ui.label(precision(sum)).on_hover_text(sum.to_string());
                             });
                         }
                     });
                 });
-                ui.data_mut(|data| data.insert_temp("Calculation".into(), self.data_frame.clone()));
             Ok(())
         }() {
             error!(%error);

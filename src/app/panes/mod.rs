@@ -1,9 +1,9 @@
+use crate::localization::{CALCULATION, COMPOSITION, CONFIGURATION, EDIT, RESIZE};
 use egui::{menu::bar, RichText, Ui, WidgetText};
 use egui_phosphor::regular::{ARROWS_HORIZONTAL, CALCULATOR, INTERSECT_THREE, NOTE_PENCIL, PENCIL};
 use egui_tiles::{Tile, TileId, Tree, UiResponse};
+use polars::prelude::DataFrame;
 use serde::{Deserialize, Serialize};
-
-use crate::localization::{CALCULATION, COMPOSITION, CONFIGURATION, EDIT, RESIZE};
 
 const SIZE: f32 = 16.0;
 
@@ -32,11 +32,11 @@ impl Pane {
         }
     }
 
-    fn ui(&mut self, ui: &mut Ui, settings: &Settings) -> UiResponse {
+    fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
         match self {
-            Self::Configuration(pane) => pane.ui(ui, settings),
-            Self::Calculation(pane) => pane.ui(ui, settings),
-            Self::Composition(pane) => pane.ui(ui, settings),
+            Self::Configuration(pane) => pane.ui(ui, behavior),
+            Self::Calculation(pane) => pane.ui(ui, behavior),
+            Self::Composition(pane) => pane.ui(ui, behavior),
         }
     }
 
@@ -74,25 +74,40 @@ pub(crate) enum Kind {
 }
 
 /// Behavior
-#[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct Behavior {
-    pub(crate) settings: Settings,
+#[derive(Debug)]
+pub(crate) struct Behavior<'a> {
+    pub(crate) data_frame: &'a mut DataFrame,
+    pub(crate) settings: &'a Settings,
     pub(crate) close: Option<TileId>,
 }
 
-impl Behavior {
-    pub(crate) fn settings(&mut self, ui: &mut Ui, tree: &mut Tree<Pane>) {
+impl egui_tiles::Behavior<Pane> for Behavior<'_> {
+    fn tab_title_for_pane(&mut self, pane: &Pane) -> WidgetText {
+        pane.title().into()
+    }
+
+    fn pane_ui(&mut self, ui: &mut Ui, _tile_id: TileId, pane: &mut Pane) -> UiResponse {
+        pane.ui(ui, self)
+    }
+}
+
+/// Settings
+#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+pub(crate) struct Settings {
+    pub(crate) resizable: bool,
+    pub(crate) editable: bool,
+}
+
+impl Settings {
+    pub(crate) fn ui(&mut self, ui: &mut Ui, tree: &mut Tree<Pane>) {
         bar(ui, |ui| {
             ui.toggle_value(
-                &mut self.settings.resizable,
+                &mut self.resizable,
                 RichText::new(ARROWS_HORIZONTAL).size(SIZE),
             )
             .on_hover_text(&RESIZE);
-            ui.toggle_value(
-                &mut self.settings.editable,
-                RichText::new(PENCIL).size(SIZE),
-            )
-            .on_hover_text(&EDIT);
+            ui.toggle_value(&mut self.editable, RichText::new(PENCIL).size(SIZE))
+                .on_hover_text(&EDIT);
         });
         ui.separator();
         for tile_id in tree.active_tiles() {
@@ -103,23 +118,6 @@ impl Behavior {
             }
         }
     }
-}
-
-impl egui_tiles::Behavior<Pane> for Behavior {
-    fn tab_title_for_pane(&mut self, pane: &Pane) -> WidgetText {
-        pane.title().into()
-    }
-
-    fn pane_ui(&mut self, ui: &mut Ui, _tile_id: TileId, pane: &mut Pane) -> UiResponse {
-        pane.ui(ui, &self.settings)
-    }
-}
-
-/// Settings
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) struct Settings {
-    pub(crate) resizable: bool,
-    pub(crate) editable: bool,
 }
 
 impl Default for Settings {
@@ -152,20 +150,6 @@ impl TreeExt for Tree<Pane> {
         }
     }
 }
-
-// /// Settings behavior
-// #[derive(Clone, Copy, Debug, Default)]
-// pub(crate) struct SettingsBehavior;
-
-// impl egui_tiles::Behavior<Pane> for SettingsBehavior {
-//     fn tab_title_for_pane(&mut self, pane: &Pane) -> WidgetText {
-//         pane.name().into()
-//     }
-
-//     fn pane_ui(&mut self, ui: &mut Ui, _tile_id: TileId, pane: &mut Pane) -> UiResponse {
-//         pane.settings_ui(ui)
-//     }
-// }
 
 pub(crate) mod calculation;
 pub(crate) mod composition;

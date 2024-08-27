@@ -17,6 +17,7 @@ fatty_acid = { -fatty_acid_term }
 fatty_acid_mass = { -fatty_acid_term } { mass }
 formula = formula
 fraction = fraction
+group = group
 gunstone = Gunstone
 gunstone_description = calculate by { gunstone }'s theory
 key = key
