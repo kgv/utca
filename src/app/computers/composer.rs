@@ -154,6 +154,7 @@ fn sorted3(names: &[&str; 3]) -> [Expr; 3] {
     ]
 }
 
+// Struct gt_eq
 fn gt_eq(names: &[&str; 2]) -> Expr {
     ternary_expr(
         field(names[0], 0).neq(field(names[1], 0)),
@@ -162,6 +163,16 @@ fn gt_eq(names: &[&str; 2]) -> Expr {
     )
 }
 
+// Struct lt_eq
+fn lt_eq(names: &[&str; 2]) -> Expr {
+    ternary_expr(
+        field(names[0], 0).neq(field(names[1], 0)),
+        field(names[0], 0).lt(field(names[1], 0)),
+        field(names[0], 1).lt_eq(field(names[1], 1)),
+    )
+}
+
+// Struct field
 fn field(name: &str, index: i64) -> Expr {
     col(name).r#struct().field_by_index(index)
 }
