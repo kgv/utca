@@ -35,8 +35,7 @@ impl Pane {
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
             let total_rows = data_frame.height();
-            let labels = data_frame["FA.Label"].str().unwrap();
-            // let formulas = data_frame["FA.Formula"].list().unwrap();
+            let labels = data_frame["Label"].str().unwrap();
             let values = data_frame["Value"].f64().unwrap();
             TableBuilder::new(ui)
                 .column(Column::auto_with_initial_suggestion(width))

@@ -1,16 +1,21 @@
 use crate::{
-    acylglycerol::{Sn, Stereospecificity::Positional, Tag},
+    acylglycerol::{
+        Sn,
+        Stereospecificity::{self, Positional},
+        Tag,
+    },
     app::panes::composition::settings::{
         Order, Settings, Sort, MC, NC, PMC, PNC, PSC, PTC, SC, SMC, SNC, SSC, STC, TC,
     },
     r#const::relative_atomic_mass::{C, CH2, H, O},
 };
+use anyhow::Result;
 use egui::{
     emath::OrderedFloat,
     util::cache::{ComputerMut, FrameCache},
 };
-use polars::{lazy::dsl, prelude::*};
-use polars_plan::dsl::functions::horizontal::min_horizontal;
+use polars::prelude::*;
+use polars_lazy::dsl::{max_horizontal, min_horizontal};
 use std::hash::{Hash, Hasher};
 
 /// Composed
@@ -20,6 +25,184 @@ pub(in crate::app) type Composed = FrameCache<Value, Composer>;
 #[derive(Default)]
 pub(in crate::app) struct Composer;
 
+/// Extension methods for [`Expr`]
+trait ExprExt {
+    fn r#struct(self) -> StructNameSpace;
+}
+
+impl ExprExt for Expr {
+    fn r#struct(self) -> StructNameSpace {
+        self.struct_()
+    }
+}
+
+/// Extension methods for [`LazyFrame`]
+trait LazyFrameExt {
+    fn cartesian_product(self) -> Self;
+}
+
+impl LazyFrameExt for LazyFrame {
+    fn cartesian_product(self) -> Self {
+        self.clone()
+            .select([
+                col("FA.Label").alias("SN1.FA.Label"),
+                col("FA.Formula").alias("SN1.FA.Formula"),
+                col("DAG13.MAG2.Calculated").alias("SN1.FA.Value"),
+            ])
+            .cross_join(
+                self.clone().select([
+                    col("FA.Label").alias("SN2.FA.Label"),
+                    col("FA.Formula").alias("SN2.FA.Formula"),
+                    col("MAG2.Experimental").alias("SN2.FA.Value"),
+                ]),
+                None,
+            )
+            .cross_join(
+                self.select([
+                    col("FA.Label").alias("SN3.FA.Label"),
+                    col("FA.Formula").alias("SN3.FA.Formula"),
+                    col("DAG13.MAG2.Calculated").alias("SN3.FA.Value"),
+                ]),
+                None,
+            )
+    }
+}
+
+// fn stereospecificity(
+//     sn: [Expr; 3],
+//     stereospecificity: Option<Stereospecificity>,
+// ) -> PolarsResult<[Expr; 3]> {
+//     if stereospecificity != Some(Stereospecificity::Stereo) {
+//         let sn1 = min_horizontal(&sn)?;
+//         // // let mut sn1 = ternary_expr(sn[0].lt_eq(sn[2]), sn[0], sn[2]);
+//         // // let mut sn2 = &sn[1];
+//         // // let sn3 = ternary_expr(sn[0].gt_eq(sn[2]), sn[0], sn[2]);
+//         if stereospecificity.is_none() {
+//             let sn1 = min_horizontal(&sn)?;
+//             let sn3 = max_horizontal(&sn)?;
+//         } else {
+//             let sn1 = min_horizontal(&sn)?;
+//             let sn3 = max_horizontal(&sn)?;
+//         }
+
+//         return Ok([sn1, sn[2], sn3]);
+//     }
+//     Ok(sn)
+// }
+
+// // https://stackoverflow.com/questions/73717556/how-to-swap-column-values-on-conditions-in-python-polars
+// fn sort2(names: &[&str; 2]) -> Expr {
+//     when(col(names[0]).gt_eq(col(names[1])))
+//         .then(as_struct(vec![col(names[0]), col(names[1])]))
+//         .otherwise(as_struct(vec![
+//             col(names[1]).alias(names[0]),
+//             col(names[0]).alias(names[1]),
+//         ]))
+//         .r#struct()
+//         .field_by_names(names)
+// }
+
+fn sort2(names: &[&str; 2]) -> Expr {
+    as_struct(vec![min(names).alias(names[0]), max(names).alias(names[1])])
+        .r#struct()
+        .field_by_names(names)
+}
+
+fn sort3(names: &[&str; 3]) -> Expr {
+    as_struct(vec![
+        min(
+            min(col(names[0]), col(names[1])),
+            min(col(names[1]), col(names[2])),
+        )
+        .alias(names[0]),
+        max(
+            min(col(names[0]), col(names[1])),
+            min(col(names[1]), col(names[2])),
+        )
+        .alias(names[1]),
+        max(
+            max(col(names[0]), col(names[1])),
+            max(col(names[1]), col(names[2])),
+        )
+        .alias(names[2]),
+    ])
+    .r#struct()
+    .field_by_names(names)
+}
+
+fn sorted2(names: &[&str; 2]) -> [Expr; 2] {
+    [min(names).alias(names[0]), max(names).alias(names[1])]
+}
+
+fn sorted3(names: &[&str; 3]) -> [Expr; 3] {
+    [
+        min(
+            min(col(names[0]), col(names[1])),
+            min(col(names[1]), col(names[2])),
+        )
+        .alias(names[0]),
+        max(
+            min(col(names[0]), col(names[1])),
+            min(col(names[1]), col(names[2])),
+        )
+        .alias(names[1]),
+        max(
+            max(col(names[0]), col(names[1])),
+            max(col(names[1]), col(names[2])),
+        )
+        .alias(names[2]),
+    ]
+}
+
+fn gt_eq(names: &[&str; 2]) -> Expr {
+    ternary_expr(
+        field(names[0], 0).neq(field(names[1], 0)),
+        field(names[0], 0).gt(field(names[1], 0)),
+        field(names[0], 1).gt_eq(field(names[1], 1)),
+    )
+}
+
+fn field(name: &str, index: i64) -> Expr {
+    col(name).r#struct().field_by_index(index)
+}
+
+fn min(names: &[&str; 2]) -> Expr {
+    ternary_expr(
+        col(names[0]).lt_eq(col(names[1])),
+        col(names[0]),
+        col(names[1]),
+    )
+}
+
+fn max(names: &[&str; 2]) -> Expr {
+    ternary_expr(
+        col(names[0]).gt_eq(col(names[1])),
+        col(names[0]),
+        col(names[1]),
+    )
+}
+
+fn r#type(name: &str) -> Expr {
+    when(saturated(name)).then(lit("S")).otherwise(lit("U"))
+}
+
+fn species(name: &str) -> Expr {
+    // let suffix = name.split_once('.').map_or("", |(_, suffix)| suffix);
+    // let prefix = name.strip_suffix(".FA.Formula").unwrap();
+    let c = col(name).list().len();
+    let u = c.clone() - col(name).list().count_matches(lit(0));
+    as_struct(vec![
+        c.alias("C"),
+        u.alias("U"),
+        // col(name).alias(&format!("{prefix}.Bounds")),
+    ])
+    // concat_str([col(name).list().len()], "", true)
+}
+
+fn saturated(name: &str) -> Expr {
+    col(name).list().eval(col("").eq(lit(0)), true).list().all()
+}
+
 fn s() -> Expr {
     col("TAG.Experimental")
         .filter(saturated("FA.Formula"))
@@ -28,35 +211,6 @@ fn s() -> Expr {
 
 fn u() -> Expr {
     lit(1) - s()
-}
-
-fn saturated(name: &str) -> Expr {
-    col(name).list().eval(col("").eq(lit(0)), true).list().all()
-}
-
-fn cartesian_product() -> Expr {
-    col("FA.Formula")
-        .list()
-        .eval(col("").eq(lit(0)), true)
-        .list()
-        .all()
-}
-
-fn min(left: &str, rigth: &str) -> Expr {
-    when(col(left).list().len().gt_eq(col(rigth).list().len()))
-        .then(col(left))
-        .otherwise(col(rigth))
-    // ..and(col(left).list())
-    // .or(col(left).list().gt_eq(col(rigth).list()))
-    // when(col(left).lt(col(rigth)))
-    //     .then(col(left))
-    //     .otherwise(col(rigth))
-}
-
-fn max(left: &str, rigth: &str) -> Expr {
-    when(col(left).gt(col(rigth)))
-        .then(col(left))
-        .otherwise(col(rigth))
 }
 
 impl Composer {
@@ -90,72 +244,19 @@ impl Composer {
     fn vander_wal(&mut self, key: Key) -> DataFrame {
         let mut lazy_frame = key.data_frame.clone().lazy();
         // lazy_frame = lazy_frame.with_row_index("Index", None);
-        // .select([
-        //     col("FA.Label"),
-        //     col("FA.Formula"),
-        //     col("MAG2.Experimental"),
-        //     // col("DAG13.DAG1223.Calculated"),
-        //     col("DAG13.MAG2.Calculated"),
-        // ]);
-        // lazy_frame = lazy_frame.clone().join(
-        //     lazy_frame.clone(),
-        //     [col("FA.Label")],
-        //     [col("FA.Label")],
-        //     JoinArgs::new(JoinType::Cross),
-        // ).agg;
-        lazy_frame = lazy_frame
-            .clone()
-            .select([
-                col("FA.Label"),
-                col("FA.Formula"),
-                col("DAG13.MAG2.Calculated").alias("Value1"),
-            ])
-            .cross_join(
-                lazy_frame.clone().select([
-                    col("FA.Label"),
-                    col("FA.Formula"),
-                    col("MAG2.Experimental").alias("Value2"),
-                ]),
-                Some("2".to_owned()),
-            )
-            .cross_join(
-                lazy_frame.select([
-                    col("FA.Label"),
-                    col("FA.Formula"),
-                    col("DAG13.MAG2.Calculated").alias("Value3"),
-                ]),
-                Some("3".to_owned()),
-            );
+        lazy_frame = lazy_frame.cartesian_product();
         lazy_frame = lazy_frame.select([
-            if false {
-                max("FA.Formula", "FA.Formula3").alias("FA.Formula1")
-            } else {
-                col("FA.Formula").alias("FA.Formula1")
-            },
-            col("FA.Formula2"),
-            if true {
-                min("FA.Formula", "FA.Formula3").alias("FA.Formula3")
-            } else {
-                col("FA.Formula3")
-            },
-            // concat_list([col(r#"^Index\d*$"#)]).unwrap(),
-            concat_str([col(r#"^FA\.Label\d*$"#)], "-", true),
-            // concat_list([col(r#"^FA\.Formula\d*$"#)]).unwrap(),
-            (col("Value1") * col("Value2") * col("Value3")).alias("Value"),
+            concat_str([col(r#"^SN\d?\.FA\.Label$"#)], "-", true).alias("Label"),
+            (col("SN1.FA.Value") * col("SN2.FA.Value") * col("SN3.FA.Value")).alias("Value"),
+            col(r#"^SN\d?\.FA\.Formula$"#),
         ]);
+        // Stereospecificity
+        if let Some(stereospecificity) = key.settings.group.stereospecificity {}
         // Group
         println!(
             "!!!!!!!!!!9 data_frame: {}",
             lazy_frame.clone().collect().unwrap()
         );
-        // .group_by([col(r#"^Index\d*$"#)])
-        // lazy_frame = lazy_frame
-        //     .group_by([col("FA.Formula1"), col("FA.Formula2"), col("FA.Formula3")])
-        //     .agg([col("FA.Label"), col("Value").sum()])
-        //     // .with_columns([concat_list([col(r#"^FA\.Formula\d+$"#)])
-        //     //     .unwrap()
-        //     //     .alias("TEMP")])
-        //     ;
         lazy_frame = match key.settings.group {
             NC => lazy_frame,
             PNC => lazy_frame,
@@ -163,48 +264,75 @@ impl Composer {
             MC => lazy_frame,
             PMC => lazy_frame,
             SMC => lazy_frame,
-            SC => lazy_frame,
-            PSC => lazy_frame,
-            SSC => lazy_frame,
+            SC | PSC | SSC => {
+                // if let SC | PSC = key.settings.group {
+                //     lazy_frame = lazy_frame.with_columns([
+                //         min_horizontal([col("SN1.FA.Formula"), col("SN3.FA.Formula")])
+                //             .unwrap()
+                //             .alias("SN1.FA.Formula"),
+                //         max_horizontal([col("SN1.FA.Formula"), col("SN3.FA.Formula")])
+                //             .unwrap()
+                //             .alias("SN3.FA.Formula"),
+                //     ]);
+                // }
+                lazy_frame = lazy_frame
+                    .with_columns([
+                        species("SN1.FA.Formula").alias("SN1.Species"),
+                        species("SN2.FA.Formula").alias("SN2.Species"),
+                        species("SN3.FA.Formula").alias("SN3.Species"),
+                    ])
+                    .with_column(
+                        concat_list([col(r#"^SN\d?\.Species$"#)])
+                            .unwrap()
+                            .alias("Species"),
+                    )
+                    .drop([col(r#"^SN\d?\.FA\.Formula$"#)]);
+                // .unnest([col(r#"^SN\d?\.FA$"#)]);
+
+                // if key.settings.group == SC {
+                //     lazy_frame = lazy_frame.with_columns(sorted3(&[
+                //         "SN1.Species",
+                //         "SN2.Species",
+                //         "SN3.Species",
+                //     ]));
+                // } else if key.settings.group == PSC {
+                //     lazy_frame = lazy_frame.with_columns(sorted2(&["SN1.Species", "SN3.Species"]));
+                // }
+                // lazy_frame
+                //     .group_by([col(r#"^.SN\.FA\.Speciesd?$"#)])
+                //     .agg([col("FA.Label").alias("FA.Children"), col("Value").sum()])
+                //     .select([
+                //         // col("FA.Type").list().join(lit(""), true).alias("FA.Label"),
+                //         concat_str([col(r#"^.SN\.FA\.Typed?$"#)], "", true).alias("FA.Label"),
+                //         col("FA.Children"),
+                //         col("Value"),
+                //     ])
+                lazy_frame
+            }
             TC | PTC | STC => {
                 lazy_frame = lazy_frame.with_columns([
-                    when(saturated("FA.Formula1"))
-                        .then(lit("S"))
-                        .otherwise(lit("U"))
-                        .alias("FA.Type.SN1"),
-                    when(saturated("FA.Formula2"))
-                        .then(lit("S"))
-                        .otherwise(lit("U"))
-                        .alias("FA.Type.SN2"),
-                    when(saturated("FA.Formula3"))
-                        .then(lit("S"))
-                        .otherwise(lit("U"))
-                        .alias("FA.Type.SN3"),
+                    r#type("SN1.FA.Formula").alias("SN1.Type"),
+                    r#type("SN2.FA.Formula").alias("SN2.Type"),
+                    r#type("SN3.FA.Formula").alias("SN3.Type"),
                 ]);
                 if key.settings.group == TC {
-                    lazy_frame = lazy_frame.with_columns([min_horizontal([
-                        col("FA.Type.SN1"),
-                        col("FA.Type.SN3"),
-                    ])
-                    .unwrap()]);
+                    lazy_frame =
+                        lazy_frame.with_columns(sorted3(&["SN1.Type", "SN2.Type", "SN3.Type"]));
+                } else if key.settings.group == PTC {
+                    lazy_frame = lazy_frame.with_columns(sorted2(&["SN1.Type", "SN3.Type"]));
                 }
                 lazy_frame
-                    .group_by([col(r#"^FA\.Type.SN\d+$"#)])
-                    .agg([col("FA.Label").alias("FA.Children"), col("Value").sum()])
+                    .group_by([col(r#"^SN\d?\.Type$"#)])
+                    .agg([col("Label").alias("FA.Children"), col("Value").sum()])
+                    .select([
+                        concat_str([col(r#"^SN\d?\.Type$"#)], "", true).alias("Label"),
+                        col("Value"),
+                        col("FA.Children"),
+                    ])
             }
         };
         println!(
             "!!!!!!!!!!0 data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
-        lazy_frame = lazy_frame.select([
-            // col("FA.Type").list().join(lit(""), true).alias("FA.Label"),
-            concat_str([col(r#"^FA\.Type.SN\d+$"#)], "", true).alias("FA.Label"),
-            col("FA.Children"),
-            col("Value"),
-        ]);
-        println!(
-            "!!!!!!!!!!1 data_frame: {}",
             lazy_frame.clone().collect().unwrap()
         );
         // Sort
@@ -213,7 +341,7 @@ impl Composer {
             sort_options = sort_options.with_order_descending(true);
         }
         lazy_frame = match key.settings.sort {
-            Sort::Key => lazy_frame.sort_by_exprs(&[col("FA.Label")], sort_options),
+            Sort::Key => lazy_frame.sort_by_exprs(&[col("Label")], sort_options),
             Sort::Value => lazy_frame.sort_by_exprs(&[col("Value")], sort_options),
         };
         // println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
@@ -428,9 +556,9 @@ impl Gunstone {
 //         .map(move |(index, &value)| {
 //             let discrimination = &context.settings.composition.discrimination;
 //             match sn {
-//                 Sn::One => discrimination.sn1.get(&index),
-//                 Sn::Two => discrimination.sn2.get(&index),
-//                 Sn::Three => discrimination.sn3.get(&index),
+//                 Sn::.sn1.One => discrimination.get(&index),
+//                 Sn::.sn2.Two => discrimination.get(&index),
+//                 Sn::.sn3.Three => discrimination.get(&index),
 //             }
 //             .map_or(value, |&f| f * value)
 //         })

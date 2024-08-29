@@ -4645,7 +4645,7 @@ dependencies = [
  "ordered-float",
  "peroxide",
  "polars",
- "polars-plan",
+ "polars-lazy",
  "poll-promise",
  "rawpointer",
  "rfd",

@@ -36,18 +36,35 @@ polars = { version = "0.42.0", features = [
     "concat_str",
     "cross_join",
     "dtype-i8",
+    "dtype-struct",
     "dtype-u8",
     "is_in",
     "lazy",
     "list_any_all",
+    "list_count",
     "list_eval",
     "regex",
     "round_series",
     "serde",
     "strings",
-    "zip_with",
 ] }
-polars-plan = "0.42.0"
+polars-lazy = "0.42.0"
+# polars = { git = "https://github.com/pola-rs/polars", features = [
+#     "abs",
+#     "concat_str",
+#     "cross_join",
+#     "dtype-i8",
+#     "dtype-u8",
+#     "is_in",
+#     "lazy",
+#     "list_any_all",
+#     "list_eval",
+#     "regex",
+#     "round_series",
+#     "serde",
+#     "strings",
+#     "zip_with",
+# ] }
 poll-promise = { version = "0.3.0", features = ["web"] }
 rawpointer = "0.2.1"
 rfd = "0.14.1"

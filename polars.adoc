@@ -1,0 +1,26 @@
+= Polars
+
+== Create DataFrames
+
+[source, rust]
+let data_frame = df! {
+    "STRING" => &[""],
+    "FLOAT" => &[0.0],
+    "EMPTY_LIST" => &[Series::from_iter(empty::<u8>())],
+    "LIST" => &[Series::from_iter([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])],
+}?;
+
+== Delete row
+
+[source, rust]
+let data_frame = data_frame
+    .slice(0, row_index)
+    .vstack(&data_frame.slice(row_index + 1, usize::MAX))?;
+
+* <https://stackoverflow.com/questions/71486019/how-to-drop-row-in-polars-python>
+* <https://stackoverflow.com/a/71495211/1522758>
+
+== See also
+
+* link:https://www.rhosignal.com/posts/polars-pandas-cheatsheet[polars-pandas cheat sheet]
+* link:https://franzdiebold.github.io/polars-cheat-sheet/Polars_cheat_sheet.pdf[polars cheat sheet]
