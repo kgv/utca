@@ -103,27 +103,30 @@ impl LazyFrameExt for LazyFrame {
 // }
 
 fn sort2(names: &[&str; 2]) -> Expr {
-    as_struct(vec![min(names).alias(names[0]), max(names).alias(names[1])])
-        .r#struct()
-        .field_by_names(names)
+    as_struct(vec![
+        max2(names.map(col)).alias(names[0]),
+        max2(names.map(col)).alias(names[1]),
+    ])
+    .r#struct()
+    .field_by_names(names)
 }
 
 fn sort3(names: &[&str; 3]) -> Expr {
     as_struct(vec![
-        min(
-            min(col(names[0]), col(names[1])),
-            min(col(names[1]), col(names[2])),
-        )
+        min2([
+            min2([col(names[0]), col(names[1])]),
+            min2([col(names[1]), col(names[2])]),
+        ])
         .alias(names[0]),
-        max(
-            min(col(names[0]), col(names[1])),
-            min(col(names[1]), col(names[2])),
-        )
+        max2([
+            min2([col(names[0]), col(names[1])]),
+            min2([col(names[1]), col(names[2])]),
+        ])
         .alias(names[1]),
-        max(
-            max(col(names[0]), col(names[1])),
-            max(col(names[1]), col(names[2])),
-        )
+        max2([
+            max2([col(names[0]), col(names[1])]),
+            max2([col(names[1]), col(names[2])]),
+        ])
         .alias(names[2]),
     ])
     .r#struct()
@@ -131,25 +134,28 @@ fn sort3(names: &[&str; 3]) -> Expr {
 }
 
 fn sorted2(names: &[&str; 2]) -> [Expr; 2] {
-    [min(names).alias(names[0]), max(names).alias(names[1])]
+    [
+        min2(names.map(col)).alias(names[0]),
+        max2(names.map(col)).alias(names[1]),
+    ]
 }
 
 fn sorted3(names: &[&str; 3]) -> [Expr; 3] {
     [
-        min(
-            min(col(names[0]), col(names[1])),
-            min(col(names[1]), col(names[2])),
-        )
+        min2([
+            min2([col(names[0]), col(names[1])]),
+            min2([col(names[1]), col(names[2])]),
+        ])
         .alias(names[0]),
-        max(
-            min(col(names[0]), col(names[1])),
-            min(col(names[1]), col(names[2])),
-        )
+        max2([
+            min2([col(names[0]), col(names[1])]),
+            min2([col(names[1]), col(names[2])]),
+        ])
         .alias(names[1]),
-        max(
-            max(col(names[0]), col(names[1])),
-            max(col(names[1]), col(names[2])),
-        )
+        max2([
+            max2([col(names[0]), col(names[1])]),
+            max2([col(names[1]), col(names[2])]),
+        ])
         .alias(names[2]),
     ]
 }
@@ -177,21 +183,29 @@ fn field(name: &str, index: i64) -> Expr {
     col(name).r#struct().field_by_index(index)
 }
 
-fn min(names: &[&str; 2]) -> Expr {
-    ternary_expr(
-        col(names[0]).lt_eq(col(names[1])),
-        col(names[0]),
-        col(names[1]),
-    )
+fn min2([first, second]: [Expr; 2]) -> Expr {
+    ternary_expr(first.clone().lt_eq(second.clone()), first, second)
 }
 
-fn max(names: &[&str; 2]) -> Expr {
-    ternary_expr(
-        col(names[0]).gt_eq(col(names[1])),
-        col(names[0]),
-        col(names[1]),
-    )
+fn max2([first, second]: [Expr; 2]) -> Expr {
+    ternary_expr(first.clone().gt_eq(second.clone()), first, second)
 }
+
+// fn min(names: &[&str; 2]) -> Expr {
+//     ternary_expr(
+//         col(names[0]).lt_eq(col(names[1])),
+//         col(names[0]),
+//         col(names[1]),
+//     )
+// }
+
+// fn max(names: &[&str; 2]) -> Expr {
+//     ternary_expr(
+//         col(names[0]).gt_eq(col(names[1])),
+//         col(names[0]),
+//         col(names[1]),
+//     )
+// }
 
 fn r#type(name: &str) -> Expr {
     when(saturated(name)).then(lit("S")).otherwise(lit("U"))

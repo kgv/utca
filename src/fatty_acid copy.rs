@@ -1,5 +1,6 @@
 use crate::r#const::relative_atomic_mass::{C, H, O};
 use indexmap::IndexMap;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Formatter, Write};
 
@@ -168,22 +169,37 @@ impl fmt::Display for Common {
                 _ => continue,
             }
         }
+        // write!(
+        //     f,
+        //     "{}{}{}",
+        //     self.bounds.len() + 1,
+        //     self.separators[0],
+        //     doubles.len(),
+        // )?;
         fmt::Display::fmt(&(self.bounds.len() + 1), f)?;
         f.write_char(self.separators[0])?;
         fmt::Display::fmt(&doubles.len(), f)?;
         if !triples.is_empty() {
+            // write!(f, "{}{}", self.separators[0], triples.len())?;
             f.write_char(self.separators[0])?;
             fmt::Display::fmt(&triples.len(), f)?;
         }
         if f.alternate() {
             let mut bounds = doubles.iter().chain(&triples);
             if let Some(index) = bounds.next() {
+                // write!(
+                //     f,
+                //     "{}{}",
+                //     self.separators[1],
+                //     bounds.format_with(",", |index, f| f(&index)),
+                // )?;
                 f.write_char(self.separators[1])?;
                 fmt::Display::fmt(&index, f)?;
                 for index in bounds {
                     f.write_char(',')?;
                     fmt::Display::fmt(&index, f)?;
                 }
+                // fmt::Display::fmt(&bounds.format_with(",", |index, f| f(&index)), f)?;
             }
         }
         Ok(())
@@ -513,32 +529,46 @@ pub struct NewFattyAcid {
 // }
 
 impl NewFattyAcid {
-    pub fn singles(&self) -> u64 {
-        self.layers[0] & !self.layers[1]
-    }
+    //     pub fn singles(&self) -> u64 {
+    //         !(self.bounds[0] | self.bounds[1])
+    //     }
 
-    pub fn doubles(&self) -> u64 {
-        !self.layers[0] & self.layers[1]
-    }
+    //     pub fn doubles(&self) -> u64 {
+    //         self.bounds[0] ^ self.bounds[1]
+    //     }
 
-    pub fn triples(&self) -> u64 {
-        self.layers[0] & self.layers[1]
-    }
+    //     pub fn triples(&self) -> u64 {
+    //         self.bounds[0] & self.bounds[1]
+    //     }
 
     pub fn c(&self) -> u32 {
         (self.layers[0] | self.layers[1]).trailing_ones() + 1
     }
 
+    pub fn u(&self) -> u32 {
+        self.layers[1].count_ones()
+    }
+
     pub fn d(&self) -> u32 {
-        self.doubles().count_ones()
+        (!self.layers[0] & self.layers[1]).count_ones()
     }
 
     pub fn t(&self) -> u32 {
-        self.triples().count_ones()
+        (self.layers[0] & self.layers[1]).count_ones()
     }
 
-    pub fn u(&self) -> u32 {
-        self.layers[1].count_ones()
+    //     pub fn t(&self) -> u32 {
+    //         self.triples().count_ones()
+    //     }
+}
+
+/// Bounds
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct Bounds(u64);
+
+impl Bounds {
+    pub fn singles(&self) -> u64 {
+        !self.0
     }
 }
 
@@ -576,13 +606,6 @@ mod test1 {
 
     #[test]
     fn test() {
-        // for i in Iter::new(0b_1000_0000_1100) {
-        //     println!("i: {i}");
-        // }
-        // for i in Iter::new(u64::MAX) {
-        //     println!("i: {i}");
-        // }
-
         println!("{:?}", "18:02:01-".cmp("18:02-"));
         println!("{:?}", "18:02:01".cmp("18:02:01"));
         println!("{:?}", "18:02-09,12".cmp("18:02-12,15"));
@@ -592,33 +615,33 @@ mod test1 {
         println!("u: {}", zero.u());
         println!("d: {}", zero.d());
         println!("t: {}", zero.t());
-
-        let mut layers = [1 << 17 - 1, 0];
-        let index = 8;
-        layers[0] ^= 1 << index;
-        layers[1] ^= 1 << index;
-        let g = NewFattyAcid { layers };
-        println!("layers: {:b} {:b}", g.layers[0], g.layers[1]);
+        let g = NewFattyAcid {
+            layers: [((1 << 17) - 1) ^ (1 << 8), 1 << 8],
+        };
+        println!("c: {:b}", g.layers[0]);
         println!("c: {}", g.c());
         println!("u: {}", g.u());
         println!("d: {}", g.d());
         println!("t: {}", g.t());
-        for index in Iter::new(g.doubles()) {
-            let index = index + 1;
-            println!("index: {index}");
-        }
-
-        // // let s = "00000000100100100";
-        // // 0 - COOH
-        // // 1 - C-COOH
-        // // 2 - C=COOH
-        // // 20 - C=COOH
-        // let s = "11111111211211211";
-        // let len = s.len();
-        // let t = BigUint::from_str_radix(s, 4).unwrap();
-        // println!("t: {:x}", t);
-        // println!("t: {:x?}", t.to_radix_be(4));
-        // println!("t: {:0>len$}", t.to_str_radix(4));
+        // let s = "00000000100100100";
+        // 0 - COOH
+        // 1 - C-COOH
+        // 2 - C=COOH
+        // 20 - C=COOH
+        let s = "11111111211211211";
+        let len = s.len();
+        let t = BigUint::from_str_radix(s, 4).unwrap();
+        println!("t: {:x}", t);
+        println!("t: {:x?}", t.to_radix_be(4));
+        println!("t: {:0>len$}", t.to_str_radix(4));
+        // println!("{:indent$}{}", "", text_to_indent, indent=level);
+        // println!("{:ident$}Indented text!", "", ident=ident);
+        // for i in Iter::new(0b_1000_0000_1100) {
+        //     println!("i: {i}");
+        // }
+        // for i in Iter::new(u64::MAX) {
+        //     println!("i: {i}");
+        // }
     }
 }
 
