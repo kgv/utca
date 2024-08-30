@@ -1,5 +1,6 @@
 use crate::r#const::relative_atomic_mass::{C, H, O};
 use indexmap::IndexMap;
+use num::BigUint;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Formatter, Write};
 
@@ -512,15 +513,53 @@ pub struct NewFattyAcid {
 //     }
 // }
 
+// C(=O)OH
+// 0
+// CC(=O)OH
+// 01
+// CC=CC(=O)OH
+// 0121
+// CC#CC(=O)OH
+// 0131
+// 011311211211111111
+
+// 0 / 2 = 0
+// 1 / 2 = 0
+// 2 / 2 = 1d; % 2 = 0c
+// 3 / 2 = 1d; % 2 = 1t
+// 4 / 2 = 2t; % 2 = 0c
+// 5 / 2 = 2t; % 2 = 1t
+// 6 / 2 = 3q; % 2 = 0c
+// 7 / 2 = 3q; % 2 = 1t
 impl NewFattyAcid {
+    pub fn saturated(c: usize) -> Self {
+        Self {
+            layers: [(1 << c) - 1, 0],
+        }
+    }
+
+    pub fn d(mut self, index: usize) -> Self {
+        self.layers[0] &= !(1 << index);
+        self.layers[1] |= 1 << index;
+        self
+    }
+
+    pub fn t(mut self, index: usize) -> Self {
+        self.layers[0] |= 1 << index;
+        self.layers[1] |= 1 << index;
+        self
+    }
+
     pub fn singles(&self) -> u64 {
         self.layers[0] & !self.layers[1]
     }
 
+    // self.doubles().count_ones()
     pub fn doubles(&self) -> u64 {
         !self.layers[0] & self.layers[1]
     }
 
+    // self.triples().count_ones()
     pub fn triples(&self) -> u64 {
         self.layers[0] & self.layers[1]
     }
@@ -529,13 +568,13 @@ impl NewFattyAcid {
         (self.layers[0] | self.layers[1]).trailing_ones() + 1
     }
 
-    pub fn d(&self) -> u32 {
-        self.doubles().count_ones()
-    }
+    // pub fn d(&self) -> u32 {
+    //     self.doubles().count_ones()
+    // }
 
-    pub fn t(&self) -> u32 {
-        self.triples().count_ones()
-    }
+    // pub fn t(&self) -> u32 {
+    //     self.triples().count_ones()
+    // }
 
     pub fn u(&self) -> u32 {
         self.layers[1].count_ones()
@@ -569,6 +608,20 @@ impl Iterator for Iter {
     }
 }
 
+const RADIX: u32 = 6;
+
+/// Fatty acid
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct TempFattyAcid {
+    pub bounds: Vec<u8>,
+}
+
+impl TempFattyAcid {
+    pub fn c(&self) -> usize {
+        self.bounds.len() + 1
+    }
+}
+
 #[cfg(test)]
 mod test1 {
     use super::*;
@@ -576,6 +629,22 @@ mod test1 {
 
     #[test]
     fn test() {
+        // let s = "00000000100100100";
+        // 0 - COOH
+        // 1 - C-COOH
+        // 2 - C=COOH
+        let s = "11211211211111111";
+        let len = s.len();
+        let t = BigUint::from_str_radix(s, RADIX).unwrap();
+        println!("t: {:x}", t);
+        println!("t: {:x?}", t.to_radix_le(RADIX));
+        let le = t.to_radix_le(RADIX);
+        let doubles = le.iter().filter(|&n| n / 2 == 1).count();
+        println!("doubles: {doubles}");
+        let triples = le.iter().filter(|&n| n / 2 == 2).count();
+        println!("triples: {triples}");
+        println!("t: {:0>len$}", t.to_str_radix(RADIX));
+
         // for i in Iter::new(0b_1000_0000_1100) {
         //     println!("i: {i}");
         // }
@@ -590,10 +659,24 @@ mod test1 {
         let zero = NewFattyAcid { layers: [0, 0] };
         println!("c: {}", zero.c());
         println!("u: {}", zero.u());
-        println!("d: {}", zero.d());
-        println!("t: {}", zero.t());
+        println!("d: {}", zero.doubles().count_ones());
+        println!("t: {}", zero.triples().count_ones());
 
-        let mut layers = [1 << 17 - 1, 0];
+        let saturated = NewFattyAcid::saturated(17);
+        println!(
+            "saturated: {:b} {:b}",
+            saturated.layers[0], saturated.layers[1]
+        );
+        let unsaturated = saturated.d(8).d(11).t(14);
+        // {value:.*}
+        println!(
+            "unsaturated: {:0w$b}\n           : {:0w$b}",
+            unsaturated.layers[0],
+            unsaturated.layers[1],
+            w = unsaturated.c() as _,
+        );
+
+        let mut layers = [(1 << 17) - 1, 0];
         let index = 8;
         layers[0] ^= 1 << index;
         layers[1] ^= 1 << index;
@@ -601,24 +684,12 @@ mod test1 {
         println!("layers: {:b} {:b}", g.layers[0], g.layers[1]);
         println!("c: {}", g.c());
         println!("u: {}", g.u());
-        println!("d: {}", g.d());
-        println!("t: {}", g.t());
+        println!("d: {}", g.doubles().count_ones());
+        println!("t: {}", g.triples().count_ones());
         for index in Iter::new(g.doubles()) {
             let index = index + 1;
             println!("index: {index}");
         }
-
-        // // let s = "00000000100100100";
-        // // 0 - COOH
-        // // 1 - C-COOH
-        // // 2 - C=COOH
-        // // 20 - C=COOH
-        // let s = "11111111211211211";
-        // let len = s.len();
-        // let t = BigUint::from_str_radix(s, 4).unwrap();
-        // println!("t: {:x}", t);
-        // println!("t: {:x?}", t.to_radix_be(4));
-        // println!("t: {:0>len$}", t.to_str_radix(4));
     }
 }
 
