@@ -28,10 +28,6 @@ pub(in crate::app) type Composed = FrameCache<Value, Composer>;
 #[derive(Default)]
 pub(in crate::app) struct Composer;
 
-pub fn r#struct(name: &str) -> StructNameSpace {
-    col(name).r#struct()
-}
-
 /// Extension methods for [`Expr`]
 trait ExprExt {
     fn rename_suffix(self, suffix: impl Display + Send + Sync + 'static) -> Expr;
@@ -120,123 +116,99 @@ impl LazyFrameExt for LazyFrame {
 
 fn sort2(names: &[&str; 2]) -> Expr {
     as_struct(vec![
-        min2(names).alias(names[0]),
-        max2(names).alias(names[1]),
+        max2(names.map(col)).alias(names[0]),
+        max2(names.map(col)).alias(names[1]),
     ])
     .r#struct()
     .field_by_names(names)
 }
 
-fn min2(names: &[&str; 2]) -> Expr {
-    ternary_expr(lt_eq(names), col(names[0]), col(names[1]))
+fn sort3(names: &[&str; 3]) -> Expr {
+    as_struct(vec![
+        min2([
+            min2([col(names[0]), col(names[1])]),
+            min2([col(names[1]), col(names[2])]),
+        ])
+        .alias(names[0]),
+        max2([
+            min2([col(names[0]), col(names[1])]),
+            min2([col(names[1]), col(names[2])]),
+        ])
+        .alias(names[1]),
+        max2([
+            max2([col(names[0]), col(names[1])]),
+            max2([col(names[1]), col(names[2])]),
+        ])
+        .alias(names[2]),
+    ])
+    .r#struct()
+    .field_by_names(names)
 }
 
-fn max2(names: &[&str; 2]) -> Expr {
-    ternary_expr(gt_eq(names), col(names[0]), col(names[1]))
+fn sorted(names: &[&str; 2]) -> [Expr; 2] {
+    [
+        min2(names.map(|name| col(&format!("{name}.")))).alias(names[0]),
+        max2(names.map(col)).alias(names[1]),
+    ]
 }
 
-fn lt_eq(names: &[&str; 2]) -> Expr {
-    ternary_expr(
-        major(names[0]).eq(major(names[1])),
-        minor(names[0]).lt_eq(minor(names[1])),
-        major(names[0]).lt(major(names[1])),
-    )
+fn sorted2(names: &[&str; 2]) -> [Expr; 2] {
+    [
+        min2(names.map(col)).alias(names[0]),
+        max2(names.map(col)).alias(names[1]),
+    ]
 }
 
+fn sorted3(names: &[&str; 3]) -> [Expr; 3] {
+    [
+        min2([
+            min2([col(names[0]), col(names[1])]),
+            min2([col(names[1]), col(names[2])]),
+        ])
+        .alias(names[0]),
+        max2([
+            min2([col(names[0]), col(names[1])]),
+            min2([col(names[1]), col(names[2])]),
+        ])
+        .alias(names[1]),
+        max2([
+            max2([col(names[0]), col(names[1])]),
+            max2([col(names[1]), col(names[2])]),
+        ])
+        .alias(names[2]),
+    ]
+}
+
+// Struct gt_eq
 fn gt_eq(names: &[&str; 2]) -> Expr {
     ternary_expr(
-        major(names[0]).eq(major(names[1])),
-        minor(names[0]).gt_eq(minor(names[1])),
-        major(names[0]).gt(major(names[1])),
+        field(names[0], 0).neq(field(names[1], 0)),
+        field(names[0], 0).gt(field(names[1], 0)),
+        field(names[0], 1).gt_eq(field(names[1], 1)),
     )
 }
 
-// fn sort3(names: &[&str; 3]) -> Expr {
-//     as_struct(vec![
-//         min2([
-//             min2([col(names[0]), col(names[1])]),
-//             min2([col(names[1]), col(names[2])]),
-//         ])
-//         .alias(names[0]),
-//         max2([
-//             min2([col(names[0]), col(names[1])]),
-//             min2([col(names[1]), col(names[2])]),
-//         ])
-//         .alias(names[1]),
-//         max2([
-//             max2([col(names[0]), col(names[1])]),
-//             max2([col(names[1]), col(names[2])]),
-//         ])
-//         .alias(names[2]),
-//     ])
-//     .r#struct()
-//     .field_by_names(names)
-// }
+// Struct lt_eq
+fn lt_eq(names: &[&str; 2]) -> Expr {
+    ternary_expr(
+        field(names[0], 0).neq(field(names[1], 0)),
+        field(names[0], 0).lt(field(names[1], 0)),
+        field(names[0], 1).lt_eq(field(names[1], 1)),
+    )
+}
 
-// fn sorted(names: &[&str; 2]) -> [Expr; 2] {
-//     [
-//         ternary_expr(
-//             col(names[0]).lt_eq(col(names[1])),
-//             col(names[0]),
-//             col(names[1]),
-//         ),
-//         // min2(names.map(col)).alias(names[0]),
-//         max2(names.map(col)).alias(names[1]),
-//     ]
-// }
+// Struct field
+fn field(name: &str, index: i64) -> Expr {
+    col(name).r#struct().field_by_index(index)
+}
 
-// fn sorted2(names: &[&str; 2]) -> [Expr; 2] {
-//     [
-//         min2(names.map(col)).alias(names[0]),
-//         max2(names.map(col)).alias(names[1]),
-//     ]
-// }
+fn min2([first, second]: [Expr; 2]) -> Expr {
+    ternary_expr(first.clone().lt_eq(second.clone()), first, second)
+}
 
-// fn sorted3(names: &[&str; 3]) -> [Expr; 3] {
-//     [
-//         min2([
-//             min2([col(names[0]), col(names[1])]),
-//             min2([col(names[1]), col(names[2])]),
-//         ])
-//         .alias(names[0]),
-//         max2([
-//             min2([col(names[0]), col(names[1])]),
-//             min2([col(names[1]), col(names[2])]),
-//         ])
-//         .alias(names[1]),
-//         max2([
-//             max2([col(names[0]), col(names[1])]),
-//             max2([col(names[1]), col(names[2])]),
-//         ])
-//         .alias(names[2]),
-//     ]
-// }
-
-// // Struct gt_eq
-// fn gt_eq(names: &[&str; 2]) -> Expr {
-//     ternary_expr(
-//         field(names[0], 0).neq(field(names[1], 0)),
-//         field(names[0], 0).gt(field(names[1], 0)),
-//         field(names[0], 1).gt_eq(field(names[1], 1)),
-//     )
-// }
-
-// // Struct lt_eq
-// fn lt_eq(names: &[&str; 2]) -> Expr {
-//     ternary_expr(
-//         field(names[0], 0).neq(field(names[1], 0)),
-//         field(names[0], 0).lt(field(names[1], 0)),
-//         field(names[0], 1).lt_eq(field(names[1], 1)),
-//     )
-// }
-
-// fn min2([first, second]: [Expr; 2]) -> Expr {
-//     ternary_expr(first.clone().lt_eq(second.clone()), first, second)
-// }
-
-// fn max2([first, second]: [Expr; 2]) -> Expr {
-//     ternary_expr(first.clone().gt_eq(second.clone()), first, second)
-// }
+fn max2([first, second]: [Expr; 2]) -> Expr {
+    ternary_expr(first.clone().gt_eq(second.clone()), first, second)
+}
 
 // fn min(names: &[&str; 2]) -> Expr {
 //     ternary_expr(
@@ -258,28 +230,21 @@ fn r#type(name: &str) -> Expr {
     when(saturated(name)).then(lit("S")).otherwise(lit("U"))
 }
 
-fn species() -> Expr {
-    // concat_str([r#struct(r#"SN\d"#).field_by_name("Label")], "", true)
-    concat_str(
-        [
-            r#struct("SN1").field_by_name("Label"),
-            r#struct("SN2").field_by_name("Label"),
-            r#struct("SN3").field_by_name("Label"),
-        ],
-        "-",
-        true,
-    )
+fn species(name: &str) -> Expr {
+    // let suffix = name.split_once('.').map_or("", |(_, suffix)| suffix);
+    // let prefix = name.strip_suffix(".FA.Formula").unwrap();
+    let c = col(name).list().len();
+    let u = c.clone() - col(name).list().count_matches(lit(0));
+    as_struct(vec![
+        c.alias("C"),
+        u.alias("U"),
+        // col(name).alias(&format!("{prefix}.Bounds")),
+    ])
+    // concat_str([col(name).list().len()], "", true)
 }
 
 fn saturated(name: &str) -> Expr {
-    // col(name).list().eval(col("").eq(lit(0)), true).list().all()
-    // r#struct(name).field_by_name(&["Doubles", "Triples"])
-    r#struct(name)
-        // .field_by_names(&["Doubles", "Triples"])
-        .field_by_name("Doubles")
-        .list()
-        .len()
-        .gt(lit(0))
+    col(name).list().eval(col("").eq(lit(0)), true).list().all()
 }
 
 fn s() -> Expr {
@@ -290,6 +255,32 @@ fn s() -> Expr {
 
 fn u() -> Expr {
     lit(1) - s()
+}
+
+// fn doubles(name: &str) -> Expr {
+//     col(name).list().eval(is_double(), true)
+// }
+
+// fn triples(name: &str) -> Expr {
+//     col(name).list().eval(is_triple(), true)
+// }
+
+fn is_double() -> Expr {
+    // (col("") % lit(2)).eq(lit(1))
+    col("").filter(col("").abs().eq(lit(1)))
+}
+
+fn is_triple() -> Expr {
+    col("").filter(col("").abs().eq(lit(2)))
+}
+
+// ExprNameNameSpace
+fn rename_suffix<'a>(suffix: &'a str) -> impl Fn(&str) -> PolarsResult<String> + 'a {
+    move |name| {
+        let prefix = name.split_once('.').map_or(name, |(prefix, _)| prefix);
+        // let prefix = name.strip_suffix(from).unwrap_or(name);
+        Ok(format!("{prefix}{suffix}"))
+    }
 }
 
 // fn id(name: &str) -> PolarsResult<Expr> {
@@ -313,56 +304,55 @@ fn u() -> Expr {
 //     Ok(concat_str([c, d, t], "", true).alias(prefix))
 // }
 
-fn sn(name: &str) -> Expr {
-    as_struct(vec![
-        col(&format!("{name}.Label")).alias("Label"),
-        (col(&format!("{name}.Formula")).list().len() + lit(1)).alias("Carbons"),
-        col(&format!("{name}.Formula"))
-            .list()
-            .eval(is_double().cum_count(false), false)
-            .alias("Doubles"),
-        col(&format!("{name}.Formula"))
-            .list()
-            .eval(is_triple().cum_count(false), false)
-            .alias("Triples"),
-    ])
-    .alias(name)
-}
-
 fn major(name: &str) -> Expr {
-    lit(10000) * r#struct(name).field_by_name("Carbons")
-        + lit(100) * r#struct(name).field_by_name("Doubles").list().len()
-        + r#struct(name).field_by_name("Triples").list().len()
+    let prefix = name.strip_suffix(".Formula").unwrap_or(name);
+    let carbons = lit(10000) * (col(name).list().len() + lit(1));
+    let doubles = lit(100) * (col(name).list().eval(is_double(), true).list().len());
+    let triples = col(name).list().eval(is_triple(), true).list().len();
+    (carbons + doubles + triples).alias(&format!("{prefix}.Major"))
 }
 
 fn minor(name: &str) -> Expr {
-    r#struct(name)
-        .field_by_name("Doubles")
+    let prefix = name.strip_suffix(".Formula").unwrap_or(name);
+    let doubles = col(name)
+        .list()
+        .eval(is_double().cum_count(false), false)
         .list()
         .eval(
-            col("").cast(DataType::Float64) / lit(10).pow(lit(2) * (col("").cum_count(false))),
+            col("") * lit(10).pow(lit(2) * (col("").cum_count(false) - lit(1))),
             true,
         )
         .list()
-        .sum()
-        + r#struct(name)
-            .field_by_name("Triples")
-            .list()
-            .eval(
-                col("").cast(DataType::Float64) / lit(10).pow(lit(2) * (col("").cum_count(false))),
-                true,
-            )
-            .list()
-            .sum()
+        .sum();
+    let triples = col(name)
+        .list()
+        .eval(is_triple().cum_count(false), false)
+        .list()
+        .eval(
+            col("") * lit(10).pow(lit(2) * (col("").cum_count(false) - lit(1))),
+            true,
+        )
+        .list()
+        .sum();
+    (doubles + triples).alias(&format!("{prefix}.Minor"))
 }
 
-fn is_double() -> Expr {
-    // (col("") % lit(2)).eq(lit(1))
-    col("").filter(col("").abs().eq(lit(1)))
-}
-
-fn is_triple() -> Expr {
-    col("").filter(col("").abs().eq(lit(2)))
+fn sn(name: &str) -> Expr {
+    as_struct(vec![
+        (col(name).list().len() + lit(1)).alias("Carbons"),
+        col(name)
+            .list()
+            .eval(is_double(), true)
+            .list()
+            .len()
+            .alias("Doubles"),
+        col(name)
+            .list()
+            .eval(is_triple(), true)
+            .list()
+            .len()
+            .alias("Triples"),
+    ])
 }
 
 impl Composer {
@@ -397,34 +387,40 @@ impl Composer {
         let mut lazy_frame = key.data_frame.clone().lazy();
         lazy_frame = lazy_frame.cartesian_product();
         lazy_frame = lazy_frame.select([
-            concat_str([col(r#"^SN\d?\.Label$"#)], "-", true).alias("Species"),
+            concat_str([col(r#"^SN\d?\.Label$"#)], "-", true).alias("Label"),
             (col("SN1.Value") * col("SN2.Value") * col("SN3.Value")).alias("Value"),
-            sn("SN1"),
-            sn("SN2"),
-            sn("SN3"),
+            sn("SN1.Formula").alias("SN1"),
+            sn("SN2.Formula").alias("SN2"),
+            sn("SN3.Formula").alias("SN3"),
         ]);
+        // .field_by_names(names).to_struct()
         // lazy_frame = lazy_frame.with_columns([
-        //     (major("SN1") + minor("SN1")).alias("SN1.Cmp"),
-        //     (major("SN2") + minor("SN2")).alias("SN2.Cmp"),
-        //     (major("SN3") + minor("SN3")).alias("SN3.Cmp"),
+        //     major("SN1.Formula"),
+        //     major("SN2.Formula"),
+        //     major("SN3.Formula"),
         // ]);
-        // println!(
-        //     "!!! 1111111111111 data_frame: {}",
-        //     lazy_frame.clone().collect().unwrap()
-        // );
-        // // Stereospecificity
-        // if let Some(Stereospecificity::Positional) = key.settings.group.stereospecificity {
-        //     lazy_frame = lazy_frame.with_column(sort2(&["SN1", "SN3"]));
-        // } else if key.settings.group.stereospecificity.is_none() {
-        //     lazy_frame = lazy_frame
-        //         .with_column(sort2(&["SN1", "SN2"]))
-        //         .with_column(sort2(&["SN2", "SN3"]));
-        // }
-        // // Group
-        // println!(
-        //     "!!!!!!!!!!9 data_frame: {}",
-        //     lazy_frame.clone().collect().unwrap()
-        // );
+        // lazy_frame = lazy_frame.with_columns([
+        //     minor("SN1.Formula"),
+        //     minor("SN2.Formula"),
+        //     minor("SN3.Formula"),
+        // ]);
+        println!(
+            "!!! 1111111111111 data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
+        // Stereospecificity
+        if let Some(Stereospecificity::Positional) = key.settings.group.stereospecificity {
+            lazy_frame = lazy_frame.with_columns(sorted2(&["SN1", "SN3"]));
+        } else if key.settings.group.stereospecificity.is_none() {
+            // lazy_frame = lazy_frame
+            //     .with_columns(sorted2(&["SN1.Formula", "SN2.Formula"]))
+            //     .with_columns(sorted2(&["SN2.Formula", "SN3.Formula"]));
+        }
+        // Group
+        println!(
+            "!!!!!!!!!!9 data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
         lazy_frame = match key.settings.group {
             NC => lazy_frame,
             PNC => lazy_frame,
@@ -432,23 +428,72 @@ impl Composer {
             MC => lazy_frame,
             PMC => lazy_frame,
             SMC => lazy_frame,
-            SC | PSC | SSC => lazy_frame.select([col("Species").alias("Label"), col("Value")]),
-            // .with_column(
-            //     concat_list([col(r#"^SN\d?\.Species$"#)])
-            //         .unwrap()
-            //         .alias("Species"),
-            // )
-            // .with_columns([species().alias("Species")])
-            // .group_by([col("Species")])
-            // .agg([col("Label").alias("Labels"), col("Value").sum()])
-            // .select([col("Species").alias("Label"), col("Value"), col("Labels")]),
-            TC | PTC | STC => lazy_frame
-                .with_column(
-                    concat_str([r#type("SN1"), r#type("SN2"), r#type("SN3")], "", true)
-                        .alias("Type"),
-                )
-                .group_by([col("Type").alias("Label")])
-                .agg([col("Species"), col("Value").sum()]),
+            SC | PSC | SSC => {
+                // if let SC | PSC = key.settings.group {
+                //     lazy_frame = lazy_frame.with_columns([
+                //         min_horizontal([col("SN1.FA.Formula"), col("SN3.FA.Formula")])
+                //             .unwrap()
+                //             .alias("SN1.FA.Formula"),
+                //         max_horizontal([col("SN1.FA.Formula"), col("SN3.FA.Formula")])
+                //             .unwrap()
+                //             .alias("SN3.FA.Formula"),
+                //     ]);
+                // }
+                lazy_frame = lazy_frame
+                    .with_columns([
+                        species("SN1").alias("SN1.Species"),
+                        species("SN2").alias("SN2.Species"),
+                        species("SN3").alias("SN3.Species"),
+                    ])
+                    .with_column(
+                        concat_list([col(r#"^SN\d?\.Species$"#)])
+                            .unwrap()
+                            .alias("Species"),
+                    )
+                    .drop([col(r#"^SN\d?\.FA$"#)]);
+                // .unnest([col(r#"^SN\d?\.FA$"#)]);
+
+                // if key.settings.group == SC {
+                //     lazy_frame = lazy_frame.with_columns(sorted3(&[
+                //         "SN1.Species",
+                //         "SN2.Species",
+                //         "SN3.Species",
+                //     ]));
+                // } else if key.settings.group == PSC {
+                //     lazy_frame = lazy_frame.with_columns(sorted2(&["SN1.Species", "SN3.Species"]));
+                // }
+                // lazy_frame
+                //     .group_by([col(r#"^.SN\.FA\.Speciesd?$"#)])
+                //     .agg([col("FA.Label").alias("FA.Children"), col("Value").sum()])
+                //     .select([
+                //         // col("FA.Type").list().join(lit(""), true).alias("FA.Label"),
+                //         concat_str([col(r#"^.SN\.FA\.Typed?$"#)], "", true).alias("FA.Label"),
+                //         col("FA.Children"),
+                //         col("Value"),
+                //     ])
+                lazy_frame
+            }
+            TC | PTC | STC => {
+                lazy_frame = lazy_frame.with_columns([
+                    r#type("SN1").alias("SN1.Type"),
+                    r#type("SN2").alias("SN2.Type"),
+                    r#type("SN3").alias("SN3.Type"),
+                ]);
+                if key.settings.group == TC {
+                    lazy_frame =
+                        lazy_frame.with_columns(sorted3(&["SN1.Type", "SN2.Type", "SN3.Type"]));
+                } else if key.settings.group == PTC {
+                    lazy_frame = lazy_frame.with_columns(sorted2(&["SN1.Type", "SN3.Type"]));
+                }
+                lazy_frame
+                    .group_by([col(r#"^SN\d?\.Type$"#)])
+                    .agg([col("Label").alias("FA.Children"), col("Value").sum()])
+                    .select([
+                        concat_str([col(r#"^SN\d?\.Type$"#)], "", true).alias("Label"),
+                        col("Value"),
+                        col("FA.Children"),
+                    ])
+            }
         };
         println!(
             "!!!!!!!!!!0 data_frame: {}",

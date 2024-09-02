@@ -36,6 +36,7 @@ polars = { version = "0.42.0", features = [
     "abs",
     "concat_str",
     "cross_join",
+    "cum_agg",
     "dtype-i8",
     "dtype-struct",
     "dtype-u8",

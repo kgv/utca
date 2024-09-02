@@ -20,6 +20,14 @@ let data_frame = data_frame
 * <https://stackoverflow.com/questions/71486019/how-to-drop-row-in-polars-python>
 * <https://stackoverflow.com/a/71495211/1522758>
 
+== Index list
+
+[source, rust]
+expr.list()
+    .eval(col("").cum_count(false), false);
+
+* <https://stackoverflow.com/questions/76523245/how-to-get-current-index-of-element-in-polars-list>
+
 == See also
 
 * link:https://www.rhosignal.com/posts/polars-pandas-cheatsheet[polars-pandas cheat sheet]

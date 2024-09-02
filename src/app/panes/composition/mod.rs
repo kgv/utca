@@ -3,6 +3,7 @@ use super::Behavior;
 use crate::{
     app::computers::composer::{Composed, Key as CompositionKey},
     localization::{COMPOSITION, FA, PROPERTIES, TAG, TRIACYLGLYCEROL, VALUE},
+    properties,
 };
 use anyhow::Result;
 use egui::{CursorIcon, Ui};
@@ -58,12 +59,19 @@ impl Pane {
                     body.rows(height, total_rows + 1, |mut row| {
                         let index = row.index();
                         if index < total_rows {
-                            // FA
+                            // TAG
                             row.left_align_col(|ui| {
                                 // ui.label(format!("{:?}", labels.get(index).unwrap()));
-                                ui.label(labels.get(index).unwrap());
+                                let response = ui.label(labels.get(index).unwrap());
+                                if let Ok(labels) =
+                                    data_frame.column("Labels").and_then(Series::list)
+                                {
+                                    response.on_hover_ui(|ui| {
+                                        ui.label(format!("label: {:?}", labels.get(index)));
+                                    });
+                                }
                             });
-                            // TAG
+                            // Value
                             row.col(|ui| {
                                 let mut value = values.get(index).unwrap_or(NAN);
                                 if self.settings.percent {

@@ -610,6 +610,15 @@ impl Iterator for Iter {
 
 const RADIX: u32 = 6;
 
+// 0 / 2 = 0
+// 1 / 2 = 0
+// 2 / 2 = 1d; % 2 = 0c
+// 3 / 2 = 1d; % 2 = 1t
+// 4 / 2 = 2t; % 2 = 0c
+// 5 / 2 = 2t; % 2 = 1t
+// 6 / 2 = 3q; % 2 = 0c
+// 7 / 2 = 3q; % 2 = 1t
+
 /// Fatty acid
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct TempFattyAcid {
@@ -619,6 +628,63 @@ pub struct TempFattyAcid {
 impl TempFattyAcid {
     pub fn c(&self) -> usize {
         self.bounds.len() + 1
+    }
+
+    pub fn doubles(&self) -> impl Iterator<Item = usize> + Clone + '_ {
+        self.bounds
+            .iter()
+            .enumerate()
+            .filter_map(|(index, n)| (n / 2 == 1).then_some(index))
+    }
+
+    pub fn triples(&self) -> impl Iterator<Item = usize> + Clone + '_ {
+        self.bounds
+            .iter()
+            .enumerate()
+            .filter_map(|(index, n)| (n / 2 == 2).then_some(index))
+    }
+}
+
+impl fmt::Display for TempFattyAcid {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let doubles = self.doubles();
+        let triples = self.triples();
+        let c = self.c();
+        let d = doubles.clone().count();
+        let t = triples.clone().count();
+        fmt::Display::fmt(&c, f)?;
+        f.write_char(':')?;
+        fmt::Display::fmt(&d, f)?;
+        if t != 0 {
+            f.write_char(':')?;
+            fmt::Display::fmt(&t, f)?;
+        }
+        if f.alternate() {
+            let mut bounds = doubles.chain(triples);
+            if let Some(index) = bounds.next() {
+                f.write_char('-')?;
+                fmt::Display::fmt(&index, f)?;
+                for index in bounds {
+                    f.write_char(',')?;
+                    fmt::Display::fmt(&index, f)?;
+                }
+            }
+        }
+        // for (index, &bound) in &self.bounds {
+        //     if bound != 0 {
+        //         while last < bound.abs() {
+        //             f.write_char('-')?;
+        //             last += 1;
+        //         }
+        //         write!(f, "{}", index + 1)?;
+        //         if bound < 0 {
+        //             f.write_char('t')?;
+        //         } else {
+        //             f.write_char('c')?;
+        //         }
+        //     }
+        // }
+        Ok(())
     }
 }
 
