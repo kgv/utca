@@ -37,6 +37,7 @@ impl Pane {
             let width = ui.spacing().interact_size.x;
             let total_rows = data_frame.height();
             let labels = data_frame["Label"].str().unwrap();
+            let species = data_frame["Species"].list().unwrap();
             let values = data_frame["Value"].f64().unwrap();
             TableBuilder::new(ui)
                 .column(Column::auto_with_initial_suggestion(width))
@@ -63,13 +64,11 @@ impl Pane {
                             row.left_align_col(|ui| {
                                 // ui.label(format!("{:?}", labels.get(index).unwrap()));
                                 let response = ui.label(labels.get(index).unwrap());
-                                if let Ok(labels) =
-                                    data_frame.column("Labels").and_then(Series::list)
-                                {
-                                    response.on_hover_ui(|ui| {
-                                        ui.label(format!("label: {:?}", labels.get(index)));
-                                    });
-                                }
+                                response.on_hover_ui(|ui| {
+                                    if let Some(list) = species.get(index) {
+                                        ui.label(format!("species: {list:?}"));
+                                    }
+                                });
                             });
                             // Value
                             row.col(|ui| {
@@ -86,11 +85,11 @@ impl Pane {
                                 // });
                             });
                         } else {
-                            // FA
+                            // TAG
                             row.col(|ui| {
                                 ui.heading("Sum");
                             });
-                            // TAG
+                            // Value
                             row.col(|ui| {
                                 let mut sum = values.sum().unwrap_or(NAN);
                                 if self.settings.percent {
