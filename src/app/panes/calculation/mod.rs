@@ -2,7 +2,7 @@ use self::settings::{From, Settings};
 use super::Behavior;
 use crate::{
     app::computers::calculator::{Calculated, Key as CalculatorKey},
-    fatty_acid::{FattyAcid, Kind},
+    fatty_acid::{DisplayWithOptions, FattyAcid, Options},
     localization::{
         CALCULATION, DAG, DIACYLGLYCEROL, FA, FATTY_ACID, MAG, MONOACYLGLYCEROL, PROPERTIES,
         SELECTIVITY_FACTOR, TAG, TRIACYLGLYCEROL,
@@ -110,11 +110,12 @@ impl Pane {
                                         .left()
                                         .unwrap_or_default()
                                 };
-                                let fatty_acid = &mut FattyAcid::new(bounds);
+                                let fatty_acid = &mut FattyAcid::new();
+                                // let fatty_acid = &mut FattyAcid::new(bounds);
                                 let text = if label.is_empty() { "C" } else { label };
                                 let title = ui.subscripted_text(
                                     text,
-                                    &fatty_acid.display(Kind::Common).to_string(),
+                                    &fatty_acid.display(Default::default()).to_string(),
                                     SubscriptedTextFormat {
                                         widget: true,
                                         ..Default::default()

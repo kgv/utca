@@ -88,8 +88,15 @@ impl Default for App {
             left_panel: true,
             tree: Tree::empty("central_tree"),
             data_frame: DataFrame::empty_with_schema(&Schema::from_iter([
-                Field::new("FA.Label", DataType::String),
-                Field::new("FA.Formula", DataType::List(Box::new(DataType::Int8))),
+                Field::new(
+                    "FA",
+                    DataType::Struct(vec![
+                        Field::new("Label", DataType::String),
+                        Field::new("Carbons", DataType::UInt8),
+                        Field::new("Doubles", DataType::List(Box::new(DataType::Int8))),
+                        Field::new("Triples", DataType::List(Box::new(DataType::Int8))),
+                    ]),
+                ),
                 Field::new("TAG", DataType::Float64),
                 Field::new("DAG1223", DataType::Float64),
                 Field::new("MAG2", DataType::Float64),

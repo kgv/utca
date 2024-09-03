@@ -2,39 +2,52 @@ use crate::r#const::relative_atomic_mass::{C, H, O};
 use indexmap::IndexMap;
 use num::BigUint;
 use serde::{Deserialize, Serialize};
-use std::fmt::{self, Formatter, Write};
+use std::{
+    borrow::Borrow,
+    collections::{BTreeSet, HashSet},
+    fmt::{self, Formatter, Write},
+};
 
 pub macro fatty_acid {
-    ($c:expr; $($d:expr),*; $($t:expr),*) => {{
-        let mut fatty_acid = fatty_acid!($c; $($d),*);
-        $(
-            assert!($t != 0);
-            let t = $t as i8;
-            fatty_acid.bounds[t.abs() as usize - 1] = 2 * t.signum();
-        )*
-        fatty_acid
+    ($c:expr) => {{
+        assert!($c > 0);
+        FattyAcid::saturated($c)
     }},
     ($c:expr; $($d:expr),*) => {{
-        #[allow(unused_mut)]
         let mut fatty_acid = fatty_acid!($c);
         $(
             assert!($d != 0);
-            let d = $d as i8;
-            fatty_acid.bounds[d.abs() as usize - 1] = d.signum();
+            assert!($d < $c);
+            fatty_acid.doubles.push($d);
         )*
         fatty_acid
     }},
-    ($c:expr) => {{
-        assert!($c > 0);
-        FattyAcid::new(vec![0; $c as usize - 1])
+    ($c:expr; $($d:expr),*; $($t:expr),+) => {{
+        let mut fatty_acid = fatty_acid!($c; $($d),*);
+        $(
+            assert!($t != 0);
+            assert!($t < $c);
+            fatty_acid.triples.push($t);
+        )+
+        fatty_acid
     }},
-    () => {
-        FattyAcid::new(vec![])
-    }
 }
 
-const COLON_DELTA: [Option<char>; 2] = [Some(':'), Some('Δ')];
-const COLON_MINUS: [Option<char>; 2] = [Some(':'), Some('-')];
+pub const ID: Options = Options {
+    separators: [None, None, None],
+    isomerism: Some(Isomerism {
+        kind: Kind::CisTrans,
+        elision: Elision::Explicit,
+    }),
+};
+
+pub const COMMON: Options = Options {
+    separators: [Some(':'), Some('Δ'), Some(',')],
+    isomerism: Some(Isomerism {
+        kind: Kind::CisTrans,
+        elision: Elision::Implicit,
+    }),
+};
 
 /// Fatty acid
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -45,6 +58,10 @@ pub struct FattyAcid {
 }
 
 impl FattyAcid {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     pub fn saturated(carbons: u8) -> Self {
         Self {
             carbons,
@@ -54,13 +71,6 @@ impl FattyAcid {
 
     pub fn id(&self) -> String {
         self.to_string()
-    }
-
-    pub fn display(&self, kind: Kind) -> Display {
-        match kind {
-            Kind::System => Display::colon_minus(self),
-            Kind::Common => Display::colon_delta(self),
-        }
     }
 
     pub fn c(&self) -> u8 {
@@ -76,6 +86,18 @@ impl FattyAcid {
                 .sum::<u8>()
     }
 
+    pub fn d(&self) -> u8 {
+        self.doubles.len() as _
+    }
+
+    pub fn t(&self) -> u8 {
+        self.triples.len() as _
+    }
+
+    pub fn u(&self) -> u8 {
+        self.d() + self.t()
+    }
+
     pub fn mass(&self) -> f64 {
         self.c() as f64 * C + self.h() as f64 * H + 2. * O
     }
@@ -83,65 +105,65 @@ impl FattyAcid {
 
 impl fmt::Display for FattyAcid {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.display(Kind::Common), f)
+        fmt::Display::fmt(&Display::new(self, Default::default()), f)
+    }
+}
+
+/// Display with options
+pub trait DisplayWithOptions {
+    fn display(self, options: Options) -> Display<Self>
+    where
+        Self: Sized + Borrow<FattyAcid>;
+}
+
+impl<T: Borrow<FattyAcid>> DisplayWithOptions for T {
+    fn display(self, options: Options) -> Display<T> {
+        Display::new(self, options)
     }
 }
 
 /// Fatty acid display
 #[derive(Clone, Debug)]
-pub struct Display<'a> {
-    fatty_acid: &'a FattyAcid,
-    separators: [Option<char>; 2],
+pub struct Display<T: Borrow<FattyAcid>> {
+    fatty_acid: T,
+    options: Options,
 }
 
-impl<'a> Display<'a> {
-    pub fn new(fatty_acid: &'a FattyAcid, separators: [Option<char>; 2]) -> Self {
+impl<T: Borrow<FattyAcid>> Display<T> {
+    pub fn new(fatty_acid: T, options: Options) -> Self {
         Self {
             fatty_acid,
-            separators,
+            options,
         }
-    }
-
-    pub fn colon_delta(fatty_acid: &'a FattyAcid) -> Self {
-        Self::new(fatty_acid, COLON_DELTA)
-    }
-
-    pub fn colon_minus(fatty_acid: &'a FattyAcid) -> Self {
-        Self::new(fatty_acid, COLON_MINUS)
     }
 }
 
-impl fmt::Display for Display<'_> {
+impl<T: Borrow<FattyAcid>> fmt::Display for Display<T> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.fatty_acid.carbons, f)?;
-        if let Some(separator) = self.separators[0] {
+        let fatty_acid = self.fatty_acid.borrow();
+        fmt::Display::fmt(&fatty_acid.carbons, f)?;
+        if let Some(separator) = self.options.separators[0] {
             f.write_char(separator)?;
         }
-        fmt::Display::fmt(&self.fatty_acid.doubles.len(), f)?;
-        if !self.fatty_acid.triples.is_empty() {
-            if let Some(separator) = self.separators[0] {
+        fmt::Display::fmt(&fatty_acid.doubles.len(), f)?;
+        if !fatty_acid.triples.is_empty() {
+            if let Some(separator) = self.options.separators[0] {
                 f.write_char(separator)?;
             }
-            fmt::Display::fmt(&self.fatty_acid.triples.len(), f)?;
+            fmt::Display::fmt(&fatty_acid.triples.len(), f)?;
         }
         if f.alternate() {
-            let mut indices = self
-                .fatty_acid
-                .doubles
-                .iter()
-                .chain(&self.fatty_acid.triples);
+            let mut indices = fatty_acid.doubles.iter().chain(&fatty_acid.triples);
             if let Some(index) = indices.next() {
-                if let Some(separator) = self.separators[1] {
+                if let Some(separator) = self.options.separators[1] {
                     f.write_char(separator)?;
                 }
-                fmt::Display::fmt(index, f)?;
-                fmt::Display::fmt(&Isomerism::new(*index), f)?;
+                fmt::Display::fmt(&Bound::new(index, self.options.isomerism), f)?;
                 for index in indices {
-                    if let Some(separator) = self.separators[3] {
+                    if let Some(separator) = self.options.separators[2] {
                         f.write_char(separator)?;
                     }
-                    fmt::Display::fmt(index, f)?;
-                    fmt::Display::fmt(&Isomerism::new(*index), f)?;
+                    fmt::Display::fmt(&Bound::new(index, self.options.isomerism), f)?;
                 }
             }
         }
@@ -149,285 +171,499 @@ impl fmt::Display for Display<'_> {
     }
 }
 
-/// Display kind
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub enum Kind {
-    #[default]
-    System,
-    Common,
+/// Bound
+struct Bound {
+    index: i8,
+    isomerism: Option<Isomerism>,
+}
+
+impl Bound {
+    fn new(index: impl Borrow<i8>, isomerism: Option<Isomerism>) -> Self {
+        Self {
+            index: *index.borrow(),
+            isomerism,
+        }
+    }
+}
+
+impl fmt::Display for Bound {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self.isomerism {
+            Some(isomerism) => match isomerism.kind {
+                Kind::CisTrans => {
+                    fmt::Display::fmt(&self.index.abs(), f)?;
+                    if self.index < 0 {
+                        f.write_char('t')?;
+                    } else if isomerism.elision == Elision::Explicit {
+                        f.write_char('c')?;
+                    }
+                    Ok(())
+                }
+                Kind::PlusMinus => {
+                    if self.index < 0 {
+                        f.write_char('-')?;
+                    } else if isomerism.elision == Elision::Explicit {
+                        f.write_char('+')?;
+                    }
+                    fmt::Display::fmt(&self.index.abs(), f)
+                }
+            },
+            None => fmt::Display::fmt(&self.index.abs(), f),
+        }
+    }
+}
+
+/// Display options
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct Options {
+    pub separators: [Option<char>; 3],
+    pub isomerism: Option<Isomerism>,
 }
 
 /// Isomerism
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
-enum Isomerism {
-    Cis(u8),
-    Trans(u8),
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct Isomerism {
+    pub kind: Kind,
+    pub elision: Elision,
 }
 
-impl Isomerism {
-    fn new(index: i8) -> Self {
-        if index < 0 {
-            Self::Cis(index as _)
-        } else {
-            Self::Trans(index as _)
-        }
-    }
+/// Isomerism kind
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub enum Kind {
+    #[default]
+    CisTrans,
+    PlusMinus,
 }
 
-impl fmt::Display for Isomerism {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            // Self::Cis(index) if f.alternate() => write!(f, "{index}c"),
-            Self::Cis(index) => fmt::Display::fmt(&index, f),
-            Self::Trans(index) => {
-                fmt::Display::fmt(&index, f)?;
-                f.write_char('t')
-            }
-        }
-    }
+/// Isomerism elision
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub enum Elision {
+    Explicit,
+    #[default]
+    Implicit,
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
 
-    #[test]
-    fn isomerism() {
-        // 3
-        assert_eq!(
-            fatty_acid!(18;-9,12,15).display(Kind::System).to_string(),
-            "18-9t12c15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;9,-12,15).display(Kind::System).to_string(),
-            "18-9c12t15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;9,12,-15).display(Kind::System).to_string(),
-            "18-9c12c15t",
-        );
-        assert_eq!(
-            fatty_acid!(18;-9,-12,15).display(Kind::System).to_string(),
-            "18-9t12t15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;9,-12,-15).display(Kind::System).to_string(),
-            "18-9c12t15t",
-        );
-        assert_eq!(
-            fatty_acid!(18;-9,12,-15).display(Kind::System).to_string(),
-            "18-9t12c15t",
-        );
-        assert_eq!(
-            fatty_acid!(18;-9,-12,-15).display(Kind::System).to_string(),
-            "18-9t12t15t",
-        );
-        // 2:1
-        assert_eq!(
-            fatty_acid!(18;12,15;-9).display(Kind::System).to_string(),
-            "18-12c15c-9t",
-        );
-        assert_eq!(
-            fatty_acid!(18;9,15;-12).display(Kind::System).to_string(),
-            "18-9c15c-12t",
-        );
-        assert_eq!(
-            fatty_acid!(18;9,12;-15).display(Kind::System).to_string(),
-            "18-9c12c-15t",
-        );
-        // 1:2
-    }
+    // #[test]
+    // fn isomerism() {
+    //     // 3
+    //     assert_eq!(
+    //         fatty_acid!(18;-9,12,15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9t12c15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9,-12,15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12t15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9,12,-15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12c15t",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;-9,-12,15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9t12t15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9,-12,-15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12t15t",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;-9,12,-15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9t12c15t",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;-9,-12,-15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9t12t15t",
+    //     );
+    //     // 2:1
+    //     assert_eq!(
+    //         fatty_acid!(18;12,15;-9)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-12c15c-9t",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9,15;-12)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c15c-12t",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9,12;-15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12c-15t",
+    //     );
+    //     // 1:2
+    // }
 
-    #[test]
-    fn order() {
-        // 3
-        assert_eq!(
-            fatty_acid!(18;9,12,15).display(Kind::System).to_string(),
-            "18-9c12c15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;9,15,12).display(Kind::System).to_string(),
-            "18-9c12c15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;12,9,15).display(Kind::System).to_string(),
-            "18-9c12c15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;12,15,9).display(Kind::System).to_string(),
-            "18-9c12c15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;15,9,12).display(Kind::System).to_string(),
-            "18-9c12c15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;15,12,9).display(Kind::System).to_string(),
-            "18-9c12c15c",
-        );
-        // 2:1
-        assert_eq!(
-            fatty_acid!(18;12,15;9).display(Kind::System).to_string(),
-            "18-12c15c-9c",
-        );
-        assert_eq!(
-            fatty_acid!(18;15,12;9).display(Kind::System).to_string(),
-            "18-12c15c-9c",
-        );
-        assert_eq!(
-            fatty_acid!(18;9,15;12).display(Kind::System).to_string(),
-            "18-9c15c-12c",
-        );
-        assert_eq!(
-            fatty_acid!(18;15,9;12).display(Kind::System).to_string(),
-            "18-9c15c-12c",
-        );
-        assert_eq!(
-            fatty_acid!(18;9,12;15).display(Kind::System).to_string(),
-            "18-9c12c-15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;12,9;15).display(Kind::System).to_string(),
-            "18-9c12c-15c",
-        );
-        // 1:2
-        assert_eq!(
-            fatty_acid!(18;9;12,15).display(Kind::System).to_string(),
-            "18-9c-12c15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;9;15,12).display(Kind::System).to_string(),
-            "18-9c-12c15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;12;9,15).display(Kind::System).to_string(),
-            "18-12c-9c15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;12;15,9).display(Kind::System).to_string(),
-            "18-12c-9c15c",
-        );
-        assert_eq!(
-            fatty_acid!(18;15;9,12).display(Kind::System).to_string(),
-            "18-15c-9c12c",
-        );
-        assert_eq!(
-            fatty_acid!(18;15;12,9).display(Kind::System).to_string(),
-            "18-15c-9c12c",
-        );
-    }
+    // #[test]
+    // fn order() {
+    //     // 3
+    //     assert_eq!(
+    //         fatty_acid!(18;9,12,15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12c15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9,15,12)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12c15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;12,9,15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12c15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;12,15,9)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12c15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;15,9,12)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12c15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;15,12,9)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12c15c",
+    //     );
+    //     // 2:1
+    //     assert_eq!(
+    //         fatty_acid!(18;12,15;9)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-12c15c-9c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;15,12;9)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-12c15c-9c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9,15;12)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c15c-12c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;15,9;12)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c15c-12c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9,12;15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12c-15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;12,9;15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c12c-15c",
+    //     );
+    //     // 1:2
+    //     assert_eq!(
+    //         fatty_acid!(18;9;12,15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c-12c15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9;15,12)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-9c-12c15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;12;9,15)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-12c-9c15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;12;15,9)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-12c-9c15c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;15;9,12)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-15c-9c12c",
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;15;12,9)
+    //             .display(Kind::ColonMinus)
+    //             .to_string(),
+    //         "18-15c-9c12c",
+    //     );
+    // }
 
-    #[test]
-    fn macros() {
-        // 0
-        assert_eq!(fatty_acid!(18), FattyAcid::new(vec![0; 17]));
-        // 1
-        assert_eq!(
-            fatty_acid!(18;9),
-            FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]),
-        );
-        // 2
-        assert_eq!(
-            fatty_acid!(18;9,12),
-            FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0]),
-        );
-        assert_eq!(
-            fatty_acid!(18;9;12),
-            FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 0]),
-        );
-        assert_eq!(
-            fatty_acid!(18;;9,12),
-            FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 2, 0, 0, 0, 0, 0]),
-        );
-        // 3
-        assert_eq!(
-            fatty_acid!(18;9,12,15),
-            FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0]),
-        );
-        assert_eq!(
-            fatty_acid!(18;9,12;15),
-            FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0]),
-        );
-        assert_eq!(
-            fatty_acid!(18;9;12,15),
-            FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 2, 0, 0]),
-        );
-        assert_eq!(
-            fatty_acid!(18;;9,12,15),
-            FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 2, 0, 0, 2, 0, 0]),
-        );
-    }
+    // #[test]
+    // fn macros() {
+    //     // 0
+    //     assert_eq!(fatty_acid!(18), FattyAcid::new(vec![0; 17]));
+    //     // 1
+    //     assert_eq!(
+    //         fatty_acid!(18;9),
+    //         FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]),
+    //     );
+    //     // 2
+    //     assert_eq!(
+    //         fatty_acid!(18;9,12),
+    //         FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0]),
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9;12),
+    //         FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 0]),
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;;9,12),
+    //         FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 2, 0, 0, 0, 0, 0]),
+    //     );
+    //     // 3
+    //     assert_eq!(
+    //         fatty_acid!(18;9,12,15),
+    //         FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0]),
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9,12;15),
+    //         FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0]),
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;9;12,15),
+    //         FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 2, 0, 0]),
+    //     );
+    //     assert_eq!(
+    //         fatty_acid!(18;;9,12,15),
+    //         FattyAcid::new(vec![0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 2, 0, 0, 2, 0, 0]),
+    //     );
+    // }
 
-    mod display {
+    mod errors {
         use super::*;
 
         #[test]
-        fn system() {
-            // 0
-            let fatty_acid = fatty_acid!(18).display(Kind::System);
-            assert_eq!(fatty_acid.to_string(), "18");
-            // 1
-            let fatty_acid = fatty_acid!(18;9).display(Kind::System);
-            assert_eq!(fatty_acid.to_string(), "18-9c");
-            let fatty_acid = fatty_acid!(18;;9).display(Kind::System);
-            assert_eq!(fatty_acid.to_string(), "18--9c");
-            // 2
-            let fatty_acid = fatty_acid!(18;9,12).display(Kind::System);
-            assert_eq!(fatty_acid.to_string(), "18-9c12c");
-            let fatty_acid = fatty_acid!(18;9;12).display(Kind::System);
-            assert_eq!(fatty_acid.to_string(), "18-9c-12c");
-            let fatty_acid = fatty_acid!(18;;9,12).display(Kind::System);
-            assert_eq!(fatty_acid.to_string(), "18--9c12c");
-            // 3
-            let fatty_acid = fatty_acid!(18;9,12,15).display(Kind::System);
-            assert_eq!(fatty_acid.to_string(), "18-9c12c15c");
-            let fatty_acid = fatty_acid!(18;9,12;15).display(Kind::System);
-            assert_eq!(fatty_acid.to_string(), "18-9c12c-15c");
-            let fatty_acid = fatty_acid!(18;9;12,15).display(Kind::System);
-            assert_eq!(fatty_acid.to_string(), "18-9c-12c15c");
-            let fatty_acid = fatty_acid!(18;;9,12,15).display(Kind::System);
-            assert_eq!(fatty_acid.to_string(), "18--9c12c15c");
+        #[should_panic(expected = "assertion failed: 0 > 0")]
+        fn zero_carbons() {
+            fatty_acid!(0);
         }
 
         #[test]
-        fn common() {
-            // 0
-            let fatty_acid = fatty_acid!(18).display(Kind::Common);
-            assert_eq!(fatty_acid.to_string(), "18:0");
-            assert_eq!(format!("{fatty_acid:#}"), "18:0");
-            // 1
-            let fatty_acid = fatty_acid!(18;9).display(Kind::Common);
-            assert_eq!(fatty_acid.to_string(), "18:1");
-            assert_eq!(format!("{fatty_acid:#}"), "18:1Δ9");
-            let fatty_acid = fatty_acid!(18;;9).display(Kind::Common);
-            assert_eq!(fatty_acid.to_string(), "18:0:1");
-            assert_eq!(format!("{fatty_acid:#}"), "18:0:1Δ9");
-            // 2
-            let fatty_acid = fatty_acid!(18;9,12).display(Kind::Common);
-            assert_eq!(fatty_acid.to_string(), "18:2");
-            assert_eq!(format!("{fatty_acid:#}"), "18:2Δ9,12");
-            let fatty_acid = fatty_acid!(18;9;12).display(Kind::Common);
-            println!("fatty_acid: {fatty_acid:#02}");
-            assert_eq!(fatty_acid.to_string(), "18:1:1");
-            assert_eq!(format!("{fatty_acid:#}"), "18:1:1Δ9,12");
-            let fatty_acid = fatty_acid!(18;;9,12).display(Kind::Common);
-            assert_eq!(fatty_acid.to_string(), "18:0:2");
-            assert_eq!(format!("{fatty_acid:#}"), "18:0:2Δ9,12");
-            // 3
-            let fatty_acid = fatty_acid!(18;9,12,15).display(Kind::Common);
-            assert_eq!(fatty_acid.to_string(), "18:3");
-            assert_eq!(format!("{fatty_acid:#}"), "18:3Δ9,12,15");
-            let fatty_acid = fatty_acid!(18;9,12;15).display(Kind::Common);
-            assert_eq!(fatty_acid.to_string(), "18:2:1");
-            assert_eq!(format!("{fatty_acid:#}"), "18:2:1Δ9,12,15");
-            let fatty_acid = fatty_acid!(18;9;12,15).display(Kind::Common);
-            assert_eq!(fatty_acid.to_string(), "18:1:2");
-            assert_eq!(format!("{fatty_acid:#}"), "18:1:2Δ9,12,15");
-            let fatty_acid = fatty_acid!(18;;9,12,15).display(Kind::Common);
-            assert_eq!(fatty_acid.to_string(), "18:0:3");
-            assert_eq!(format!("{fatty_acid:#}"), "18:0:3Δ9,12,15");
+        #[should_panic(expected = "assertion failed: 0 != 0")]
+        fn zero_index() {
+            fatty_acid!(18;0);
+        }
+
+        #[test]
+        #[should_panic(expected = "assertion failed: 18 < 18")]
+        fn equal_carbons() {
+            fatty_acid!(18;18);
+        }
+
+        #[test]
+        #[should_panic(expected = "assertion failed: 19 < 18")]
+        fn greater_carbons() {
+            fatty_acid!(18;19);
         }
     }
+
+    #[test]
+    fn default() {
+        let fatty_acid = fatty_acid!(18);
+        assert_eq!(fatty_acid.to_string(), "180");
+        assert_eq!(format!("{fatty_acid:#}"), "180");
+        assert_eq!(format!("{fatty_acid:02}"), "1800");
+        assert_eq!(format!("{fatty_acid:#02}"), "1800");
+        let fatty_acid = fatty_acid!(18;9);
+        assert_eq!(fatty_acid.to_string(), "181");
+        assert_eq!(format!("{fatty_acid:02}"), "1801");
+        assert_eq!(format!("{fatty_acid:#}"), "1819");
+        assert_eq!(format!("{fatty_acid:#02}"), "180109");
+        let fatty_acid = fatty_acid!(18;9,12);
+        assert_eq!(fatty_acid.to_string(), "182");
+        assert_eq!(format!("{fatty_acid:02}"), "1802");
+        assert_eq!(format!("{fatty_acid:#}"), "182912");
+        assert_eq!(format!("{fatty_acid:#02}"), "18020912");
+        let fatty_acid = fatty_acid!(18;9,12,15);
+        assert_eq!(fatty_acid.to_string(), "183");
+        assert_eq!(format!("{fatty_acid:02}"), "1803");
+        assert_eq!(format!("{fatty_acid:#}"), "18391215");
+        assert_eq!(format!("{fatty_acid:#02}"), "1803091215");
+        // Triple
+        let fatty_acid = fatty_acid!(18;9;12);
+        assert_eq!(fatty_acid.to_string(), "1811");
+        assert_eq!(format!("{fatty_acid:02}"), "180101");
+        assert_eq!(format!("{fatty_acid:#}"), "1811912");
+        assert_eq!(format!("{fatty_acid:#02}"), "1801010912");
+        // Isomerism
+        let fatty_acid = fatty_acid!(18;-9,-12,-15);
+        assert_eq!(fatty_acid.to_string(), "183");
+        assert_eq!(format!("{fatty_acid:02}"), "1803");
+        assert_eq!(format!("{fatty_acid:#}"), "18391215");
+        assert_eq!(format!("{fatty_acid:#02}"), "1803091215");
+    }
+
+    #[test]
+    fn common() {
+        let fatty_acid = fatty_acid!(18).display(COMMON);
+        assert_eq!(fatty_acid.to_string(), "18:0");
+        assert_eq!(format!("{fatty_acid:02}"), "18:00");
+        assert_eq!(format!("{fatty_acid:#}"), "18:0");
+        assert_eq!(format!("{fatty_acid:#02}"), "18:00");
+        let fatty_acid = &fatty_acid!(18;9).display(COMMON);
+        assert_eq!(fatty_acid.to_string(), "18:1");
+        assert_eq!(format!("{fatty_acid:02}"), "18:01");
+        assert_eq!(format!("{fatty_acid:#}"), "18:1Δ9");
+        assert_eq!(format!("{fatty_acid:#02}"), "18:01Δ09");
+        let fatty_acid = fatty_acid!(18;9,12).display(COMMON);
+        assert_eq!(fatty_acid.to_string(), "18:2");
+        assert_eq!(format!("{fatty_acid:02}"), "18:02");
+        assert_eq!(format!("{fatty_acid:#}"), "18:2Δ9,12");
+        assert_eq!(format!("{fatty_acid:#02}"), "18:02Δ09,12");
+        // Triple
+        let fatty_acid = fatty_acid!(18;9;12).display(COMMON);
+        assert_eq!(fatty_acid.to_string(), "18:1:1");
+        assert_eq!(format!("{fatty_acid:02}"), "18:01:01");
+        assert_eq!(format!("{fatty_acid:#}"), "18:1:1Δ9,12");
+        assert_eq!(format!("{fatty_acid:#02}"), "18:01:01Δ09,12");
+        // Isomerism
+        let fatty_acid = fatty_acid!(18;-9,-12,-15).display(COMMON);
+        assert_eq!(fatty_acid.to_string(), "18:3");
+        assert_eq!(format!("{fatty_acid:02}"), "18:03");
+        assert_eq!(format!("{fatty_acid:#}"), "18:3Δ9t,12t,15t");
+        assert_eq!(format!("{fatty_acid:#02}"), "18:03Δ09t,12t,15t");
+    }
+
+    #[test]
+    fn id() {
+        let fatty_acid = fatty_acid!(18).display(ID);
+        assert_eq!(fatty_acid.to_string(), "180");
+        assert_eq!(format!("{fatty_acid:02}"), "1800");
+        assert_eq!(format!("{fatty_acid:#}"), "180");
+        assert_eq!(format!("{fatty_acid:#02}"), "1800");
+        let fatty_acid = fatty_acid!(18;9).display(ID);
+        assert_eq!(fatty_acid.to_string(), "181");
+        assert_eq!(format!("{fatty_acid:02}"), "1801");
+        assert_eq!(format!("{fatty_acid:#}"), "1819c");
+        assert_eq!(format!("{fatty_acid:#02}"), "180109c");
+        let fatty_acid = fatty_acid!(18;9,12).display(ID);
+        assert_eq!(fatty_acid.to_string(), "182");
+        assert_eq!(format!("{fatty_acid:02}"), "1802");
+        assert_eq!(format!("{fatty_acid:#}"), "1829c12c");
+        assert_eq!(format!("{fatty_acid:#02}"), "180209c12c");
+        // Triple
+        let fatty_acid = fatty_acid!(18;9;12).display(ID);
+        assert_eq!(fatty_acid.to_string(), "1811");
+        assert_eq!(format!("{fatty_acid:02}"), "180101");
+        assert_eq!(format!("{fatty_acid:#}"), "18119c12c");
+        assert_eq!(format!("{fatty_acid:#02}"), "18010109c12c");
+        // Isomerism
+        let fatty_acid = fatty_acid!(18;-9,-12,-15).display(ID);
+        assert_eq!(fatty_acid.to_string(), "183");
+        assert_eq!(format!("{fatty_acid:02}"), "1803");
+        assert_eq!(format!("{fatty_acid:#}"), "1839t12t15t");
+        assert_eq!(format!("{fatty_acid:#02}"), "180309t12t15t");
+    }
+
+    // mod display {
+    //     use super::*;
+    //     #[test]
+    //     fn system() {
+    //         // 0
+    //         let fatty_acid = fatty_acid!(18).display(Kind::ColonMinus);
+    //         assert_eq!(fatty_acid.to_string(), "18");
+    //         // 1
+    //         let fatty_acid = fatty_acid!(18;9).display(Kind::ColonMinus);
+    //         assert_eq!(fatty_acid.to_string(), "18-9c");
+    //         let fatty_acid = fatty_acid!(18;;9).display(Kind::ColonMinus);
+    //         assert_eq!(fatty_acid.to_string(), "18--9c");
+    //         // 2
+    //         let fatty_acid = fatty_acid!(18;9,12).display(Kind::ColonMinus);
+    //         assert_eq!(fatty_acid.to_string(), "18-9c12c");
+    //         let fatty_acid = fatty_acid!(18;9;12).display(Kind::ColonMinus);
+    //         assert_eq!(fatty_acid.to_string(), "18-9c-12c");
+    //         let fatty_acid = fatty_acid!(18;;9,12).display(Kind::ColonMinus);
+    //         assert_eq!(fatty_acid.to_string(), "18--9c12c");
+    //         // 3
+    //         let fatty_acid = fatty_acid!(18;9,12,15).display(Kind::ColonMinus);
+    //         assert_eq!(fatty_acid.to_string(), "18-9c12c15c");
+    //         let fatty_acid = fatty_acid!(18;9,12;15).display(Kind::ColonMinus);
+    //         assert_eq!(fatty_acid.to_string(), "18-9c12c-15c");
+    //         let fatty_acid = fatty_acid!(18;9;12,15).display(Kind::ColonMinus);
+    //         assert_eq!(fatty_acid.to_string(), "18-9c-12c15c");
+    //         let fatty_acid = fatty_acid!(18;;9,12,15).display(Kind::ColonMinus);
+    //         assert_eq!(fatty_acid.to_string(), "18--9c12c15c");
+    //     }
+    //     #[test]
+    //     fn common() {
+    //         // 0
+    //         let fatty_acid = fatty_acid!(18).display(Kind::ColonDelta);
+    //         assert_eq!(fatty_acid.to_string(), "18:0");
+    //         assert_eq!(format!("{fatty_acid:#}"), "18:0");
+    //         // 1
+    //         let fatty_acid = fatty_acid!(18;9).display(Kind::ColonDelta);
+    //         assert_eq!(fatty_acid.to_string(), "18:1");
+    //         assert_eq!(format!("{fatty_acid:#}"), "18:1Δ9");
+    //         let fatty_acid = fatty_acid!(18;;9).display(Kind::ColonDelta);
+    //         assert_eq!(fatty_acid.to_string(), "18:0:1");
+    //         assert_eq!(format!("{fatty_acid:#}"), "18:0:1Δ9");
+    //         // 2
+    //         let fatty_acid = fatty_acid!(18;9,12).display(Kind::ColonDelta);
+    //         assert_eq!(fatty_acid.to_string(), "18:2");
+    //         assert_eq!(format!("{fatty_acid:#}"), "18:2Δ9,12");
+    //         let fatty_acid = fatty_acid!(18;9;12).display(Kind::ColonDelta);
+    //         println!("fatty_acid: {fatty_acid:#02}");
+    //         assert_eq!(fatty_acid.to_string(), "18:1:1");
+    //         assert_eq!(format!("{fatty_acid:#}"), "18:1:1Δ9,12");
+    //         let fatty_acid = fatty_acid!(18;;9,12).display(Kind::ColonDelta);
+    //         assert_eq!(fatty_acid.to_string(), "18:0:2");
+    //         assert_eq!(format!("{fatty_acid:#}"), "18:0:2Δ9,12");
+    //         // 3
+    //         let fatty_acid = fatty_acid!(18;9,12,15).display(Kind::ColonDelta);
+    //         assert_eq!(fatty_acid.to_string(), "18:3");
+    //         assert_eq!(format!("{fatty_acid:#}"), "18:3Δ9,12,15");
+    //         let fatty_acid = fatty_acid!(18;9,12;15).display(Kind::ColonDelta);
+    //         assert_eq!(fatty_acid.to_string(), "18:2:1");
+    //         assert_eq!(format!("{fatty_acid:#}"), "18:2:1Δ9,12,15");
+    //         let fatty_acid = fatty_acid!(18;9;12,15).display(Kind::ColonDelta);
+    //         assert_eq!(fatty_acid.to_string(), "18:1:2");
+    //         assert_eq!(format!("{fatty_acid:#}"), "18:1:2Δ9,12,15");
+    //         let fatty_acid = fatty_acid!(18;;9,12,15).display(Kind::ColonDelta);
+    //         assert_eq!(fatty_acid.to_string(), "18:0:3");
+    //         assert_eq!(format!("{fatty_acid:#}"), "18:0:3Δ9,12,15");
+    //     }
+    // }
 }
 
 // /// Elision
