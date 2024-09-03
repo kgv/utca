@@ -33,23 +33,15 @@ pub macro fatty_acid {
     }
 }
 
-const COLON_DELTA: [Option<char>; 2] = [Some(':'), Some('Δ')];
-const COLON_MINUS: [Option<char>; 2] = [Some(':'), Some('-')];
-
 /// Fatty acid
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct FattyAcid {
-    pub carbons: u8,
-    pub doubles: Vec<i8>,
-    pub triples: Vec<i8>,
+    pub bounds: Vec<i8>,
 }
 
 impl FattyAcid {
-    pub fn saturated(carbons: u8) -> Self {
-        Self {
-            carbons,
-            ..Default::default()
-        }
+    pub fn new(bounds: Vec<i8>) -> Self {
+        Self { bounds }
     }
 
     pub fn id(&self) -> String {
@@ -57,23 +49,25 @@ impl FattyAcid {
     }
 
     pub fn display(&self, kind: Kind) -> Display {
+        let mut bounds: IndexMap<_, _> = self.bounds.iter().copied().enumerate().collect();
+        bounds.sort_by_cached_key(|key, value| (value.abs(), *key));
         match kind {
-            Kind::System => Display::colon_minus(self),
-            Kind::Common => Display::colon_delta(self),
+            Kind::System => Display::system(bounds),
+            Kind::Common => Display::common(bounds),
         }
     }
 
-    pub fn c(&self) -> u8 {
-        self.carbons
+    pub fn c(&self) -> usize {
+        self.bounds.len() + 1
     }
 
-    pub fn h(&self) -> u8 {
-        2 * self.carbons
+    pub fn h(&self) -> usize {
+        2 * self.c()
             - 2 * self
-                .doubles
+                .bounds
                 .iter()
-                .map(|bound| bound.abs() as u8)
-                .sum::<u8>()
+                .map(|bound| bound.abs() as usize)
+                .sum::<usize>()
     }
 
     pub fn mass(&self) -> f64 {
@@ -83,65 +77,113 @@ impl FattyAcid {
 
 impl fmt::Display for FattyAcid {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.display(Kind::Common), f)
+        fmt::Display::fmt(&self.display(Kind::System), f)
     }
 }
 
 /// Fatty acid display
 #[derive(Clone, Debug)]
-pub struct Display<'a> {
-    fatty_acid: &'a FattyAcid,
-    separators: [Option<char>; 2],
+pub enum Display {
+    System(System),
+    Common(Common),
 }
 
-impl<'a> Display<'a> {
-    pub fn new(fatty_acid: &'a FattyAcid, separators: [Option<char>; 2]) -> Self {
-        Self {
-            fatty_acid,
-            separators,
-        }
+impl Display {
+    fn common(bounds: IndexMap<usize, i8>) -> Self {
+        Display::Common(Common {
+            bounds,
+            ..Default::default()
+        })
     }
 
-    pub fn colon_delta(fatty_acid: &'a FattyAcid) -> Self {
-        Self::new(fatty_acid, COLON_DELTA)
-    }
-
-    pub fn colon_minus(fatty_acid: &'a FattyAcid) -> Self {
-        Self::new(fatty_acid, COLON_MINUS)
+    fn system(bounds: IndexMap<usize, i8>) -> Self {
+        Display::System(System { bounds })
     }
 }
 
-impl fmt::Display for Display<'_> {
+impl fmt::Display for Display {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.fatty_acid.carbons, f)?;
-        if let Some(separator) = self.separators[0] {
-            f.write_char(separator)?;
+        match self {
+            Display::System(system) => fmt::Display::fmt(system, f),
+            Display::Common(common) => fmt::Display::fmt(common, f),
         }
-        fmt::Display::fmt(&self.fatty_acid.doubles.len(), f)?;
-        if !self.fatty_acid.triples.is_empty() {
-            if let Some(separator) = self.separators[0] {
-                f.write_char(separator)?;
+    }
+}
+
+/// Display system
+#[derive(Clone, Debug, Default)]
+pub struct System {
+    bounds: IndexMap<usize, i8>,
+}
+
+impl fmt::Display for System {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let c = self.bounds.len() + 1;
+        write!(f, "{c}")?;
+        let mut last = 0;
+        for (index, &bound) in &self.bounds {
+            if bound != 0 {
+                while last < bound.abs() {
+                    f.write_char('-')?;
+                    last += 1;
+                }
+                write!(f, "{}", index + 1)?;
+                if bound < 0 {
+                    f.write_char('t')?;
+                } else {
+                    f.write_char('c')?;
+                }
             }
-            fmt::Display::fmt(&self.fatty_acid.triples.len(), f)?;
+        }
+        Ok(())
+    }
+}
+
+/// Display common
+#[derive(Clone, Debug)]
+pub struct Common {
+    bounds: IndexMap<usize, i8>,
+    separators: [char; 2],
+}
+
+impl Default for Common {
+    fn default() -> Self {
+        Self {
+            bounds: Default::default(),
+            separators: [':', 'Δ'],
+        }
+    }
+}
+
+impl fmt::Display for Common {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let mut doubles = Vec::new();
+        let mut triples = Vec::new();
+        for (&index, &bound) in &self.bounds {
+            let index = index + 1;
+            match bound {
+                -2 => triples.push(Isomerism::Trans(index)),
+                -1 => doubles.push(Isomerism::Trans(index)),
+                1 => doubles.push(Isomerism::Cis(index)),
+                2 => triples.push(Isomerism::Cis(index)),
+                _ => continue,
+            }
+        }
+        fmt::Display::fmt(&(self.bounds.len() + 1), f)?;
+        f.write_char(self.separators[0])?;
+        fmt::Display::fmt(&doubles.len(), f)?;
+        if !triples.is_empty() {
+            f.write_char(self.separators[0])?;
+            fmt::Display::fmt(&triples.len(), f)?;
         }
         if f.alternate() {
-            let mut indices = self
-                .fatty_acid
-                .doubles
-                .iter()
-                .chain(&self.fatty_acid.triples);
-            if let Some(index) = indices.next() {
-                if let Some(separator) = self.separators[1] {
-                    f.write_char(separator)?;
-                }
-                fmt::Display::fmt(index, f)?;
-                fmt::Display::fmt(&Isomerism::new(*index), f)?;
-                for index in indices {
-                    if let Some(separator) = self.separators[3] {
-                        f.write_char(separator)?;
-                    }
-                    fmt::Display::fmt(index, f)?;
-                    fmt::Display::fmt(&Isomerism::new(*index), f)?;
+            let mut bounds = doubles.iter().chain(&triples);
+            if let Some(index) = bounds.next() {
+                f.write_char(self.separators[1])?;
+                fmt::Display::fmt(&index, f)?;
+                for index in bounds {
+                    f.write_char(',')?;
+                    fmt::Display::fmt(&index, f)?;
                 }
             }
         }
@@ -160,18 +202,8 @@ pub enum Kind {
 /// Isomerism
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 enum Isomerism {
-    Cis(u8),
-    Trans(u8),
-}
-
-impl Isomerism {
-    fn new(index: i8) -> Self {
-        if index < 0 {
-            Self::Cis(index as _)
-        } else {
-            Self::Trans(index as _)
-        }
-    }
+    Cis(usize),
+    Trans(usize),
 }
 
 impl fmt::Display for Isomerism {

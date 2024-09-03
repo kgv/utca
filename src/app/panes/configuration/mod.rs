@@ -307,6 +307,7 @@ impl Pane {
                         .vstack(&behavior.data_frame.slice((row + 1) as _, usize::MAX))?;
                 }
                 Some(Event::Edit { row, column, value }) => {
+                    println!("Event::Edit");
                     *behavior.data_frame = behavior
                         .data_frame
                         .clone()

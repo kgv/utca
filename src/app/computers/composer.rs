@@ -422,7 +422,9 @@ fn id(name: &str) -> Expr {
         r#struct(name)
             .field_by_name(field_name)
             .list()
-            .eval(format(col("").cum_count(false)), true)
+            .eval(format(col("").cum_count(false)), false)
+            .list()
+            .join(lit(""), true)
     };
     concat_str(
         [
@@ -430,7 +432,7 @@ fn id(name: &str) -> Expr {
             format(r#struct(name).field_by_name("Doubles").list().len()),
             format(r#struct(name).field_by_name("Triples").list().len()),
             indices("Doubles"),
-            indices("Triples"),
+            // indices("Triples"),
         ],
         "",
         false,
