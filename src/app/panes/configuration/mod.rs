@@ -1,5 +1,5 @@
 use self::{
-    area::Area, formula::Formula, names::Names, properties::Properties, settings::Settings,
+    area::Area, names::Names, properties::Properties, settings::Settings, widgets::FattyAcidWidget,
 };
 use super::Behavior;
 use crate::{
@@ -8,7 +8,10 @@ use crate::{
         CONFIGURATION, DAG, DIACYLGLYCEROL, FA, FATTY_ACID, FORMULA, MAG, MONOACYLGLYCEROL, TAG,
         TRIACYLGLYCEROL,
     },
-    utils::ui::{SubscriptedTextFormat, UiExt},
+    utils::{
+        ui::{SubscriptedTextFormat, UiExt},
+        Log,
+    },
 };
 use anyhow::Result;
 use egui::{style::Widgets, CursorIcon, Direction, DragValue, Layout, RichText, TextEdit, Ui};
@@ -18,16 +21,14 @@ use egui_phosphor::regular::{ARROW_FAT_LINE_DOWN, ARROW_FAT_LINE_UP, MINUS, PLUS
 use egui_tiles::UiResponse;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{f64::NAN, iter::empty};
-use tracing::error;
+use std::{f64::NAN, fmt::Display, iter::empty};
+use tracing::{warn, Level};
+use widgets::Change;
 
 /// Monospace macro
 macro monospace($text:expr) {
     egui::RichText::new($text).monospace()
 }
-
-// const FA_LABEL: &str = "FA.Label";
-// const FA_FORMULA: &str = "FA.Formula";
 
 /// Central configuration pane
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -40,452 +41,226 @@ impl Pane {
     pub(crate) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
         let response = ui.heading(&CONFIGURATION).on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
-        if let Err(error) = || -> Result<()> {
-            let height = ui.spacing().interact_size.y;
-            let width = ui.spacing().interact_size.x;
-            let total_rows = behavior.data_frame.height();
+        let height = ui.spacing().interact_size.y;
+        let width = ui.spacing().interact_size.x;
+        let total_rows = behavior.data_frame.height();
 
-            // let fatty_acids = behavior.data_frame.unnest(["FA"])?;
-            let labels = behavior.data_frame["Label"].str()?;
-            let carbons = behavior.data_frame["Carbons"].u8()?;
-            // let doubles = fatty_acids.explode(["Doubles"])?;
-            // let doubles = doubles["Doubles"].i8()?;
-            // let triples = fatty_acids.explode(["Triples"])?;
-            // let triples = triples["Triples"].i8()?;
-            let tags = behavior.data_frame["TAG"].f64()?;
-            let dags1223 = behavior.data_frame["DAG1223"].f64()?;
-            let mags2 = behavior.data_frame["MAG2"].f64()?;
-            let mut event = None;
-            let mut builder = TableBuilder::new(ui)
-                .cell_layout(Layout::centered_and_justified(Direction::LeftToRight));
-            if behavior.settings.editable {
-                builder = builder.column(Column::exact(width / 2.));
-            }
-            builder = builder
-                .column(Column::auto_with_initial_suggestion(width))
-                .columns(Column::auto(), 3);
-            if behavior.settings.editable {
-                builder = builder.column(Column::exact(width));
-            }
-            builder
-                .auto_shrink(false)
-                .resizable(behavior.settings.resizable)
-                .striped(true)
-                .header(height, |mut row| {
-                    if behavior.settings.editable {
-                        row.col(|_ui| {});
-                    }
-                    row.col(|ui| {
-                        ui.heading(&FA).on_hover_text(&FATTY_ACID);
-                    });
-                    row.col(|ui| {
-                        ui.heading(&TAG).on_hover_text(&TRIACYLGLYCEROL);
-                    });
-                    row.col(|ui| {
-                        ui.heading(format!("1,2/2,3-{DAG}"))
-                            .on_hover_text(format!("sn-1,2/2,3 {DIACYLGLYCEROL}"));
-                    });
-                    row.col(|ui| {
-                        ui.heading(format!("2-{MAG}"))
-                            .on_hover_text(format!("sn-2 {MONOACYLGLYCEROL}"));
-                    });
-                })
-                .body(|body| {
-                    let precision = |value| format!("{value:.*}", self.settings.precision);
-                    body.rows(height, total_rows + 1, |mut row| {
-                        let index = row.index();
-                        if index < total_rows {
-                            // Move row
-                            if behavior.settings.editable {
-                                row.col(|ui| {
-                                    if ui.button(RichText::new(ARROW_FAT_LINE_UP)).clicked() {
-                                        event = Some(Event::Move { row: index });
-                                    }
-                                });
-                            }
-                            // FA
-                            row.left_align_col(|ui| {
-                                let label = labels.get(index).unwrap_or_default();
-                                let carbons = carbons.get(index).unwrap_or_default();
-                                let fatty_acid = &mut FattyAcid {
-                                    carbons,
-                                    doubles: vec![1, 2, 3],
-                                    triples: vec![1, 2, 3],
-                                    // doubles: doubles.iter().flatten().collect(),
-                                    // triples: triples.iter().flatten().collect(),
-                                };
-                                let text = if label.is_empty() { "C" } else { label };
-                                let title = ui.subscripted_text(
-                                    text,
-                                    &fatty_acid.display(COMMON).to_string(),
-                                    SubscriptedTextFormat {
-                                        widget: true,
-                                        ..Default::default()
-                                    },
-                                );
-                                let mut response = if behavior.settings.editable {
-                                    ui.menu_button(title, |ui| {
-                                        ui.visuals_mut().widgets = if ui.style().visuals.dark_mode {
-                                            Widgets::dark()
-                                        } else {
-                                            Widgets::light()
-                                        };
-                                        // Label
-                                        ui.horizontal(|ui| {
-                                            ui.label("Label");
-                                            let mut label = label.to_owned();
-                                            if TextEdit::singleline(&mut label)
-                                                .hint_text("C")
-                                                .desired_width(ui.available_width())
-                                                .show(ui)
-                                                .response
-                                                .changed()
-                                            {
-                                                event = Some(Event::Edit {
-                                                    row: index,
-                                                    value: Value::Label(label),
-                                                });
-                                            }
-                                        });
-                                        // Carbons
-                                        ui.horizontal(|ui| {
-                                            ui.label("Carbons");
-                                            if ui
-                                                .add(DragValue::new(&mut fatty_acid.carbons))
-                                                .changed()
-                                            {
-                                                event = Some(Event::Edit {
-                                                    row: index,
-                                                    value: Value::Carbons(fatty_acid.carbons),
-                                                });
-                                            }
-                                        });
-                                        // Doubles
-                                        ui.horizontal(|ui| {
-                                            let mut response = ui.label("Doubles");
-                                            if !fatty_acid.doubles.is_empty() {
-                                                if ui.button(MINUS).clicked() {
-                                                    fatty_acid.doubles.pop();
-                                                    response.mark_changed();
-                                                }
-                                            }
-                                            for index in &mut fatty_acid.doubles {
-                                                response |= ui.add(
-                                                    DragValue::new(index)
-                                                        .range(0..=fatty_acid.carbons),
-                                                );
-                                            }
-                                            if ui.button(PLUS).clicked() {
-                                                fatty_acid.doubles.push(0);
-                                                response.mark_changed();
-                                            }
-                                            if response.changed() {
-                                                event = Some(Event::Edit {
-                                                    row: index,
-                                                    value: Value::Doubles(
-                                                        fatty_acid.doubles.clone(),
-                                                    ),
-                                                });
-                                            }
-                                        });
-                                        // let mut label = label.to_owned();
-                                        // if ui
-                                        //     .add(Formula::new(&mut carbons, fatty_acid, &mut event))
-                                        //     .changed()
-                                        // {
-                                        //     // event = Some(Event::Edit {
-                                        //     //     row: index,
-                                        //     //     column: "Label",
-                                        //     //     value: Value::Struct(label, fatty_acid.clone()),
-                                        //     //     // value: Value::List(fatty_acid.bounds.clone()),
-                                        //     // });
-                                        // }
-                                    })
-                                    .response
-                                } else {
-                                    ui.label(title)
-                                }
-                                .on_hover_ui(|ui| {
-                                    ui.heading(&FATTY_ACID);
-                                    ui.label(format!("{FORMULA}: {fatty_acid:#}"));
-                                    ui.label(format!(
-                                        "{FORMULA}: C{}H{}O2",
-                                        fatty_acid.c(),
-                                        fatty_acid.h(),
-                                    ));
-                                });
-                                if self.settings.names {
-                                    response = response.on_hover_ui(|ui| {
-                                        ui.add(Names::new(fatty_acid));
-                                    });
-                                }
-                                if self.settings.properties {
-                                    response.on_hover_ui(|ui| {
-                                        ui.add(Properties::new(fatty_acid));
-                                    });
-                                }
-                            });
-                            // TAG
-                            row.col(|ui| {
-                                let mut value = tags.get(index).unwrap_or_default();
-                                if ui
-                                    .add(Area::new(
-                                        &mut value,
-                                        behavior.settings.editable,
-                                        self.settings.precision,
-                                    ))
-                                    .changed()
-                                {
-                                    event = Some(Event::Edit {
-                                        row: index,
-                                        value: Value::Tag(value),
-                                    });
-                                }
-                            });
-                            // DAG
-                            row.col(|ui| {
-                                let mut value = dags1223.get(index).unwrap_or_default();
-                                if ui
-                                    .add(Area::new(
-                                        &mut value,
-                                        behavior.settings.editable,
-                                        self.settings.precision,
-                                    ))
-                                    .changed()
-                                {
-                                    event = Some(Event::Edit {
-                                        row: index,
-                                        value: Value::Dag(value),
-                                    });
-                                }
-                            });
-                            // MAG
-                            row.col(|ui| {
-                                let mut value = mags2.get(index).unwrap_or_default();
-                                if ui
-                                    .add(Area::new(
-                                        &mut value,
-                                        behavior.settings.editable,
-                                        self.settings.precision,
-                                    ))
-                                    .changed()
-                                {
-                                    event = Some(Event::Edit {
-                                        row: index,
-                                        value: Value::Mag(value),
-                                    });
-                                }
-                            });
-                            // Delete row
-                            if behavior.settings.editable {
-                                row.col(|ui| {
-                                    if ui.button(RichText::new(X)).clicked() {
-                                        event = Some(Event::Delete(index));
-                                    }
-                                });
-                            }
-                        } else {
-                            if behavior.settings.editable {
-                                row.col(|_ui| {});
-                            }
-                            row.col(|_ui| {});
-                            // TAG
-                            row.col(|ui| {
-                                let value = tags.sum().unwrap_or(NAN);
-                                ui.label(precision(value)).on_hover_text(value.to_string());
-                            });
-                            // DAG
-                            row.col(|ui| {
-                                let value = dags1223.sum().unwrap_or(NAN);
-                                ui.label(precision(value)).on_hover_text(value.to_string());
-                            });
-                            // MAG
-                            row.col(|ui| {
-                                let value = mags2.sum().unwrap_or(NAN);
-                                ui.label(precision(value)).on_hover_text(value.to_string());
-                            });
-                            // Add row
-                            if behavior.settings.editable {
-                                row.col(|ui| {
-                                    if ui.button(RichText::new(PLUS)).clicked() {
-                                        event = Some(Event::Add);
-                                    }
-                                });
-                            }
-                        }
-                    });
+        // let fatty_acids = behavior.data_frame.unnest(["FA"])?;
+        // let triples = fatty_acids.explode(["Triples"])?;
+        // let triples = triples["Triples"].i8()?;
+        let labels = behavior.data_frame["Label"].str().unwrap();
+        let carbons = behavior.data_frame["Carbons"].u8().unwrap();
+        let doubles = behavior.data_frame["Doubles"].list().unwrap();
+        let triples = behavior.data_frame["Triples"].list().unwrap();
+        let tags = behavior.data_frame["TAG"].f64().unwrap();
+        let dags1223 = behavior.data_frame["DAG1223"].f64().unwrap();
+        let mags2 = behavior.data_frame["MAG2"].f64().unwrap();
+        let mut event = None;
+        let mut builder = TableBuilder::new(ui)
+            .cell_layout(Layout::centered_and_justified(Direction::LeftToRight));
+        if behavior.settings.editable {
+            builder = builder.column(Column::exact(width / 2.));
+        }
+        builder = builder
+            .column(Column::auto_with_initial_suggestion(width))
+            .columns(Column::auto(), 3);
+        if behavior.settings.editable {
+            builder = builder.column(Column::exact(width));
+        }
+        builder
+            .auto_shrink(false)
+            .resizable(behavior.settings.resizable)
+            .striped(true)
+            .header(height, |mut row| {
+                if behavior.settings.editable {
+                    row.col(|_ui| {});
+                }
+                row.col(|ui| {
+                    ui.heading(&FA).on_hover_text(&FATTY_ACID);
                 });
-            // Mutable
-            match event {
-                Some(Event::Add) => {
-                    let data_frame = df! {
-                        "Label" => &[""],
-                        "Carbons" => &[0u8],
-                        "Doubles" => &[Series::from_iter(empty::<i8>())],
-                        "Triples" => &[Series::from_iter(empty::<i8>())],
-                        "TAG" => &[0.0],
-                        "DAG1223" => &[0.0],
-                        "MAG2" => &[0.0],
-                    }?;
-                    *behavior.data_frame = concat(
-                        [
-                            behavior.data_frame.clone().lazy(),
-                            data_frame.clone().lazy(),
-                        ],
-                        Default::default(),
-                    )?
-                    .collect()?;
-                }
-                Some(Event::Delete(row)) => {
-                    // https://stackoverflow.com/questions/71486019/how-to-drop-row-in-polars-python
-                    // https://stackoverflow.com/a/71495211/1522758
-                    *behavior.data_frame = behavior
-                        .data_frame
-                        .slice(0, row)
-                        .vstack(&behavior.data_frame.slice((row + 1) as _, usize::MAX))?;
-                }
-                Some(Event::Edit { row, value }) => {
-                    *behavior.data_frame = behavior
-                        .data_frame
-                        .clone()
-                        .lazy()
-                        .with_row_index("Index", None)
-                        .with_column({
-                            let name = value.column();
-                            when(col("Index").eq(lit(row as i64)))
-                                .then({
-                                    println!("value: {value:?}");
-                                    match value {
-                                        Value::Label(label) => lit(label),
-                                        Value::Carbons(carbons) => lit(carbons),
-                                        Value::Doubles(indices) | Value::Triples(indices) => {
-                                            lit(Series::from_any_values(
-                                                "",
-                                                &[AnyValue::List(Series::from_iter(indices))],
-                                                false,
-                                            )
-                                            .unwrap())
-                                        }
-                                        // Value::Struct(label, fatty_acid) => {
-                                        //     // let l = as_struct(vec![
-                                        //     //     lit(label.clone()).alias("Label"),
-                                        //     //     lit(fatty_acid.carbons).alias("Carbons"),
-                                        //     //     concat_list(&fatty_acid.doubles)
-                                        //     //         .unwrap_or_default()
-                                        //     //         .alias("Doubles"),
-                                        //     //     concat_list(&fatty_acid.triples)
-                                        //     //         .unwrap_or_default()
-                                        //     //         .alias("Triples"),
-                                        //     // ]);
-                                        //     // println!("l struct: {}", l);
-                                        //     // println!(
-                                        //     //     "series: {}",
-                                        //     //     Series::from_iter(&fatty_acid.doubles)
-                                        //     // );
-                                        //     // println!(
-                                        //     //     "lit: {}",
-                                        //     //     lit(Series::from_iter(&fatty_acid.doubles))
-                                        //     // );
-                                        //     let t = as_struct(vec![
-                                        //         lit(label).alias("Label"),
-                                        //         lit(fatty_acid.carbons).alias("Carbons"),
-                                        //         lit(Series::from_any_values_and_dtype(
-                                        //             "",
-                                        //             &[AnyValue::List(Series::from_iter(
-                                        //                 &fatty_acid.doubles,
-                                        //             ))],
-                                        //             &DataType::List(Box::new(DataType::Int8)),
-                                        //             true,
-                                        //         )
-                                        //         .unwrap())
-                                        //         .alias("Doubles"),
-                                        //         lit(Series::from_any_values_and_dtype(
-                                        //             "",
-                                        //             &[AnyValue::List(Series::from_iter(
-                                        //                 fatty_acid.triples,
-                                        //             ))],
-                                        //             &DataType::List(Box::new(DataType::Int8)),
-                                        //             true,
-                                        //         )
-                                        //         .unwrap())
-                                        //         .alias("Triples"),
-                                        //     ]);
-                                        //     println!("t struct: {}", t);
-                                        //     // df!(
-                                        //     //     "Label" => &[""],
-                                        //     //     "Carbons" => &[0u8],
-                                        //     //     "Doubles" => &[Series::from_iter(empty::<i8>())],
-                                        //     //     "Triples" => &[Series::from_iter(empty::<i8>())],
-                                        //     // )?
-                                        //     // .into_struct("FA")
-                                        //     t
-                                        // }
-                                        Value::Tag(float)
-                                        | Value::Dag(float)
-                                        | Value::Mag(float) => lit(float),
-                                        // Value::List(list) => {
-                                        //     let mut builder: ListPrimitiveChunkedBuilder<Int8Type> =
-                                        //         ListPrimitiveChunkedBuilder::new(
-                                        //             "",
-                                        //             total_rows,
-                                        //             64,
-                                        //             DataType::Int8,
-                                        //         );
-                                        //     for _ in 0..total_rows {
-                                        //         builder.append_slice(&list);
-                                        //     }
-                                        //     let series = builder.finish().into_series();
-                                        //     lit(LiteralValue::Series(SpecialEq::new(series)))
-                                        // }
-                                        // Value::String(string) => lit(string),
+                row.col(|ui| {
+                    ui.heading(&TAG).on_hover_text(&TRIACYLGLYCEROL);
+                });
+                row.col(|ui| {
+                    ui.heading(format!("1,2/2,3-{DAG}"))
+                        .on_hover_text(format!("sn-1,2/2,3 {DIACYLGLYCEROL}"));
+                });
+                row.col(|ui| {
+                    ui.heading(format!("2-{MAG}"))
+                        .on_hover_text(format!("sn-2 {MONOACYLGLYCEROL}"));
+                });
+            })
+            .body(|body| {
+                let precision = |value| format!("{value:.*}", self.settings.precision);
+                body.rows(height, total_rows + 1, |mut row| {
+                    let index = row.index();
+                    if index < total_rows {
+                        // Move row
+                        if behavior.settings.editable {
+                            row.col(|ui| {
+                                if ui.button(RichText::new(ARROW_FAT_LINE_UP)).clicked() {
+                                    event = Some(Event::Move { row: index });
+                                }
+                            });
+                        }
+                        // FA
+                        row.left_align_col(|ui| {
+                            let label = labels.get(index).expect("get label");
+                            let carbons = carbons.get(index).expect("get carbons");
+                            let doubles = doubles.get_as_series(index).expect("get doubles");
+                            let triples = triples.get_as_series(index).expect("get triples");
+                            let fatty_acid = &mut FattyAcid {
+                                carbons,
+                                doubles: doubles.i8().unwrap().to_vec_null_aware().left().unwrap(),
+                                triples: triples.i8().unwrap().to_vec_null_aware().left().unwrap(),
+                            };
+                            let text = if label.is_empty() { "C" } else { label };
+                            let title = ui.subscripted_text(
+                                text,
+                                &fatty_acid.display(COMMON).to_string(),
+                                SubscriptedTextFormat {
+                                    widget: true,
+                                    ..Default::default()
+                                },
+                            );
+                            let mut response = if behavior.settings.editable {
+                                ui.menu_button(title, |ui| {
+                                    let mut label = label.to_owned();
+                                    if let Some(change) =
+                                        FattyAcidWidget::new(&mut label, fatty_acid).ui(ui)
+                                    {
+                                        let value = match change {
+                                            Change::Label => Value::Label(label),
+                                            Change::Carbons => Value::Carbons(fatty_acid.carbons),
+                                            Change::Doubles => {
+                                                Value::Doubles(fatty_acid.doubles.clone())
+                                            }
+                                            Change::Triples => {
+                                                Value::Doubles(fatty_acid.doubles.clone())
+                                            }
+                                        };
+                                        event = Some(Event::Change { row: index, value })
                                     }
-                                    .alias(name)
-                                    // if let Value::List(series) =  {
-                                    //     let mut builder: ListPrimitiveChunkedBuilder<UInt8Type> =
-                                    //         ListPrimitiveChunkedBuilder::new(
-                                    //             "",
-                                    //             total_rows,
-                                    //             24,
-                                    //             DataType::UInt8,
-                                    //         );
-                                    //     for _ in 0..total_rows {
-                                    //         builder.append_series(series)?;
-                                    //     }
-                                    //     let series = builder.finish().into_series();
-                                    //     lit(LiteralValue::Series(SpecialEq::new(series)))
-                                    // } else {
-                                    //     lit(value)
-                                    // }
                                 })
-                                .otherwise(col(name))
-                        })
-                        .drop(["Index"])
-                        .collect()?;
-                    println!("self.data_frame: {}", behavior.data_frame);
-                }
-                Some(Event::Move { row }) => {
-                    if row > 0 {
-                        *behavior.data_frame = behavior
-                            .data_frame
-                            .slice(0, row - 1)
-                            .vstack(&behavior.data_frame.slice(row as _, 1))?
-                            .vstack(&behavior.data_frame.slice((row - 1) as _, 1))?
-                            .vstack(&behavior.data_frame.slice((row + 1) as _, usize::MAX))?;
+                                .response
+                            } else {
+                                ui.label(title)
+                            }
+                            .on_hover_ui(|ui| {
+                                ui.heading(&FATTY_ACID);
+                                ui.label(format!("{FORMULA}: {fatty_acid:#}"));
+                                ui.label(format!(
+                                    "{FORMULA}: C{}H{}O2",
+                                    fatty_acid.c(),
+                                    fatty_acid.h(),
+                                ));
+                            });
+                            if self.settings.names {
+                                response = response.on_hover_ui(|ui| {
+                                    ui.add(Names::new(fatty_acid));
+                                });
+                            }
+                            if self.settings.properties {
+                                response.on_hover_ui(|ui| {
+                                    ui.add(Properties::new(fatty_acid));
+                                });
+                            }
+                        });
+                        // TAG
+                        row.col(|ui| {
+                            let mut value = tags.get(index).unwrap_or_default();
+                            if ui
+                                .add(Area::new(
+                                    &mut value,
+                                    behavior.settings.editable,
+                                    self.settings.precision,
+                                ))
+                                .changed()
+                            {
+                                event = Some(Event::Change {
+                                    row: index,
+                                    value: Value::Tag(value),
+                                });
+                            }
+                        });
+                        // DAG
+                        row.col(|ui| {
+                            let mut value = dags1223.get(index).unwrap_or_default();
+                            if ui
+                                .add(Area::new(
+                                    &mut value,
+                                    behavior.settings.editable,
+                                    self.settings.precision,
+                                ))
+                                .changed()
+                            {
+                                event = Some(Event::Change {
+                                    row: index,
+                                    value: Value::Dag(value),
+                                });
+                            }
+                        });
+                        // MAG
+                        row.col(|ui| {
+                            let mut value = mags2.get(index).unwrap_or_default();
+                            if ui
+                                .add(Area::new(
+                                    &mut value,
+                                    behavior.settings.editable,
+                                    self.settings.precision,
+                                ))
+                                .changed()
+                            {
+                                event = Some(Event::Change {
+                                    row: index,
+                                    value: Value::Mag(value),
+                                });
+                            }
+                        });
+                        // Delete row
+                        if behavior.settings.editable {
+                            row.col(|ui| {
+                                if ui.button(RichText::new(X)).clicked() {
+                                    event = Some(Event::Delete(index));
+                                }
+                            });
+                        }
+                    } else {
+                        if behavior.settings.editable {
+                            row.col(|_ui| {});
+                        }
+                        row.col(|_ui| {});
+                        // TAG
+                        row.col(|ui| {
+                            let value = tags.sum().unwrap_or(NAN);
+                            ui.label(precision(value)).on_hover_text(value.to_string());
+                        });
+                        // DAG
+                        row.col(|ui| {
+                            let value = dags1223.sum().unwrap_or(NAN);
+                            ui.label(precision(value)).on_hover_text(value.to_string());
+                        });
+                        // MAG
+                        row.col(|ui| {
+                            let value = mags2.sum().unwrap_or(NAN);
+                            ui.label(precision(value)).on_hover_text(value.to_string());
+                        });
+                        // Add row
+                        if behavior.settings.editable {
+                            row.col(|ui| {
+                                if ui.button(RichText::new(PLUS)).clicked() {
+                                    event = Some(Event::Add);
+                                }
+                            });
+                        }
                     }
-                    // else if offset > 0 && row < total_rows {
-                    //     *behavior.data_frame = behavior
-                    //         .data_frame
-                    //         .slice(0, row)
-                    //         .vstack(&behavior.data_frame.slice((row + 1) as _, 1))?
-                    //         .vstack(&behavior.data_frame.slice(row as _, 1))?
-                    //         .vstack(&behavior.data_frame.slice((row + 2) as _, usize::MAX))?;
-                    // }
-                }
-                None => {}
+                });
+            });
+        // Mutable
+        if let Some(event) = event {
+            if let Err(error) = event.apply(&mut behavior.data_frame) {
+                warn!(%error);
             }
-            Ok(())
-        }() {
-            error!(%error);
         }
         if dragged {
             UiResponse::DragStarted
@@ -499,9 +274,169 @@ impl Pane {
 #[derive(Clone, Debug)]
 enum Event {
     Add,
-    Edit { row: usize, value: Value },
+    Change { row: usize, value: Value },
     Delete(usize),
     Move { row: usize },
+}
+
+impl Event {
+    fn apply(self, data_frame: &mut DataFrame) -> PolarsResult<()> {
+        match self {
+            Self::Add => {
+                *data_frame = concat(
+                    [
+                        data_frame.clone().lazy(),
+                        df! {
+                            "Label" => &[""],
+                            "Carbons" => &[0u8],
+                            "Doubles" => &[Series::from_iter(empty::<i8>())],
+                            "Triples" => &[Series::from_iter(empty::<i8>())],
+                            "TAG" => &[0.0],
+                            "DAG1223" => &[0.0],
+                            "MAG2" => &[0.0],
+                        }?
+                        .lazy(),
+                    ],
+                    Default::default(),
+                )?
+                .collect()?;
+            }
+            Self::Change { row, value } => {
+                *data_frame = data_frame
+                    .clone()
+                    .lazy()
+                    .with_row_index("Index", None)
+                    .with_column({
+                        let name = value.column();
+                        when(col("Index").eq(lit(row as i64)))
+                            .then({
+                                println!("value: {value:?}");
+                                match value {
+                                    Value::Label(label) => lit(label),
+                                    Value::Carbons(carbons) => lit(carbons),
+                                    Value::Doubles(indices) | Value::Triples(indices) => {
+                                        lit(Series::from_any_values(
+                                            "",
+                                            &[AnyValue::List(Series::from_iter(indices))],
+                                            false,
+                                        )
+                                        .unwrap())
+                                    }
+                                    // Value::Struct(label, fatty_acid) => {
+                                    //     // let l = as_struct(vec![
+                                    //     //     lit(label.clone()).alias("Label"),
+                                    //     //     lit(fatty_acid.carbons).alias("Carbons"),
+                                    //     //     concat_list(&fatty_acid.doubles)
+                                    //     //         .unwrap_or_default()
+                                    //     //         .alias("Doubles"),
+                                    //     //     concat_list(&fatty_acid.triples)
+                                    //     //         .unwrap_or_default()
+                                    //     //         .alias("Triples"),
+                                    //     // ]);
+                                    //     // println!("l struct: {}", l);
+                                    //     // println!(
+                                    //     //     "series: {}",
+                                    //     //     Series::from_iter(&fatty_acid.doubles)
+                                    //     // );
+                                    //     // println!(
+                                    //     //     "lit: {}",
+                                    //     //     lit(Series::from_iter(&fatty_acid.doubles))
+                                    //     // );
+                                    //     let t = as_struct(vec![
+                                    //         lit(label).alias("Label"),
+                                    //         lit(fatty_acid.carbons).alias("Carbons"),
+                                    //         lit(Series::from_any_values_and_dtype(
+                                    //             "",
+                                    //             &[AnyValue::List(Series::from_iter(
+                                    //                 &fatty_acid.doubles,
+                                    //             ))],
+                                    //             &DataType::List(Box::new(DataType::Int8)),
+                                    //             true,
+                                    //         )
+                                    //         .unwrap())
+                                    //         .alias("Doubles"),
+                                    //         lit(Series::from_any_values_and_dtype(
+                                    //             "",
+                                    //             &[AnyValue::List(Series::from_iter(
+                                    //                 fatty_acid.triples,
+                                    //             ))],
+                                    //             &DataType::List(Box::new(DataType::Int8)),
+                                    //             true,
+                                    //         )
+                                    //         .unwrap())
+                                    //         .alias("Triples"),
+                                    //     ]);
+                                    //     println!("t struct: {}", t);
+                                    //     // df!(
+                                    //     //     "Label" => &[""],
+                                    //     //     "Carbons" => &[0u8],
+                                    //     //     "Doubles" => &[Series::from_iter(empty::<i8>())],
+                                    //     //     "Triples" => &[Series::from_iter(empty::<i8>())],
+                                    //     // )?
+                                    //     // .into_struct("FA")
+                                    //     t
+                                    // }
+                                    Value::Tag(float) | Value::Dag(float) | Value::Mag(float) => {
+                                        lit(float)
+                                    } // Value::List(list) => {
+                                      //     let mut builder: ListPrimitiveChunkedBuilder<Int8Type> =
+                                      //         ListPrimitiveChunkedBuilder::new(
+                                      //             "",
+                                      //             total_rows,
+                                      //             64,
+                                      //             DataType::Int8,
+                                      //         );
+                                      //     for _ in 0..total_rows {
+                                      //         builder.append_slice(&list);
+                                      //     }
+                                      //     let series = builder.finish().into_series();
+                                      //     lit(LiteralValue::Series(SpecialEq::new(series)))
+                                      // }
+                                      // Value::String(string) => lit(string),
+                                }
+                                .alias(name)
+                                // if let Value::List(series) =  {
+                                //     let mut builder: ListPrimitiveChunkedBuilder<UInt8Type> =
+                                //         ListPrimitiveChunkedBuilder::new(
+                                //             "",
+                                //             total_rows,
+                                //             24,
+                                //             DataType::UInt8,
+                                //         );
+                                //     for _ in 0..total_rows {
+                                //         builder.append_series(series)?;
+                                //     }
+                                //     let series = builder.finish().into_series();
+                                //     lit(LiteralValue::Series(SpecialEq::new(series)))
+                                // } else {
+                                //     lit(value)
+                                // }
+                            })
+                            .otherwise(col(name))
+                    })
+                    .drop(["Index"])
+                    .collect()?;
+                println!("self.data_frame: {}", data_frame);
+            }
+            Self::Delete(row) => {
+                // https://stackoverflow.com/questions/71486019/how-to-drop-row-in-polars-python
+                // https://stackoverflow.com/a/71495211/1522758
+                *data_frame = data_frame
+                    .slice(0, row)
+                    .vstack(&data_frame.slice((row + 1) as _, usize::MAX))?;
+            }
+            Self::Move { row } => {
+                if row > 0 {
+                    *data_frame = data_frame
+                        .slice(0, row - 1)
+                        .vstack(&data_frame.slice(row as _, 1))?
+                        .vstack(&data_frame.slice((row - 1) as _, 1))?
+                        .vstack(&data_frame.slice((row + 1) as _, usize::MAX))?;
+                }
+            }
+        };
+        Ok(())
+    }
 }
 
 /// Value
@@ -1090,7 +1025,7 @@ impl Value {
 // }
 
 mod area;
-mod formula;
 mod names;
 mod properties;
 mod settings;
+mod widgets;

@@ -62,46 +62,48 @@ impl LazyFrameExt for LazyFrame {
         let lazy_frame = self.with_row_index("Index", None);
         lazy_frame
             .clone()
-            .select([
-                // as_struct(vec![col("Index").alias("SN1")]).alias("Indices"),
-                stereospecific_number("FA.Label", "FA.Formula", "DAG13.MAG2.Calculated")
-                    .alias("SN1"),
-            ])
+            .select([stereospecific_number("DAG13.Calculated").alias("SN1")])
             .cross_join(
-                lazy_frame.clone().select([
-                    // as_struct(vec![col("Index").alias("SN2")]).alias("Indices"),
-                    stereospecific_number("FA.Label", "FA.Formula", "MAG2.Experimental")
-                        .alias("SN2"),
-                ]),
+                lazy_frame
+                    .clone()
+                    .select([stereospecific_number("MAG2.Calculated").alias("SN2")]),
                 None,
             )
             .cross_join(
-                lazy_frame.select([stereospecific_number(
-                    "FA.Label",
-                    "FA.Formula",
-                    "DAG13.MAG2.Calculated",
-                )
-                .alias("SN3")]),
+                lazy_frame.select([stereospecific_number("DAG13.Calculated").alias("SN3")]),
                 None,
             )
+        // .with_columns([
+        //     array("Index"),
+        //     array("Label"),
+        //     array("Carbons"),
+        //     array("Doubles"),
+        //     array("Triples"),
+        //     array("Value"),
+        // ])
     }
 }
 
-fn stereospecific_number(label: &str, formula: &str, value: &str) -> Expr {
+fn stereospecific_number(value: &str) -> Expr {
     as_struct(vec![
         col("Index"),
-        col(label).alias("Label"),
-        (col(formula).list().len() + lit(1)).alias("Carbons"),
-        col(formula)
-            .list()
-            .eval(is_double().cum_count(false), false)
-            .alias("Doubles"),
-        col(formula)
-            .list()
-            .eval(is_triple().cum_count(false), false)
-            .alias("Triples"),
+        col("Label"),
+        col("Carbons"),
+        col("Doubles"),
+        col("Triples"),
         col(value).alias("Value"),
     ])
+}
+
+fn array(name: &str) -> Expr {
+    concat_list(vec![
+        col("SN1").r#struct().field_by_name(name),
+        col("SN2").r#struct().field_by_name(name),
+        col("SN3").r#struct().field_by_name(name),
+    ])
+    .unwrap()
+    .list()
+    .to_array(3)
 }
 
 // col(&format!("{name}.Label")).alias("Label"),

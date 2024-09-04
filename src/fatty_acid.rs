@@ -73,8 +73,14 @@ impl FattyAcid {
         self.to_string()
     }
 
+    // Carbons
     pub fn c(&self) -> u8 {
         self.carbons
+    }
+
+    // Bounds
+    pub fn b(&self) -> u8 {
+        self.carbons.saturating_sub(1)
     }
 
     pub fn h(&self) -> u8 {

@@ -1,5 +1,5 @@
 use crate::{
-    app::panes::calculation::settings::{Fraction, From, Settings, Sign},
+    app::panes::calculation::settings::{Fraction, Settings, Sign},
     r#const::relative_atomic_mass::{C, CH2, H, O},
 };
 use egui::{
@@ -8,6 +8,7 @@ use egui::{
 };
 use polars::prelude::*;
 use std::hash::{Hash, Hasher};
+use tracing::trace;
 
 /// Calculated
 pub(in crate::app) type Calculated = FrameCache<Value, Calculator>;
@@ -23,29 +24,24 @@ fn mass_fraction(name: &str) -> Expr {
 
 // mole fraction
 fn mole_fraction(name: &str) -> Expr {
-    col(name) / molar_mass() / (col(name) / molar_mass()).sum()
+    col(name) / molar_mass("FA.Formula") / (col(name) / molar_mass("FA.Formula")).sum()
 }
 
 fn temp_fraction(name: &str) -> Expr {
-    col(name) / (col(name) * molar_mass() / lit(10)).sum()
+    col(name) / (col(name) * molar_mass("FA.Formula") / lit(10)).sum()
 }
 
 // Fatty acid methyl ester molar mass
-fn molar_mass() -> Expr {
-    c() * lit(C) + (h() + lit(2)) * lit(H) + lit(2) * lit(O)
+fn molar_mass(name: &str) -> Expr {
+    (c(name) + lit(1)) * lit(C) + (h(name) + lit(2)) * lit(H) + lit(2) * lit(O)
 }
 
-fn c() -> Expr {
-    col("Carbons")
+fn c(name: &str) -> Expr {
+    col(name).list().len() + lit(1)
 }
 
-fn u() -> Expr {
-    col("Doubles").list().eval(col("").abs(), true).list().sum()
-        + col("Triples").list().eval(col("").abs(), true).list().sum()
-}
-
-fn h() -> Expr {
-    lit(2) * c() - lit(2) * u()
+fn h(name: &str) -> Expr {
+    lit(2) * c(name) - lit(2) * col(name).list().eval(col("").abs(), true).list().sum()
 }
 
 impl ComputerMut<Key<'_>, Value> for Calculator {
@@ -81,6 +77,8 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
                     (col("MAG2.Experimental") / sum("MAG2.Experimental")),
                 ]),
         };
+        lazy_frame = lazy_frame.with_column(molar_mass("FA.Formula").alias("FA.MolarMass"));
+        println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
         // Theoretical
         lazy_frame = lazy_frame
             .with_columns([
@@ -96,22 +94,16 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
                 (col("DAG1223.Theoretical") / sum("DAG1223.Theoretical")),
                 (col("MAG2.Theoretical") / sum("MAG2.Theoretical")),
             ])
+            // Calculated
             .with_columns([
                 clip(lit(3) * col("TAG.Experimental") - lit(2) * col("DAG1223.Experimental"))
-                    .alias("DAG13.DAG1223.Theoretical"),
+                    .alias("DAG13.DAG1223.Calculated"),
                 clip((lit(3) * col("TAG.Experimental") - col("MAG2.Experimental")) / lit(2))
-                    .alias("DAG13.MAG2.Theoretical"),
+                    .alias("DAG13.MAG2.Calculated"),
             ])
             .with_columns([
-                (col("DAG13.DAG1223.Theoretical") / sum("DAG13.DAG1223.Theoretical")),
-                (col("DAG13.MAG2.Theoretical") / sum("DAG13.MAG2.Theoretical")),
-            ])
-            .with_columns([
-                col("MAG2.Experimental").alias("MAG2.Calculated"),
-                match key.settings.from {
-                    From::Dag1223 => col("DAG13.DAG1223.Theoretical").alias("DAG13.Calculated"),
-                    From::Mag2 => col("DAG13.MAG2.Theoretical").alias("DAG13.Calculated"),
-                },
+                (col("DAG13.DAG1223.Calculated") / sum("DAG13.DAG1223.Calculated")),
+                (col("DAG13.MAG2.Calculated") / sum("DAG13.MAG2.Calculated")),
             ]);
         lazy_frame.collect().unwrap()
         // // Fractioner
@@ -204,15 +196,15 @@ impl Hash for Key<'_> {
         for label in self.data_frame["Label"].str().unwrap() {
             label.hash(state);
         }
-        for label in self.data_frame["Carbons"].u8().unwrap() {
+        for label in self.data_frame["Carbons"].str().unwrap() {
             label.hash(state);
         }
-        // for label in self.data_frame["Doubles"].list().unwrap() {
-        //     label.hash(state);
-        // }
-        // for label in self.data_frame["Triples"].list().unwrap() {
-        //     label.hash(state);
-        // }
+        for label in self.data_frame["Doubles"].str().unwrap() {
+            label.hash(state);
+        }
+        for label in self.data_frame["Triples"].str().unwrap() {
+            label.hash(state);
+        }
         for tag in self.data_frame["TAG"].f64().unwrap() {
             tag.map(OrderedFloat).hash(state);
         }
