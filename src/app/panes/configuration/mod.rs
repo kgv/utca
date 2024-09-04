@@ -11,10 +11,10 @@ use crate::{
     utils::ui::{SubscriptedTextFormat, UiExt},
 };
 use anyhow::Result;
-use egui::{CursorIcon, Direction, Layout, RichText, TextEdit, Ui};
+use egui::{style::Widgets, CursorIcon, Direction, DragValue, Layout, RichText, TextEdit, Ui};
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
-use egui_phosphor::regular::{ARROW_FAT_LINE_DOWN, ARROW_FAT_LINE_UP, PLUS, X};
+use egui_phosphor::regular::{ARROW_FAT_LINE_DOWN, ARROW_FAT_LINE_UP, MINUS, PLUS, X};
 use egui_tiles::UiResponse;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -45,13 +45,13 @@ impl Pane {
             let width = ui.spacing().interact_size.x;
             let total_rows = behavior.data_frame.height();
 
-            let fatty_acids = behavior.data_frame.unnest(["FA"])?;
-            let labels = fatty_acids["Label"].str()?;
-            let carbons = fatty_acids["Carbons"].u8()?;
-            let doubles = fatty_acids.explode(["Doubles"])?;
-            let doubles = doubles["Doubles"].i8()?;
-            let triples = fatty_acids.explode(["Triples"])?;
-            let triples = triples["Triples"].i8()?;
+            // let fatty_acids = behavior.data_frame.unnest(["FA"])?;
+            let labels = behavior.data_frame["Label"].str()?;
+            let carbons = behavior.data_frame["Carbons"].u8()?;
+            // let doubles = fatty_acids.explode(["Doubles"])?;
+            // let doubles = doubles["Doubles"].i8()?;
+            // let triples = fatty_acids.explode(["Triples"])?;
+            // let triples = triples["Triples"].i8()?;
             let tags = behavior.data_frame["TAG"].f64()?;
             let dags1223 = behavior.data_frame["DAG1223"].f64()?;
             let mags2 = behavior.data_frame["MAG2"].f64()?;
@@ -59,7 +59,7 @@ impl Pane {
             let mut builder = TableBuilder::new(ui)
                 .cell_layout(Layout::centered_and_justified(Direction::LeftToRight));
             if behavior.settings.editable {
-                builder = builder.columns(Column::exact(width / 2.), 2);
+                builder = builder.column(Column::exact(width / 2.));
             }
             builder = builder
                 .column(Column::auto_with_initial_suggestion(width))
@@ -73,7 +73,6 @@ impl Pane {
                 .striped(true)
                 .header(height, |mut row| {
                     if behavior.settings.editable {
-                        row.col(|_ui| {});
                         row.col(|_ui| {});
                     }
                     row.col(|ui| {
@@ -100,39 +99,20 @@ impl Pane {
                             if behavior.settings.editable {
                                 row.col(|ui| {
                                     if ui.button(RichText::new(ARROW_FAT_LINE_UP)).clicked() {
-                                        event = Some(Event::Move {
-                                            row: index,
-                                            offset: -1,
-                                        });
-                                    }
-                                });
-                                row.col(|ui| {
-                                    if ui.button(RichText::new(ARROW_FAT_LINE_DOWN)).clicked() {
-                                        event = Some(Event::Move {
-                                            row: index,
-                                            offset: 1,
-                                        });
+                                        event = Some(Event::Move { row: index });
                                     }
                                 });
                             }
                             // FA
                             row.left_align_col(|ui| {
-                                // let formulas = formulas.get_as_series(index).unwrap_or_default();
-                                // // TODO: UP
-                                // let bounds = formulas
-                                //     .i8()
-                                //     .ok()
-                                //     .into_iter()
-                                //     .flatten()
-                                //     .filter_map(|bound| bound?.try_into().ok())
-                                //     .collect();
-                                // let fatty_acid = &mut FattyAcid::new(bounds);
                                 let label = labels.get(index).unwrap_or_default();
                                 let carbons = carbons.get(index).unwrap_or_default();
                                 let fatty_acid = &mut FattyAcid {
                                     carbons,
-                                    doubles: doubles.iter().flatten().collect(),
-                                    triples: triples.iter().flatten().collect(),
+                                    doubles: vec![1, 2, 3],
+                                    triples: vec![1, 2, 3],
+                                    // doubles: doubles.iter().flatten().collect(),
+                                    // triples: triples.iter().flatten().collect(),
                                 };
                                 let text = if label.is_empty() { "C" } else { label };
                                 let title = ui.subscripted_text(
@@ -145,34 +125,71 @@ impl Pane {
                                 );
                                 let mut response = if behavior.settings.editable {
                                     ui.menu_button(title, |ui| {
-                                        // // Label
-                                        // ui.horizontal(|ui| {
-                                        //     ui.label("Label");
-                                        //     let mut label = label.to_owned();
-                                        //     if TextEdit::singleline(&mut label)
-                                        //         .hint_text("C")
-                                        //         .desired_width(ui.available_width())
-                                        //         .show(ui)
-                                        //         .response
-                                        //         .changed()
-                                        //     {
-                                        //         event = Some(Event::Edit {
-                                        //             row: index,
-                                        //             column: "FA",
-                                        //             value: Value::String(label),
-                                        //         });
-                                        //     }
-                                        // });
+                                        ui.visuals_mut().widgets = if ui.style().visuals.dark_mode {
+                                            Widgets::dark()
+                                        } else {
+                                            Widgets::light()
+                                        };
+                                        // Label
+                                        ui.horizontal(|ui| {
+                                            ui.label("Label");
+                                            let mut label = label.to_owned();
+                                            if TextEdit::singleline(&mut label)
+                                                .hint_text("C")
+                                                .desired_width(ui.available_width())
+                                                .show(ui)
+                                                .response
+                                                .changed()
+                                            {
+                                                event = Some(Event::Edit {
+                                                    row: index,
+                                                    value: Value::Label(label),
+                                                });
+                                            }
+                                        });
                                         // Carbons
-                                        let mut label = label.to_owned();
-                                        if ui.add(Formula::new(&mut label, fatty_acid)).changed() {
-                                            event = Some(Event::Edit {
-                                                row: index,
-                                                column: "FA",
-                                                value: Value::Struct(label, fatty_acid.clone()),
-                                                // value: Value::List(fatty_acid.bounds.clone()),
-                                            });
-                                        }
+                                        ui.horizontal(|ui| {
+                                            ui.label("Carbons");
+                                            if ui
+                                                .add(DragValue::new(&mut fatty_acid.carbons))
+                                                .changed()
+                                            {
+                                                event = Some(Event::Edit {
+                                                    row: index,
+                                                    value: Value::Carbons(fatty_acid.carbons),
+                                                });
+                                            }
+                                        });
+                                        // Doubles
+                                        ui.horizontal(|ui| {
+                                            ui.label("Doubles");
+                                            if !fatty_acid.doubles.is_empty() {
+                                                if ui.button(MINUS).clicked() {
+                                                    fatty_acid.doubles.pop();
+                                                }
+                                            }
+                                            for index in &mut fatty_acid.doubles {
+                                                ui.add(
+                                                    DragValue::new(index)
+                                                        .range(0..=fatty_acid.carbons),
+                                                );
+                                            }
+                                            if ui.button(PLUS).clicked() {
+                                                fatty_acid.doubles.push(0);
+                                            }
+                                        });
+                                        // let mut label = label.to_owned();
+                                        // if ui
+                                        //     .add(Formula::new(&mut carbons, fatty_acid, &mut event))
+                                        //     .changed()
+                                        // {
+                                        //     // event = Some(Event::Edit {
+                                        //     //     row: index,
+                                        //     //     column: "Label",
+                                        //     //     value: Value::Struct(label, fatty_acid.clone()),
+                                        //     //     // value: Value::List(fatty_acid.bounds.clone()),
+                                        //     // });
+                                        // }
                                     })
                                     .response
                                 } else {
@@ -211,8 +228,7 @@ impl Pane {
                                 {
                                     event = Some(Event::Edit {
                                         row: index,
-                                        column: "TAG",
-                                        value: Value::Float64(value),
+                                        value: Value::Tag(value),
                                     });
                                 }
                             });
@@ -229,8 +245,7 @@ impl Pane {
                                 {
                                     event = Some(Event::Edit {
                                         row: index,
-                                        column: "DAG1223",
-                                        value: Value::Float64(value),
+                                        value: Value::Dag(value),
                                     });
                                 }
                             });
@@ -247,8 +262,7 @@ impl Pane {
                                 {
                                     event = Some(Event::Edit {
                                         row: index,
-                                        column: "MAG2",
-                                        value: Value::Float64(value),
+                                        value: Value::Mag(value),
                                     });
                                 }
                             });
@@ -262,7 +276,6 @@ impl Pane {
                             }
                         } else {
                             if behavior.settings.editable {
-                                row.col(|_ui| {});
                                 row.col(|_ui| {});
                             }
                             row.col(|_ui| {});
@@ -296,13 +309,10 @@ impl Pane {
             match event {
                 Some(Event::Add) => {
                     let data_frame = df! {
-                        "FA" => df!(
-                            "Label" => &[""],
-                            "Carbons" => &[0u8],
-                            "Doubles" => &[Series::from_iter(empty::<i8>())],
-                            "Triples" => &[Series::from_iter(empty::<i8>())],
-                        )?
-                        .into_struct("FA"),
+                        "Label" => &[""],
+                        "Carbons" => &[0u8],
+                        "Doubles" => &[Series::from_iter(empty::<i8>())],
+                        "Triples" => &[Series::from_iter(empty::<i8>())],
                         "TAG" => &[0.0],
                         "DAG1223" => &[0.0],
                         "MAG2" => &[0.0],
@@ -324,72 +334,85 @@ impl Pane {
                         .slice(0, row)
                         .vstack(&behavior.data_frame.slice((row + 1) as _, usize::MAX))?;
                 }
-                Some(Event::Edit { row, column, value }) => {
+                Some(Event::Edit { row, value }) => {
                     *behavior.data_frame = behavior
                         .data_frame
                         .clone()
                         .lazy()
                         .with_row_index("Index", None)
-                        .with_column(
+                        .with_column({
+                            let name = value.column();
                             when(col("Index").eq(lit(row as i64)))
                                 .then({
                                     println!("value: {value:?}");
                                     match value {
-                                        Value::Struct(label, fatty_acid) => {
-                                            // let l = as_struct(vec![
-                                            //     lit(label.clone()).alias("Label"),
-                                            //     lit(fatty_acid.carbons).alias("Carbons"),
-                                            //     concat_list(&fatty_acid.doubles)
-                                            //         .unwrap_or_default()
-                                            //         .alias("Doubles"),
-                                            //     concat_list(&fatty_acid.triples)
-                                            //         .unwrap_or_default()
-                                            //         .alias("Triples"),
-                                            // ]);
-                                            // println!("l struct: {}", l);
-                                            // println!(
-                                            //     "series: {}",
-                                            //     Series::from_iter(&fatty_acid.doubles)
-                                            // );
-                                            // println!(
-                                            //     "lit: {}",
-                                            //     lit(Series::from_iter(&fatty_acid.doubles))
-                                            // );
-                                            let t = as_struct(vec![
-                                                lit(label).alias("Label"),
-                                                lit(fatty_acid.carbons).alias("Carbons"),
-                                                lit(Series::from_any_values_and_dtype(
-                                                    "",
-                                                    &[AnyValue::List(Series::from_iter(
-                                                        &fatty_acid.doubles,
-                                                    ))],
-                                                    &DataType::List(Box::new(DataType::Int8)),
-                                                    true,
-                                                )
-                                                .unwrap())
-                                                .alias("Doubles"),
-                                                lit(Series::from_any_values_and_dtype(
-                                                    "",
-                                                    &[AnyValue::List(Series::from_iter(
-                                                        fatty_acid.triples,
-                                                    ))],
-                                                    &DataType::List(Box::new(DataType::Int8)),
-                                                    true,
-                                                )
-                                                .unwrap())
-                                                .alias("Triples"),
-                                            ]);
-                                            println!("t struct: {}", t);
-                                            // df!(
-                                            //     "Label" => &[""],
-                                            //     "Carbons" => &[0u8],
-                                            //     "Doubles" => &[Series::from_iter(empty::<i8>())],
-                                            //     "Triples" => &[Series::from_iter(empty::<i8>())],
-                                            // )?
-                                            // .into_struct("FA")
-                                            t
+                                        Value::Label(label) => lit(label),
+                                        Value::Carbons(carbons) => lit(carbons),
+                                        Value::Doubles(indices) | Value::Triples(indices) => {
+                                            lit(Series::from_any_values(
+                                                "",
+                                                &[AnyValue::List(Series::from_iter(indices))],
+                                                false,
+                                            )
+                                            .unwrap())
                                         }
-                                        Value::Float64(float) => lit(float),
+                                        // Value::Struct(label, fatty_acid) => {
+                                        //     // let l = as_struct(vec![
+                                        //     //     lit(label.clone()).alias("Label"),
+                                        //     //     lit(fatty_acid.carbons).alias("Carbons"),
+                                        //     //     concat_list(&fatty_acid.doubles)
+                                        //     //         .unwrap_or_default()
+                                        //     //         .alias("Doubles"),
+                                        //     //     concat_list(&fatty_acid.triples)
+                                        //     //         .unwrap_or_default()
+                                        //     //         .alias("Triples"),
+                                        //     // ]);
+                                        //     // println!("l struct: {}", l);
+                                        //     // println!(
+                                        //     //     "series: {}",
+                                        //     //     Series::from_iter(&fatty_acid.doubles)
+                                        //     // );
+                                        //     // println!(
+                                        //     //     "lit: {}",
+                                        //     //     lit(Series::from_iter(&fatty_acid.doubles))
+                                        //     // );
+                                        //     let t = as_struct(vec![
+                                        //         lit(label).alias("Label"),
+                                        //         lit(fatty_acid.carbons).alias("Carbons"),
+                                        //         lit(Series::from_any_values_and_dtype(
+                                        //             "",
+                                        //             &[AnyValue::List(Series::from_iter(
+                                        //                 &fatty_acid.doubles,
+                                        //             ))],
+                                        //             &DataType::List(Box::new(DataType::Int8)),
+                                        //             true,
+                                        //         )
+                                        //         .unwrap())
+                                        //         .alias("Doubles"),
+                                        //         lit(Series::from_any_values_and_dtype(
+                                        //             "",
+                                        //             &[AnyValue::List(Series::from_iter(
+                                        //                 fatty_acid.triples,
+                                        //             ))],
+                                        //             &DataType::List(Box::new(DataType::Int8)),
+                                        //             true,
+                                        //         )
+                                        //         .unwrap())
+                                        //         .alias("Triples"),
+                                        //     ]);
+                                        //     println!("t struct: {}", t);
+                                        //     // df!(
+                                        //     //     "Label" => &[""],
+                                        //     //     "Carbons" => &[0u8],
+                                        //     //     "Doubles" => &[Series::from_iter(empty::<i8>())],
+                                        //     //     "Triples" => &[Series::from_iter(empty::<i8>())],
+                                        //     // )?
+                                        //     // .into_struct("FA")
+                                        //     t
+                                        // }
+                                        Value::Tag(float)
+                                        | Value::Dag(float)
+                                        | Value::Mag(float) => lit(float),
                                         // Value::List(list) => {
                                         //     let mut builder: ListPrimitiveChunkedBuilder<Int8Type> =
                                         //         ListPrimitiveChunkedBuilder::new(
@@ -406,7 +429,7 @@ impl Pane {
                                         // }
                                         // Value::String(string) => lit(string),
                                     }
-                                    .alias(column)
+                                    .alias(name)
                                     // if let Value::List(series) =  {
                                     //     let mut builder: ListPrimitiveChunkedBuilder<UInt8Type> =
                                     //         ListPrimitiveChunkedBuilder::new(
@@ -424,31 +447,29 @@ impl Pane {
                                     //     lit(value)
                                     // }
                                 })
-                                .otherwise(col(column)),
-                        )
+                                .otherwise(col(name))
+                        })
                         .drop(["Index"])
                         .collect()?;
-                    println!(
-                        "self.data_frame: {}",
-                        behavior.data_frame.unnest(["FA"]).unwrap()
-                    );
+                    println!("self.data_frame: {}", behavior.data_frame);
                 }
-                Some(Event::Move { row, offset }) => {
-                    if offset < 0 && row > 0 {
+                Some(Event::Move { row }) => {
+                    if row > 0 {
                         *behavior.data_frame = behavior
                             .data_frame
                             .slice(0, row - 1)
                             .vstack(&behavior.data_frame.slice(row as _, 1))?
                             .vstack(&behavior.data_frame.slice((row - 1) as _, 1))?
                             .vstack(&behavior.data_frame.slice((row + 1) as _, usize::MAX))?;
-                    } else if offset > 0 && row < total_rows {
-                        *behavior.data_frame = behavior
-                            .data_frame
-                            .slice(0, row)
-                            .vstack(&behavior.data_frame.slice((row + 1) as _, 1))?
-                            .vstack(&behavior.data_frame.slice(row as _, 1))?
-                            .vstack(&behavior.data_frame.slice((row + 2) as _, usize::MAX))?;
                     }
+                    // else if offset > 0 && row < total_rows {
+                    //     *behavior.data_frame = behavior
+                    //         .data_frame
+                    //         .slice(0, row)
+                    //         .vstack(&behavior.data_frame.slice((row + 1) as _, 1))?
+                    //         .vstack(&behavior.data_frame.slice(row as _, 1))?
+                    //         .vstack(&behavior.data_frame.slice((row + 2) as _, usize::MAX))?;
+                    // }
                 }
                 None => {}
             }
@@ -464,42 +485,39 @@ impl Pane {
     }
 }
 
-// fn temp() {
-//     let mut builder: ListPrimitiveChunkedBuilder<Int8Type> =
-//         ListPrimitiveChunkedBuilder::new("", total_rows, 64, DataType::Int8);
-//     for _ in 0..total_rows {
-//         builder.append_slice(&list);
-//     }
-//     let series = builder.finish().into_series();
-// }
-
 /// Event
+#[derive(Clone, Debug)]
 enum Event {
     Add,
-    Edit {
-        row: usize,
-        column: &'static str,
-        value: Value,
-    },
+    Edit { row: usize, value: Value },
     Delete(usize),
-    Move {
-        row: usize,
-        offset: i64,
-    },
+    Move { row: usize },
 }
-
-// enum Value {
-//     FattyAcid(String, FattyAcid),
-//     Tag(f64),
-//     Dag(f64),
-//     Mag(f64),
-// }
 
 /// Value
 #[derive(Clone, Debug)]
 enum Value {
-    Struct(String, FattyAcid),
-    Float64(f64),
+    Label(String),
+    Carbons(u8),
+    Doubles(Vec<i8>),
+    Triples(Vec<i8>),
+    Tag(f64),
+    Dag(f64),
+    Mag(f64),
+}
+
+impl Value {
+    const fn column(&self) -> &'static str {
+        match self {
+            Self::Label(_) => "Label",
+            Self::Carbons(_) => "Carbons",
+            Self::Doubles(_) => "Doubles",
+            Self::Triples(_) => "Triples",
+            Self::Tag(_) => "TAG",
+            Self::Dag(_) => "DAG1223",
+            Self::Mag(_) => "MAG2",
+        }
+    }
 }
 
 // impl View for Configuration<'_> {

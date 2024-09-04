@@ -1,3 +1,4 @@
+use super::Event;
 use crate::fatty_acid::FattyAcid;
 use egui::{style::Widgets, DragValue, Response, ScrollArea, TextEdit, Ui, Widget};
 use egui_phosphor::regular::{ARROWS_CLOCKWISE, CHECK, MINUS, PENCIL, PLUS};
@@ -6,11 +7,20 @@ use egui_phosphor::regular::{ARROWS_CLOCKWISE, CHECK, MINUS, PENCIL, PLUS};
 pub(crate) struct Formula<'a> {
     pub(crate) label: &'a mut String,
     pub(crate) fatty_acid: &'a mut FattyAcid,
+    pub(crate) event: &'a mut Option<Event>,
 }
 
 impl<'a> Formula<'a> {
-    pub(crate) fn new(label: &'a mut String, fatty_acid: &'a mut FattyAcid) -> Self {
-        Self { label, fatty_acid }
+    pub(crate) fn new(
+        label: &'a mut String,
+        fatty_acid: &'a mut FattyAcid,
+        event: &'a mut Option<Event>,
+    ) -> Self {
+        Self {
+            label,
+            fatty_acid,
+            event,
+        }
     }
 }
 
@@ -33,6 +43,9 @@ impl Widget for Formula<'_> {
                     .response
             })
             .inner;
+        if response.changed() {
+            // self.event = 
+        }
         // Structure
         ui.horizontal(|ui| {
             ui.label("Carbons");
@@ -62,20 +75,20 @@ impl Widget for Formula<'_> {
             ui.label("Doubles");
             if !fatty_acid.doubles.is_empty() {
                 if ui.button(MINUS).clicked() {
-                    while fatty_acid.c() <= fatty_acid.u() + 1 {
-                        fatty_acid.doubles.pop();
-                        response.mark_changed();
-                    }
+                    // while fatty_acid.c() <= fatty_acid.u() + 1 {
+                    fatty_acid.doubles.pop();
+                    response.mark_changed();
+                    // }
                 }
             }
             for bound in &mut fatty_acid.doubles {
                 response |= ui.add(DragValue::new(bound).range(1..=fatty_acid.carbons));
             }
             if ui.button(PLUS).clicked() {
-                if fatty_acid.c() > fatty_acid.u() + 1 {
-                    fatty_acid.doubles.push(0);
-                    response.mark_changed();
-                }
+                // if fatty_acid.c() > fatty_acid.u() + 1 {
+                fatty_acid.doubles.push(0);
+                response.mark_changed();
+                // }
             }
         });
         response
