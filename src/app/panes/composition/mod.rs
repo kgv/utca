@@ -10,7 +10,7 @@ use egui::{CursorIcon, Ui};
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
 use egui_tiles::UiResponse;
-use polars::{frame::DataFrame, prelude::*};
+use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
 use tracing::error;
@@ -29,7 +29,7 @@ impl Pane {
         if let Err(error) = || -> Result<()> {
             let data_frame = ui.memory_mut(|memory| {
                 memory.caches.cache::<Composed>().get(CompositionKey {
-                    data_frame: &behavior.data_frame,
+                    data_frame: &behavior.data.fatty_acids,
                     settings: &self.settings,
                 })
             });

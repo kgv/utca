@@ -73,33 +73,33 @@ impl FattyAcid {
         self.to_string()
     }
 
-    // Carbons
+    /// Carbon
     pub fn c(&self) -> u8 {
         self.carbons
     }
 
-    // Bounds
+    /// Hydrogen
+    /// `2c - 2d - 4t`
+    pub fn h(&self) -> u8 {
+        2 * self.carbons - 2 * self.d() - 4 * self.t()
+    }
+
+    /// Bounds
     pub fn b(&self) -> u8 {
         self.carbons.saturating_sub(1)
     }
 
-    pub fn h(&self) -> u8 {
-        2 * self.carbons
-            - 2 * self
-                .doubles
-                .iter()
-                .map(|bound| bound.abs() as u8)
-                .sum::<u8>()
-    }
-
+    /// Double bounds
     pub fn d(&self) -> u8 {
         self.doubles.len() as _
     }
 
+    /// Triple bounds
     pub fn t(&self) -> u8 {
         self.triples.len() as _
     }
 
+    /// Unsaturated bounds
     pub fn u(&self) -> u8 {
         self.d() + self.t()
     }

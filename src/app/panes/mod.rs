@@ -5,6 +5,8 @@ use egui_tiles::{Tile, TileId, Tree, UiResponse};
 use polars::prelude::DataFrame;
 use serde::{Deserialize, Serialize};
 
+use super::data::Data;
+
 const SIZE: f32 = 16.0;
 
 /// Central pane
@@ -76,7 +78,7 @@ pub(crate) enum Kind {
 /// Behavior
 #[derive(Debug)]
 pub(crate) struct Behavior<'a> {
-    pub(crate) data_frame: &'a mut DataFrame,
+    pub(crate) data: &'a mut Data,
     pub(crate) settings: &'a Settings,
     pub(crate) close: Option<TileId>,
 }

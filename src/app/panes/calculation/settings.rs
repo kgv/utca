@@ -1,8 +1,8 @@
 use crate::{
     app::MAX_PRECISION,
     localization::{
-        CALCULATION, FRACTION, MASS_FRACTION, MIXTURE_MOLAR_MASS, MOLE_FRACTION, PERCENT,
-        PRECISION, SIGN, SIGNED, SIGNED_DESCRIPTION, UNSIGNED, UNSIGNED_DESCRIPTION,
+        AS_IS, CALCULATION, FRACTION, PERCENT, PRECISION, SIGN, SIGNED, SIGNED_DESCRIPTION,
+        TO_MASS_FRACTION, TO_MOLE_FRACTION, UNSIGNED, UNSIGNED_DESCRIPTION,
     },
 };
 use egui::{ComboBox, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
@@ -24,7 +24,7 @@ impl Default for Settings {
         Self {
             percent: true,
             precision: 1,
-            fraction: Fraction::Mole { mixture: true },
+            fraction: Fraction::ToMole,
             from: From::Mag2,
             signedness: Sign::Unsigned,
         }
@@ -51,20 +51,18 @@ impl Settings {
                 ComboBox::from_id_source("fraction")
                     .selected_text(fraction.text())
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(fraction, Fraction::Mass, Fraction::Mass.text())
-                            .on_hover_text(Fraction::Mass.hover_text());
+                        ui.selectable_value(fraction, Fraction::AsIs, Fraction::AsIs.text())
+                            .on_hover_text(Fraction::AsIs.hover_text());
+                        ui.selectable_value(fraction, Fraction::ToMole, Fraction::ToMole.text())
+                            .on_hover_text(Fraction::ToMole.hover_text());
+                        ui.selectable_value(fraction, Fraction::ToMass, Fraction::ToMass.text())
+                            .on_hover_text(Fraction::ToMass.hover_text());
                         ui.selectable_value(
                             fraction,
-                            Fraction::Mole { mixture: false },
-                            Fraction::Mole { mixture: false }.text(),
+                            Fraction::Pchelkin,
+                            Fraction::Pchelkin.text(),
                         )
-                        .on_hover_text(Fraction::Mole { mixture: false }.hover_text());
-                        ui.selectable_value(
-                            fraction,
-                            Fraction::Mole { mixture: true },
-                            Fraction::Mole { mixture: true }.text(),
-                        )
-                        .on_hover_text(Fraction::Mole { mixture: true }.hover_text());
+                        .on_hover_text(Fraction::Pchelkin.hover_text());
                     })
                     .response
                     .on_hover_text(fraction.hover_text());
@@ -119,29 +117,32 @@ impl Settings {
 }
 
 /// Fraction
+///
+/// [wikipedia.org](https://en.wikipedia.org/wiki/Mole_fraction)
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Fraction {
-    /// [wikipedia.org](https://en.wikipedia.org/wiki/Mole_fraction#Mass_fraction)
-    Mass,
-    /// [wikipedia.org](https://en.wikipedia.org/wiki/Mole_fraction)
-    Mole { mixture: bool },
+    AsIs,
+    ToMole,
+    ToMass,
+    Pchelkin,
 }
 
 impl Fraction {
     pub(in crate::app) fn text(self) -> &'static str {
         match self {
-            Self::Mass => &MASS_FRACTION,
-            Self::Mole { mixture: false } => &MOLE_FRACTION,
-            Self::Mole { mixture: true } => &MIXTURE_MOLAR_MASS,
+            Self::AsIs => &AS_IS,
+            Self::ToMole => &TO_MOLE_FRACTION,
+            Self::ToMass => &TO_MASS_FRACTION,
+            Self::Pchelkin => "Pchelkin",
         }
     }
 
-    // (S / ∑ S) / M / ∑((S / ∑ S) / M) = S / M / ∑(S / M)
     pub(in crate::app) fn hover_text(self) -> &'static str {
         match self {
-            Self::Mass => "S / ∑ S",
-            Self::Mole { mixture: false } => "S / M / ∑(S / M)",
-            Self::Mole { mixture: true } => "S / ∑(S * M)",
+            Self::AsIs => "S / ∑ S",
+            Self::ToMole => "S / M / ∑(S / M)",
+            Self::ToMass => "S * M / ∑(S * M)",
+            Self::Pchelkin => "Pchelkin",
         }
     }
 }

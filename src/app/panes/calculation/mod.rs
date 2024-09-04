@@ -32,37 +32,45 @@ impl Pane {
         let response = ui.heading(&CALCULATION).on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         if let Err(error) = || -> Result<()> {
-            *behavior.data_frame = ui.memory_mut(|memory| {
+            behavior.data.fatty_acids = ui.memory_mut(|memory| {
                 memory.caches.cache::<Calculated>().get(CalculatorKey {
-                    data_frame: &behavior.data_frame,
+                    data_frame: &behavior.data.fatty_acids,
                     settings: &self.settings,
                 })
             });
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
-            let total_rows = behavior.data_frame.height();
-            let labels = behavior.data_frame["Label"].str().unwrap();
-            let carbons = behavior.data_frame["Carbons"].u8().unwrap();
-            let doubles = behavior.data_frame["Doubles"].list().unwrap();
-            let triples = behavior.data_frame["Triples"].list().unwrap();
+            let total_rows = behavior.data.fatty_acids.height();
+            let labels = behavior.data.fatty_acids["Label"].str().unwrap();
+            let carbons = behavior.data.fatty_acids["Carbons"].u8().unwrap();
+            let doubles = behavior.data.fatty_acids["Doubles"].list().unwrap();
+            let triples = behavior.data.fatty_acids["Triples"].list().unwrap();
             let tags = (
-                behavior.data_frame["TAG.Experimental"].f64().unwrap(),
-                behavior.data_frame["TAG.Theoretical"].f64().unwrap(),
+                behavior.data.fatty_acids["TAG.Experimental"].f64().unwrap(),
+                behavior.data.fatty_acids["TAG.Theoretical"].f64().unwrap(),
             );
             let dags1223 = (
-                behavior.data_frame["DAG1223.Experimental"].f64().unwrap(),
-                behavior.data_frame["DAG1223.Theoretical"].f64().unwrap(),
-            );
-            let mags2 = (
-                behavior.data_frame["MAG2.Experimental"].f64().unwrap(),
-                behavior.data_frame["MAG2.Theoretical"].f64().unwrap(),
-            );
-            let dags13 = (
-                behavior.data_frame["DAG13.Calculated"].f64().unwrap(),
-                behavior.data_frame["DAG13.DAG1223.Theoretical"]
+                behavior.data.fatty_acids["DAG1223.Experimental"]
                     .f64()
                     .unwrap(),
-                behavior.data_frame["DAG13.MAG2.Theoretical"].f64().unwrap(),
+                behavior.data.fatty_acids["DAG1223.Theoretical"]
+                    .f64()
+                    .unwrap(),
+            );
+            let mags2 = (
+                behavior.data.fatty_acids["MAG2.Experimental"]
+                    .f64()
+                    .unwrap(),
+                behavior.data.fatty_acids["MAG2.Theoretical"].f64().unwrap(),
+            );
+            let dags13 = (
+                behavior.data.fatty_acids["DAG13.Calculated"].f64().unwrap(),
+                behavior.data.fatty_acids["DAG13.DAG1223.Theoretical"]
+                    .f64()
+                    .unwrap(),
+                behavior.data.fatty_acids["DAG13.MAG2.Theoretical"]
+                    .f64()
+                    .unwrap(),
             );
             TableBuilder::new(ui)
                 .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))

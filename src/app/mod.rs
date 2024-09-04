@@ -8,6 +8,7 @@ use crate::{
     widgets::{FileDialog, Github},
 };
 use anyhow::Result;
+use data::Data;
 use eframe::{get_value, set_value, CreationContext, Storage, APP_KEY};
 use egui::{
     global_dark_light_mode_switch, menu::bar, warn_if_debug_build, Align, Align2, Button,
@@ -69,7 +70,7 @@ pub struct App {
     // Panes
     tree: Tree<Pane>,
     // Data
-    data_frame: DataFrame,
+    data: Data,
     settings: Settings,
 
     #[serde(skip)]
@@ -87,15 +88,7 @@ impl Default for App {
         Self {
             left_panel: true,
             tree: Tree::empty("central_tree"),
-            data_frame: DataFrame::empty_with_schema(&Schema::from_iter([
-                Field::new("Label", DataType::String),
-                Field::new("Carbons", DataType::UInt8),
-                Field::new("Doubles", DataType::List(Box::new(DataType::Int8))),
-                Field::new("Triples", DataType::List(Box::new(DataType::Int8))),
-                Field::new("TAG", DataType::Float64),
-                Field::new("DAG1223", DataType::Float64),
-                Field::new("MAG2", DataType::Float64),
-            ])),
+            data: Data::default(),
             settings: Default::default(),
             toasts: Default::default(),
             file_dialog: Default::default(),
@@ -231,7 +224,7 @@ impl App {
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
             .show(ctx, |ui| {
                 let mut behavior = Behavior {
-                    data_frame: &mut self.data_frame,
+                    data: &mut self.data,
                     settings: &self.settings,
                     close: None,
                 };
@@ -324,9 +317,9 @@ impl App {
                 ui.separator();
                 // Save
                 if ui.button(RichText::new(FLOPPY_DISK).size(SIZE)).clicked() {
-                    let contents =
-                        ron::ser::to_string_pretty(&self.data_frame, Default::default()).unwrap();
-                    fs::write("df.utca.ron", contents).unwrap();
+                    if let Err(error) = self.data.save("df.utca.ron") {
+                        error!(%error);
+                    }
                 }
 
                 // if ui.button("Cl").clicked() {
@@ -596,7 +589,7 @@ impl App {
                         continue;
                     }
                 };
-                error!(content);
+                trace!(content);
                 let data_frame: DataFrame = match ron::de::from_str(&content) {
                     Ok(data_frame) => data_frame,
                     Err(error) => {
@@ -608,8 +601,8 @@ impl App {
                         continue;
                     }
                 };
-                error!(?data_frame);
-                self.data_frame = data_frame;
+                trace!(?data_frame);
+                self.data.fatty_acids = data_frame;
             }
         }
     }
@@ -723,6 +716,6 @@ impl eframe::App for App {
 // mod view;
 mod computers;
 mod context;
+mod data;
 mod panes;
-mod utils;
 mod windows;

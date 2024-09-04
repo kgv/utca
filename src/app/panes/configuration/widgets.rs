@@ -47,25 +47,24 @@ impl FattyAcidWidget<'_> {
         });
         // Doubles
         ui.horizontal(|ui| {
-            let mut response = ui.label("Doubles");
+            ui.label("Doubles");
             if !self.fatty_acid.doubles.is_empty() {
                 if ui.button(MINUS).clicked() {
                     self.fatty_acid.doubles.pop();
-                    response.mark_changed();
+                    change = Some(Change::Doubles);
                 }
             }
             let end = self.fatty_acid.b();
             for bound in &mut self.fatty_acid.doubles {
-                response |= ui.add(DragValue::new(bound).range(0..=end));
+                if ui.add(DragValue::new(bound).range(0..=end)).changed() {
+                    change = Some(Change::Doubles);
+                }
             }
             if ui.button(PLUS).clicked() {
                 if self.fatty_acid.b() > self.fatty_acid.u() {
                     self.fatty_acid.doubles.push(0);
-                    response.mark_changed();
+                    change = Some(Change::Doubles);
                 }
-            }
-            if response.changed() {
-                change = Some(Change::Doubles);
             }
         });
         // Triples

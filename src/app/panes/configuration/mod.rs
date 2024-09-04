@@ -1,8 +1,13 @@
 use self::{
-    area::Area, names::Names, properties::Properties, settings::Settings, widgets::FattyAcidWidget,
+    area::Area,
+    names::Names,
+    properties::Properties,
+    settings::Settings,
+    widgets::{Change, FattyAcidWidget},
 };
 use super::Behavior;
 use crate::{
+    app::data::Data,
     fatty_acid::{DisplayWithOptions, FattyAcid, Options, COMMON},
     localization::{
         CONFIGURATION, DAG, DIACYLGLYCEROL, FA, FATTY_ACID, FORMULA, MAG, MONOACYLGLYCEROL, TAG,
@@ -10,7 +15,7 @@ use crate::{
     },
     utils::{
         ui::{SubscriptedTextFormat, UiExt},
-        Log,
+        DataFrameExt,
     },
 };
 use anyhow::Result;
@@ -19,11 +24,10 @@ use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
 use egui_phosphor::regular::{ARROW_FAT_LINE_DOWN, ARROW_FAT_LINE_UP, MINUS, PLUS, X};
 use egui_tiles::UiResponse;
-use polars::prelude::*;
+use polars::{functions::concat_df_diagonal, prelude::*};
 use serde::{Deserialize, Serialize};
 use std::{f64::NAN, fmt::Display, iter::empty};
 use tracing::{warn, Level};
-use widgets::Change;
 
 /// Monospace macro
 macro monospace($text:expr) {
@@ -43,18 +47,20 @@ impl Pane {
         let dragged = response.dragged();
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
-        let total_rows = behavior.data_frame.height();
+        let total_rows = behavior.data.fatty_acids.height();
 
-        // let fatty_acids = behavior.data_frame.unnest(["FA"])?;
+        // let fatty_acids = behavior.data.fatty_acids_frame.unnest(["FA"])?;
         // let triples = fatty_acids.explode(["Triples"])?;
         // let triples = triples["Triples"].i8()?;
-        let labels = behavior.data_frame["Label"].str().unwrap();
-        let carbons = behavior.data_frame["Carbons"].u8().unwrap();
-        let doubles = behavior.data_frame["Doubles"].list().unwrap();
-        let triples = behavior.data_frame["Triples"].list().unwrap();
-        let tags = behavior.data_frame["TAG"].f64().unwrap();
-        let dags1223 = behavior.data_frame["DAG1223"].f64().unwrap();
-        let mags2 = behavior.data_frame["MAG2"].f64().unwrap();
+        let labels = behavior.data.fatty_acids.str("Label");
+        let carbons = behavior.data.fatty_acids.u8("Carbons");
+        let doubles = behavior.data.fatty_acids["Doubles"].list().unwrap();
+        let triples = behavior.data.fatty_acids["Triples"].list().unwrap();
+        // let doubles = behavior.data.fatty_acids.list("Doubles");
+        // let triples = behavior.data.fatty_acids.list("Triples");
+        let tags = behavior.data.fatty_acids.f64("TAG");
+        let dags1223 = behavior.data.fatty_acids.f64("DAG1223");
+        let mags2 = behavior.data.fatty_acids.f64("MAG2");
         let mut event = None;
         let mut builder = TableBuilder::new(ui)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight));
@@ -99,7 +105,7 @@ impl Pane {
                         if behavior.settings.editable {
                             row.col(|ui| {
                                 if ui.button(RichText::new(ARROW_FAT_LINE_UP)).clicked() {
-                                    event = Some(Event::Move { row: index });
+                                    event = Some(Event::Up { row: index });
                                 }
                             });
                         }
@@ -136,7 +142,7 @@ impl Pane {
                                                 Value::Doubles(fatty_acid.doubles.clone())
                                             }
                                             Change::Triples => {
-                                                Value::Doubles(fatty_acid.doubles.clone())
+                                                Value::Triples(fatty_acid.triples.clone())
                                             }
                                         };
                                         event = Some(Event::Change { row: index, value })
@@ -258,7 +264,7 @@ impl Pane {
             });
         // Mutable
         if let Some(event) = event {
-            if let Err(error) = event.apply(&mut behavior.data_frame) {
+            if let Err(error) = event.apply(&mut behavior.data) {
                 warn!(%error);
             }
         }
@@ -276,33 +282,32 @@ enum Event {
     Add,
     Change { row: usize, value: Value },
     Delete(usize),
-    Move { row: usize },
+    Up { row: usize },
 }
 
 impl Event {
-    fn apply(self, data_frame: &mut DataFrame) -> PolarsResult<()> {
+    fn apply(self, data: &mut Data) -> PolarsResult<()> {
         match self {
             Self::Add => {
-                *data_frame = concat(
-                    [
-                        data_frame.clone().lazy(),
-                        df! {
-                            "Label" => &[""],
-                            "Carbons" => &[0u8],
-                            "Doubles" => &[Series::from_iter(empty::<i8>())],
-                            "Triples" => &[Series::from_iter(empty::<i8>())],
-                            "TAG" => &[0.0],
-                            "DAG1223" => &[0.0],
-                            "MAG2" => &[0.0],
-                        }?
-                        .lazy(),
-                    ],
-                    Default::default(),
-                )?
-                .collect()?;
+                println!("Add0: {data}");
+                // *data_frame = concat_df_diagonal(&[
+                //     data_frame.clone(),
+                //     df! {
+                //         "Label" => &[""],
+                //         "Carbons" => &[0u8],
+                //         "Doubles" => &[Series::new_empty("", &DataType::Int8)],
+                //         "Triples" => &[Series::new_empty("", &DataType::Int8)],
+                //         "TAG" => &[0.0],
+                //         "DAG1223" => &[0.0],
+                //         "MAG2" => &[0.0],
+                //     }?,
+                // ])?;
+                data.add()?;
+                println!("Add1: {data}");
             }
             Self::Change { row, value } => {
-                *data_frame = data_frame
+                data.fatty_acids = data
+                    .fatty_acids
                     .clone()
                     .lazy()
                     .with_row_index("Index", None)
@@ -319,8 +324,7 @@ impl Event {
                                             "",
                                             &[AnyValue::List(Series::from_iter(indices))],
                                             false,
-                                        )
-                                        .unwrap())
+                                        )?)
                                     }
                                     // Value::Struct(label, fatty_acid) => {
                                     //     // let l = as_struct(vec![
@@ -416,22 +420,24 @@ impl Event {
                     })
                     .drop(["Index"])
                     .collect()?;
-                println!("self.data_frame: {}", data_frame);
+                println!("self.data_frame: {}", data);
             }
             Self::Delete(row) => {
                 // https://stackoverflow.com/questions/71486019/how-to-drop-row-in-polars-python
                 // https://stackoverflow.com/a/71495211/1522758
-                *data_frame = data_frame
+                data.fatty_acids = data
+                    .fatty_acids
                     .slice(0, row)
-                    .vstack(&data_frame.slice((row + 1) as _, usize::MAX))?;
+                    .vstack(&data.fatty_acids.slice((row + 1) as _, usize::MAX))?;
             }
-            Self::Move { row } => {
+            Self::Up { row } => {
                 if row > 0 {
-                    *data_frame = data_frame
+                    data.fatty_acids = data
+                        .fatty_acids
                         .slice(0, row - 1)
-                        .vstack(&data_frame.slice(row as _, 1))?
-                        .vstack(&data_frame.slice((row - 1) as _, 1))?
-                        .vstack(&data_frame.slice((row + 1) as _, usize::MAX))?;
+                        .vstack(&data.fatty_acids.slice(row as _, 1))?
+                        .vstack(&data.fatty_acids.slice((row - 1) as _, 1))?
+                        .vstack(&data.fatty_acids.slice((row + 1) as _, usize::MAX))?;
                 }
             }
         };
