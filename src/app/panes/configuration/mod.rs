@@ -162,20 +162,30 @@ impl Pane {
                                         });
                                         // Doubles
                                         ui.horizontal(|ui| {
-                                            ui.label("Doubles");
+                                            let mut response = ui.label("Doubles");
                                             if !fatty_acid.doubles.is_empty() {
                                                 if ui.button(MINUS).clicked() {
                                                     fatty_acid.doubles.pop();
+                                                    response.mark_changed();
                                                 }
                                             }
                                             for index in &mut fatty_acid.doubles {
-                                                ui.add(
+                                                response |= ui.add(
                                                     DragValue::new(index)
                                                         .range(0..=fatty_acid.carbons),
                                                 );
                                             }
                                             if ui.button(PLUS).clicked() {
                                                 fatty_acid.doubles.push(0);
+                                                response.mark_changed();
+                                            }
+                                            if response.changed() {
+                                                event = Some(Event::Edit {
+                                                    row: index,
+                                                    value: Value::Doubles(
+                                                        fatty_acid.doubles.clone(),
+                                                    ),
+                                                });
                                             }
                                         });
                                         // let mut label = label.to_owned();
