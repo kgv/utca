@@ -289,21 +289,7 @@ impl Event {
     fn apply(self, data: &mut Data) -> PolarsResult<()> {
         match self {
             Self::Add => {
-                println!("Add0: {data}");
-                // *data_frame = concat_df_diagonal(&[
-                //     data_frame.clone(),
-                //     df! {
-                //         "Label" => &[""],
-                //         "Carbons" => &[0u8],
-                //         "Doubles" => &[Series::new_empty("", &DataType::Int8)],
-                //         "Triples" => &[Series::new_empty("", &DataType::Int8)],
-                //         "TAG" => &[0.0],
-                //         "DAG1223" => &[0.0],
-                //         "MAG2" => &[0.0],
-                //     }?,
-                // ])?;
                 data.add()?;
-                println!("Add1: {data}");
             }
             Self::Change { row, value } => {
                 data.fatty_acids = data

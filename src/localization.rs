@@ -34,8 +34,8 @@ static RU: &[&str] = &[
 ];
 
 pub(crate) static LOCALIZATION: LazyLock<Localization> = LazyLock::new(|| {
-    Localization::new(Locale::En).expect("load en localization bundle")
-    // Localization::new(Locale::Ru).expect("load ru localization bundle")
+    // Localization::new(Locale::En).expect("load en localization bundle")
+    Localization::new(Locale::Ru).expect("load ru localization bundle")
 });
 
 macro localized($key:literal) {
@@ -44,6 +44,7 @@ macro localized($key:literal) {
 
 pub(crate) static ABBREVIATION: Localized = localized!("abbreviation");
 pub(crate) static ADDUCT: Localized = localized!("adduct");
+pub(crate) static AS_IS: Localized = localized!("as_is");
 pub(crate) static ASCENDING_DESCRIPTION: Localized = localized!("ascending_description");
 pub(crate) static ASCENDING: Localized = localized!("ascending");
 pub(crate) static CALCULATION: Localized = localized!("calculation");
@@ -61,17 +62,15 @@ pub(crate) static FATTY_ACID_MASS: Localized = localized!("fatty_acid_mass");
 pub(crate) static FATTY_ACID: Localized = localized!("fatty_acid");
 pub(crate) static FORMULA: Localized = localized!("formula");
 pub(crate) static FRACTION: Localized = localized!("fraction");
+pub(crate) static GROUP: Localized = localized!("group");
 pub(crate) static GUNSTONE_DESCRIPTION: Localized = localized!("gunstone_description");
 pub(crate) static GUNSTONE: Localized = localized!("gunstone");
 pub(crate) static KEY_DESCRIPTION: Localized = localized!("key_description");
 pub(crate) static KEY: Localized = localized!("key");
 pub(crate) static LEFT_PANEL: Localized = localized!("left_panel");
 pub(crate) static MAG: Localized = localized!("mag");
-pub(crate) static AS_IS: Localized = localized!("as_is");
 pub(crate) static METHOD: Localized = localized!("method");
 pub(crate) static METHYL_ESTER_MASS: Localized = localized!("methyl_ester_mass");
-pub(crate) static TO_MASS_FRACTION: Localized = localized!("to_mass_fraction");
-pub(crate) static TO_MOLE_FRACTION: Localized = localized!("to_mole_fraction");
 pub(crate) static MONOACYLGLYCEROL: Localized = localized!("monoacylglycerol");
 pub(crate) static NAMES_DESCRIPTION: Localized = localized!("names_description");
 pub(crate) static NAMES: Localized = localized!("names");
@@ -88,9 +87,12 @@ pub(crate) static SIGN: Localized = localized!("sign");
 pub(crate) static SIGNED_DESCRIPTION: Localized = localized!("signed_description");
 pub(crate) static SIGNED: Localized = localized!("signed");
 pub(crate) static SORT: Localized = localized!("sort");
+pub(crate) static SPECIES: Localized = localized!("species");
 pub(crate) static SYSTEMATIC_NAME: Localized = localized!("systematic_name");
 pub(crate) static TAG: Localized = localized!("tag");
 pub(crate) static THEORETICAL: Localized = localized!("theoretical");
+pub(crate) static TO_MASS_FRACTION: Localized = localized!("to_mass_fraction");
+pub(crate) static TO_MOLE_FRACTION: Localized = localized!("to_mole_fraction");
 pub(crate) static TRIACYLGLYCEROL: Localized = localized!("triacylglycerol");
 pub(crate) static UNSIGNED_DESCRIPTION: Localized = localized!("unsigned_description");
 pub(crate) static UNSIGNED: Localized = localized!("unsigned");
@@ -98,7 +100,6 @@ pub(crate) static VALUE_DESCRIPTION: Localized = localized!("value_description")
 pub(crate) static VALUE: Localized = localized!("value");
 pub(crate) static VANDER_WAL_DESCRIPTION: Localized = localized!("vander_wal_description");
 pub(crate) static VANDER_WAL: Localized = localized!("vander_wal");
-pub(crate) static GROUP: Localized = localized!("group");
 
 // pub(crate) static MASS: Localized = localized!("mass");
 // pub(crate) static MOLAR_MASS: Localized = localized!("molar_mass");

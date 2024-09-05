@@ -8,6 +8,8 @@ pub fn r#struct(name: &str) -> StructNameSpace {
 pub(crate) trait DataFrameExt {
     fn f64(&self, name: &str) -> &Float64Chunked;
 
+    fn list(&self, name: &str) -> &ListChunked;
+
     fn str(&self, name: &str) -> &StringChunked;
 
     fn u8(&self, name: &str) -> &UInt8Chunked;
@@ -16,6 +18,10 @@ pub(crate) trait DataFrameExt {
 impl DataFrameExt for DataFrame {
     fn f64(&self, name: &str) -> &Float64Chunked {
         self[name].f64().unwrap()
+    }
+
+    fn list(&self, name: &str) -> &ListChunked {
+        self[name].list().unwrap()
     }
 
     fn str(&self, name: &str) -> &StringChunked {
@@ -58,5 +64,16 @@ impl ExprExt for Expr {
 
     fn suffix(self, suffix: &str) -> Expr {
         self.name().suffix(suffix)
+    }
+}
+
+/// Extension methods for [`Series`]
+pub(crate) trait SeriesExt {
+    fn r#struct(&self) -> PolarsResult<&ChunkedArray<StructType>>;
+}
+
+impl SeriesExt for Series {
+    fn r#struct(&self) -> PolarsResult<&ChunkedArray<StructType>> {
+        self.struct_()
     }
 }

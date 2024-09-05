@@ -2,14 +2,15 @@ use self::settings::Settings;
 use super::Behavior;
 use crate::{
     app::computers::composer::{Composed, Key as CompositionKey},
-    localization::{COMPOSITION, FA, PROPERTIES, TAG, TRIACYLGLYCEROL, VALUE},
-    properties,
+    localization::{COMPOSITION, PROPERTIES, SPECIES, TAG, TRIACYLGLYCEROL, VALUE},
+    utils::DataFrameExt,
 };
 use anyhow::Result;
 use egui::{CursorIcon, Ui};
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
 use egui_tiles::UiResponse;
+use itertools::Itertools;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
@@ -36,9 +37,9 @@ impl Pane {
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
             let total_rows = data_frame.height();
-            let labels = data_frame["Label"].str().unwrap();
-            let species = data_frame["Species"].list().unwrap();
-            let values = data_frame["Value"].f64().unwrap();
+            let labels = data_frame.str("Label");
+            let species = data_frame.list("Species");
+            let values = data_frame.f64("Value");
             TableBuilder::new(ui)
                 .column(Column::auto_with_initial_suggestion(width))
                 .column(Column::remainder())
@@ -62,11 +63,13 @@ impl Pane {
                         if index < total_rows {
                             // TAG
                             row.left_align_col(|ui| {
-                                // ui.label(format!("{:?}", labels.get(index).unwrap()));
                                 let response = ui.label(labels.get(index).unwrap());
                                 response.on_hover_ui(|ui| {
-                                    if let Some(list) = species.get(index) {
-                                        ui.label(format!("species: {list:?}"));
+                                    if let Some(list) = species.get_as_series(index) {
+                                        ui.label(format!(
+                                            "{SPECIES}: {}",
+                                            list.str().unwrap().into_iter().flatten().format(","),
+                                        ));
                                     }
                                 });
                             });

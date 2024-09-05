@@ -1,5 +1,3 @@
-// use super::fatty_acid::{mass, r#type, species};
-use super::fatty_acid;
 use crate::{
     acylglycerol::{
         Sn,
@@ -9,7 +7,7 @@ use crate::{
         Composition, Order, Scope, Settings, Sort, MC, NC, PMC, PNC, PSC, PTC, SC, SMC, SNC, SSC,
         STC, TC,
     },
-    fatty_acid::FattyAcid,
+    fatty_acid,
     r#const::relative_atomic_mass::{C, CH2, H, O},
     utils::{r#struct, DataFrameExt, ExprExt, SeriesExt},
 };
@@ -67,6 +65,246 @@ fn array(name: &str) -> Expr {
 //         .field_by_names(names)
 // }
 
+fn sort2(names: &[&str; 2]) -> Expr {
+    as_struct(vec![
+        min2(names).alias(names[0]),
+        max2(names).alias(names[1]),
+    ])
+    .r#struct()
+    .field_by_names(names)
+}
+
+fn min2(names: &[&str; 2]) -> Expr {
+    ternary_expr(lt_eq(names), col(names[0]), col(names[1]))
+}
+
+fn max2(names: &[&str; 2]) -> Expr {
+    ternary_expr(gt_eq(names), col(names[0]), col(names[1]))
+}
+
+fn lt_eq(names: &[&str; 2]) -> Expr {
+    ternary_expr(
+        major(names[0]).eq(major(names[1])),
+        minor(names[0]).lt_eq(minor(names[1])),
+        major(names[0]).lt(major(names[1])),
+    )
+}
+
+fn gt_eq(names: &[&str; 2]) -> Expr {
+    ternary_expr(
+        major(names[0]).eq(major(names[1])),
+        minor(names[0]).gt_eq(minor(names[1])),
+        major(names[0]).gt(major(names[1])),
+    )
+}
+
+// fn sort3(names: &[&str; 3]) -> Expr {
+//     as_struct(vec![
+//         min2([
+//             min2([col(names[0]), col(names[1])]),
+//             min2([col(names[1]), col(names[2])]),
+//         ])
+//         .alias(names[0]),
+//         max2([
+//             min2([col(names[0]), col(names[1])]),
+//             min2([col(names[1]), col(names[2])]),
+//         ])
+//         .alias(names[1]),
+//         max2([
+//             max2([col(names[0]), col(names[1])]),
+//             max2([col(names[1]), col(names[2])]),
+//         ])
+//         .alias(names[2]),
+//     ])
+//     .r#struct()
+//     .field_by_names(names)
+// }
+
+// fn sorted(names: &[&str; 2]) -> [Expr; 2] {
+//     [
+//         ternary_expr(
+//             col(names[0]).lt_eq(col(names[1])),
+//             col(names[0]),
+//             col(names[1]),
+//         ),
+//         // min2(names.map(col)).alias(names[0]),
+//         max2(names.map(col)).alias(names[1]),
+//     ]
+// }
+
+// fn sorted2(names: &[&str; 2]) -> [Expr; 2] {
+//     [
+//         min2(names.map(col)).alias(names[0]),
+//         max2(names.map(col)).alias(names[1]),
+//     ]
+// }
+
+// fn sorted3(names: &[&str; 3]) -> [Expr; 3] {
+//     [
+//         min2([
+//             min2([col(names[0]), col(names[1])]),
+//             min2([col(names[1]), col(names[2])]),
+//         ])
+//         .alias(names[0]),
+//         max2([
+//             min2([col(names[0]), col(names[1])]),
+//             min2([col(names[1]), col(names[2])]),
+//         ])
+//         .alias(names[1]),
+//         max2([
+//             max2([col(names[0]), col(names[1])]),
+//             max2([col(names[1]), col(names[2])]),
+//         ])
+//         .alias(names[2]),
+//     ]
+// }
+
+// // Struct gt_eq
+// fn gt_eq(names: &[&str; 2]) -> Expr {
+//     ternary_expr(
+//         field(names[0], 0).neq(field(names[1], 0)),
+//         field(names[0], 0).gt(field(names[1], 0)),
+//         field(names[0], 1).gt_eq(field(names[1], 1)),
+//     )
+// }
+
+// // Struct lt_eq
+// fn lt_eq(names: &[&str; 2]) -> Expr {
+//     ternary_expr(
+//         field(names[0], 0).neq(field(names[1], 0)),
+//         field(names[0], 0).lt(field(names[1], 0)),
+//         field(names[0], 1).lt_eq(field(names[1], 1)),
+//     )
+// }
+
+// fn min2([first, second]: [Expr; 2]) -> Expr {
+//     ternary_expr(first.clone().lt_eq(second.clone()), first, second)
+// }
+
+// fn max2([first, second]: [Expr; 2]) -> Expr {
+//     ternary_expr(first.clone().gt_eq(second.clone()), first, second)
+// }
+
+// fn min(names: &[&str; 2]) -> Expr {
+//     ternary_expr(
+//         col(names[0]).lt_eq(col(names[1])),
+//         col(names[0]),
+//         col(names[1]),
+//     )
+// }
+
+// fn max(names: &[&str; 2]) -> Expr {
+//     ternary_expr(
+//         col(names[0]).gt_eq(col(names[1])),
+//         col(names[0]),
+//         col(names[1]),
+//     )
+// }
+
+fn s() -> Expr {
+    col("TAG.Experimental")
+        // .filter(saturated("FA.Formula"))
+        .sum()
+}
+
+fn u() -> Expr {
+    lit(1) - s()
+}
+
+// fn id(name: &str) -> PolarsResult<Expr> {
+//     fn format(expr: Expr) -> Expr {
+//         expr.map(
+//             |series| {
+//                 Ok(series
+//                     .u32()?
+//                     .into_iter()
+//                     .map(|item| Some(format!("{:02}", item?)))
+//                     .collect())
+//             },
+//             GetOutput::from_type(DataType::String),
+//         )
+//     }
+//     let c = format(col(name).list().len() + lit(1));
+//     let d = format(doubles(name).list().len());
+//     let t = format(col(name).list().eval(is_triple(), true).list().len());
+//     // let doubles = doubles(name).list().eval(nth("").eq(lit()), false);
+//     let prefix = name.strip_suffix(".Formula").unwrap_or(name);
+//     Ok(concat_str([c, d, t], "", true).alias(prefix))
+// }
+
+fn is_double() -> Expr {
+    // (col("") % lit(2)).eq(lit(1))
+    col("").filter(col("").abs().eq(lit(1)))
+}
+
+fn is_triple() -> Expr {
+    col("").filter(col("").abs().eq(lit(2)))
+}
+
+// fn tag() -> Expr {
+//     as_struct(vec![col("SN1"), col("SN2"), col("SN3")]).r#struct()
+// }
+
+// TAG species
+fn species() -> Expr {
+    let species = |name| r#struct(name).field_by_name("Label");
+    concat_str([species("SN1"), species("SN2"), species("SN3")], "", true)
+}
+
+// TAG value
+fn value() -> Expr {
+    let value = |name| r#struct(name).field_by_name("Value");
+    value("SN1") * value("SN2") * value("SN3")
+}
+
+// fn nonstereospecific(name: &str) -> Expr {
+//     as_struct(vec![
+//         min2(names).alias(names[0]),
+//         max2(names).alias(names[1]),
+//     ])
+//     .r#struct()
+//     .field_by_names(names)
+// }
+
+// fn positional() -> Expr {
+//     let index = |name| r#struct(name).field_by_name("Index");
+//     ternary_expr(
+//         index("SN1").lt_eq(index("SN3")),
+//         as_struct(vec![col("SN1"), col("SN2"), col("SN3")]),
+//         as_struct(vec![
+//             col("SN3").alias("SN1"),
+//             col("SN2"),
+//             col("SN1").alias("SN3"),
+//         ]),
+//     )
+//     .r#struct()
+//     .field_by_names(&["SN1", "SN2", "SN3"])
+//     // .field_by_names(names)
+// }
+fn positional() -> Expr {
+    // as_struct(vec![
+    //     col("SN3").alias("SN1"),
+    //     col("SN2"),
+    //     col("SN1").alias("SN3"),
+    // ]),
+    // .r#struct()
+    // .field_by_names(&["SN1", "SN2", "SN3"])
+    ternary_expr(
+        r#struct("Key")
+            .field_by_name("SN1")
+            .lt_eq(r#struct("Key").field_by_name("SN3")),
+        as_struct(vec![col("SN1"), col("SN2"), col("SN3")]),
+        as_struct(vec![
+            col("SN3").alias("SN1"),
+            col("SN2"),
+            col("SN1").alias("SN3"),
+        ]),
+    )
+    .r#struct()
+    .field_by_names(&["SN1", "SN2", "SN3"])
+    // .field_by_names(names)
+}
+
 /// Extension methods for [`LazyFrame`]
 trait LazyFrameExt {
     fn cartesian_product(self) -> Self;
@@ -93,14 +331,24 @@ impl LazyFrameExt for LazyFrame {
     }
 
     fn composition(self, composition: Composition) -> Self {
-        let cmp = match composition.scope {
+        let cmp = |name| match composition.scope {
             Scope::EquivalentCarbonNumber => todo!(),
-            Scope::Mass => fatty_acid::mass,
-            Scope::Type => fatty_acid::r#type,
-            Scope::Species => id,
+            Scope::Mass => todo!(),
+            Scope::Type => fatty_acid_type(name),
+            Scope::Species => id(name),
         };
         match composition.stereospecificity {
-            None => self.with_columns([]),
+            None => self.with_columns([ternary_expr(
+                cmp("SN1").lt_eq(cmp("SN3")),
+                as_struct(vec![col("SN1"), col("SN2"), col("SN3")]),
+                as_struct(vec![
+                    col("SN3").alias("SN1"),
+                    col("SN2"),
+                    col("SN1").alias("SN3"),
+                ]),
+            )
+            .r#struct()
+            .field_by_names(&["SN1", "SN2", "SN3"])]),
             Some(Stereospecificity::Positional) => self.with_columns([ternary_expr(
                 cmp("SN1").lt_eq(cmp("SN3")),
                 as_struct(vec![col("SN1"), col("SN3")]),
@@ -113,9 +361,9 @@ impl LazyFrameExt for LazyFrame {
         .with_column(
             label(|name| match composition.scope {
                 Scope::EquivalentCarbonNumber => todo!(),
-                Scope::Mass => fatty_acid::mass(name).round(2),
-                Scope::Type => fatty_acid::r#type(name),
-                Scope::Species => fatty_acid::species(name),
+                Scope::Mass => todo!(),
+                Scope::Type => fatty_acid_type(name),
+                Scope::Species => fatty_acid_species(name),
             })
             .alias("Label"),
         )
@@ -127,22 +375,21 @@ fn label(f: impl Fn(&str) -> Expr) -> Expr {
     concat_str([f("SN1"), f("SN2"), f("SN3")], "", false)
 }
 
-// Triacylglycerol species
-fn species() -> Expr {
-    concat_str(
-        [
-            fatty_acid::species("SN1"),
-            fatty_acid::species("SN2"),
-            fatty_acid::species("SN3"),
-        ],
-        "",
-        true,
-    )
+// Fatty acid species
+fn fatty_acid_species(name: &str) -> Expr {
+    r#struct(name).field_by_name("Label")
 }
 
-// Triacylglycerol value
-fn value() -> Expr {
-    fatty_acid::value("SN1") * fatty_acid::value("SN2") * fatty_acid::value("SN3")
+// Fatty acid type
+fn fatty_acid_type(name: &str) -> Expr {
+    ternary_expr(fatty_acid_saturated(name), lit("S"), lit("U"))
+}
+
+// Fatty acid saturated
+fn fatty_acid_saturated(name: &str) -> Expr {
+    (r#struct(name).field_by_name("Doubles").list().len()
+        + r#struct(name).field_by_name("Triples").list().len())
+    .eq(lit(0))
 }
 
 // fn normalize(self) -> Expr {
@@ -160,74 +407,14 @@ fn value() -> Expr {
 //     )
 // }
 
-// struct StereospecificNumber<T, U, V> {
-//     carbons: T,
-//     doubles: U,
-//     triples: V,
-// }
-// impl<T, U, V> Iterator for StereospecificNumber<T, U, V>
-// where
-//     T: PolarsIterator<Item = Option<u8>>,
-//     U: PolarsIterator<Item = Option<Series>>,
-//     V: PolarsIterator<Item = Option<Series>>,
-// {
-//     type Item = StereospecificNumber<Option<u8>, Option<Series>, Option<Series>>;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         Some(StereospecificNumber {
-//             carbons: self.carbons.next()?,
-//             doubles: self.doubles.next()?,
-//             triples: self.doubles.next()?,
-//         })
-//     }
-// }
-// impl<'a> StereospecificNumber<&'a UInt8Chunked, &'a ListChunked, &'a ListChunked> {
-//     fn new(s: &'a ChunkedArray<StructType>) -> PolarsResult<Self> {
-//         Ok(StereospecificNumber {
-//             carbons: s.field_by_name("Carbons")?.u8()?,
-//             doubles: s.field_by_name("Doubles")?.list()?,
-//             triples: s.field_by_name("Triples")?.list()?,
-//         })
-//     }
-// }
-
 // fn ptc(expr: Expr) -> Expr {
 //     expr.map(
 //         |series| {
 //             let chunked_array = series.r#struct()?;
 //             let sn1 = chunked_array.field_by_name("SN1")?;
-//             let sn1 = sn1.r#struct()?;
-//             let carbons = sn1.field_by_name("Carbons")?;
-//             let doubles = sn1.field_by_name("Doubles")?;
-//             let triples = sn1.field_by_name("Triples")?;
-//             let sn1 = StereospecificNumber {
-//                 carbons: carbons.u8()?.into_iter(),
-//                 doubles: doubles.list()?.into_iter(),
-//                 triples: triples.list()?.into_iter(),
-//             };
-//             let sn3 = chunked_array.field_by_name("SN3")?;
-//             let sn3 = sn3.r#struct()?;
-//             let carbons = sn3.field_by_name("Carbons")?;
-//             let doubles = sn3.field_by_name("Doubles")?;
-//             let triples = sn3.field_by_name("Triples")?;
-//             let sn3 = StereospecificNumber {
-//                 carbons: carbons.u8()?.into_iter(),
-//                 doubles: doubles.list()?.into_iter(),
-//                 triples: triples.list()?.into_iter(),
-//             };
+//             let sn3 = chunked_array.field_by_name("SN3")?.r#struct()?;
 //             Ok(Some({
-//                 zip(sn1, sn3).map(|(sn1, sn3)| {
-//                     let sn1 = FattyAcid {
-//                         carbons: sn1.carbons?,
-//                         doubles: sn1.doubles?.i8().ok()?.to_vec_null_aware().left()?,
-//                         triples: sn1.triples?.i8().ok()?.to_vec_null_aware().left()?,
-//                     };
-//                     let sn3 = FattyAcid {
-//                         carbons: sn3.carbons?,
-//                         doubles: sn3.doubles?.i8().ok()?.to_vec_null_aware().left()?,
-//                         triples: sn3.triples?.i8().ok()?.to_vec_null_aware().left()?,
-//                     };
-//                     Some(())
-//                 });
+//                 zip(sn1, sn3)
 //                 //     .map(|(doubles, triples)| {
 //                 //         doubles
 //                 //             .zip(triples)
@@ -237,6 +424,7 @@ fn value() -> Expr {
 //                 //             .transpose()
 //                 //     })
 //                 //     .collect::<PolarsResult<_>>()?,
+//                 ;
 //                 Series::new_empty("", &DataType::Boolean)
 //             }))
 //         },
@@ -304,33 +492,41 @@ fn id(name: &str) -> Expr {
     )
 }
 
-fn sort(names: &[&str]) -> Expr {
-    concat_list([col("SN1"), col("SN2"), col("SN3")])
-        .unwrap()
-        .list()
-        .eval(
-            col("").sort_by(
-                [col("").r#struct().field_by_name("name")],
-                Default::default(),
-            ),
-            false,
-        )
+fn major(name: &str) -> Expr {
+    lit(10000) * r#struct(name).field_by_name("Carbons")
+        + lit(100) * r#struct(name).field_by_name("Doubles").list().len()
+        + r#struct(name).field_by_name("Triples").list().len()
+}
+
+fn minor(name: &str) -> Expr {
+    let bounds = |field_name| {
+        r#struct(name)
+            .field_by_name(field_name)
+            .list()
+            .eval(
+                col("").cast(DataType::Float64) / lit(100).pow(col("").cum_count(false)),
+                true,
+            )
+            .list()
+            .sum()
+    };
+    bounds("Doubles") + bounds("Triples")
 }
 
 impl Composer {
     fn gunstone(&mut self, key: Key) -> DataFrame {
         // let gunstone = Gunstone::new(s);
         let mut lazy_frame = key.data_frame.clone().lazy();
-        // lazy_frame = lazy_frame.select([
-        //     col("Label"),
-        //     col("Formula"),
-        //     col("TAG.Experimental"),
-        //     col("DAG1223.Experimental"),
-        //     col("MAG2.Experimental"),
-        //     col("DAG13.DAG1223.Calculated"),
-        //     col("DAG13.MAG2.Calculated"),
-        // ]);
-        // lazy_frame = lazy_frame.with_columns([s().alias("S"), u().alias("U")]);
+        lazy_frame = lazy_frame.select([
+            col("FA.Label"),
+            col("FA.Formula"),
+            col("TAG.Experimental"),
+            col("DAG1223.Experimental"),
+            col("MAG2.Experimental"),
+            col("DAG13.DAG1223.Calculated"),
+            col("DAG13.MAG2.Calculated"),
+        ]);
+        lazy_frame = lazy_frame.with_columns([s().alias("S"), u().alias("U")]);
         println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
         lazy_frame.collect().unwrap()
     }
@@ -348,57 +544,37 @@ impl Composer {
             "after cartesian product data_frame: {}",
             lazy_frame.clone().collect().unwrap()
         );
-        // link:https://github.com/pola-rs/polars/issues/16110[sort an array of structs]
-        println!(
-            "!!! sort data_frame: {}",
-            lazy_frame
-                .clone()
-                .select([concat_list([col("SN1"), col("SN2"), col("SN3")])
-                    .unwrap()
-                    .list()
-                    .eval(
-                        col("").sort_by(
-                            [
-                                // col("").r#struct().field_by_name("Label"),
-                                col("").r#struct().field_by_name("Carbons"),
-                                col("").r#struct().field_by_name("Doubles").list().len(),
-                                col("").r#struct().field_by_name("Triples").list().len(),
-                                col("").r#struct().field_by_name("Index"),
-                            ],
-                            Default::default(),
-                        ),
-                        false,
-                    )
-                    .alias("TAG")])
-                .select([
-                    col("TAG").list().get(lit(0), false).alias("name1"),
-                    col("TAG").list().get(lit(1), false).alias("name2"),
-                    // col("TAG").list().get(lit(2), false).alias("name3"),
-                ])
-                .collect()
-                .unwrap()
-        );
-        // col("Index"),
-        // col("Label"),
-        // col("Carbons"),
-        // col("Doubles"),
-        // col("Triples"),
-
-        lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
         // println!(
-        //     "after cartesian product before composition data_frame: {}",
-        //     lazy_frame.clone().collect().unwrap()
+        //     "unnest cartesian product data_frame: {}",
+        //     lazy_frame
+        //         .clone()
+        //         .select([col("SN1").r#struct().rename_fields(vec![
+        //             "SN1.Index".to_owned(),
+        //             "SN1.Label".to_owned(),
+        //             "SN1.Carbons".to_owned(),
+        //             "SN1.Doubles".to_owned(),
+        //             "SN1.Triples".to_owned(),
+        //             "SN1.Value".to_owned(),
+        //         ])])
+        //         .unnest(["SN1"])
+        //         .collect()
+        //         .unwrap()
         // );
+        lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
+        println!(
+            "after cartesian product before composition data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
         // Group
         lazy_frame = lazy_frame
             .composition(key.settings.group)
             .group_by([col("Label")])
             .agg([col("Species"), col("Value").sum()]);
         lazy_frame = lazy_frame.with_row_index("Index", None);
-        // println!(
-        //     "after composition before sort data_frame: {}",
-        //     lazy_frame.clone().collect().unwrap()
-        // );
+        println!(
+            "after composition before sort data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
         // Sort
         let mut sort_options = SortMultipleOptions::default();
         if let Order::Descending = key.settings.order {
