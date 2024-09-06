@@ -1,26 +1,26 @@
 # https://byrdwell.com/Triacylglycerols/FattyAcids.htm
 
-fa_4 =
+fa_04 =
     .abbreviation = Bu
     .common_name = Butyric acid
     .systematic_name = Butanoic acid
-fa_5 =
+fa_05 =
     .abbreviation = V
     .common_name = Valeric acid
     .systematic_name = Pentanoic acid
-fa_6 =
+fa_06 =
     .abbreviation = Co
     .common_name = Caproic acid
     .systematic_name = Hexanoic acid
-fa_7 =
+fa_07 =
     .abbreviation = En
     .common_name = Enanthic acid
     .systematic_name = Heptanoic acid
-fa_8 =
+fa_08 =
     .abbreviation = Cy
     .common_name = Caprylic acid
     .systematic_name = Octanoic acid
-fa_9 =
+fa_09 =
     .common_name = Pelargonic acid
     .systematic_name = Nonanoic acid
 fa_10 =
