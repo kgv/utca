@@ -28,6 +28,12 @@ expr.list()
 
 * <https://stackoverflow.com/questions/76523245/how-to-get-current-index-of-element-in-polars-list>
 
+// link:https://stackoverflow.com/questions/73717556/how-to-swap-column-values-on-conditions-in-python-polars[Swap column values on conditions]
+// link:https://github.com/pola-rs/polars/issues/15894[Expand List & Array to columns]
+
+// link:https://github.com/pola-rs/polars/issues/16110[sort an array of structs]
+// link:https://stackoverflow.com/questions/78440430/sorting-a-polars-liststruct-by-struct-value[Sorting a polars list[struct[]] by struct value]
+
 == See also
 
 * link:https://www.rhosignal.com/posts/polars-pandas-cheatsheet[polars-pandas cheat sheet]

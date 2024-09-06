@@ -55,7 +55,6 @@ fn array(name: &str) -> Expr {
     .to_array(3)
 }
 
-// // https://stackoverflow.com/questions/73717556/how-to-swap-column-values-on-conditions-in-python-polars
 // fn sort2(names: &[&str; 2]) -> Expr {
 //     when(col(names[0]).gt_eq(col(names[1])))
 //         .then(as_struct(vec![col(names[0]), col(names[1])]))
@@ -96,14 +95,16 @@ impl LazyFrameExt for LazyFrame {
             )
     }
 
-    fn composition(self, composition: Composition) -> Self {
+    fn composition(mut self, composition: Composition) -> Self {
+        // Key
         let cmp = match composition.scope {
             Scope::EquivalentCarbonNumber => todo!(),
             Scope::Mass => fatty_acid::mass,
             Scope::Type => fatty_acid::r#type,
             Scope::Species => id,
         };
-        match composition.stereospecificity {
+        // Sort
+        self = match composition.stereospecificity {
             None => self.with_columns([]),
             Some(Stereospecificity::Positional) => self.with_columns([ternary_expr(
                 cmp("SN1").lt_eq(cmp("SN3")),
@@ -113,8 +114,9 @@ impl LazyFrameExt for LazyFrame {
             .r#struct()
             .field_by_names(&["SN1", "SN3"])]),
             Some(Stereospecificity::Stereo) => self,
-        }
-        .with_column(
+        };
+        // Label
+        self.with_column(
             label(|name| match composition.scope {
                 Scope::EquivalentCarbonNumber => todo!(),
                 Scope::Mass => fatty_acid::mass(name).round(2),
@@ -132,16 +134,29 @@ impl LazyFrameExt for LazyFrame {
                 // .list()
                 // .eval(sort, false)
                 .alias("TAG")]),
-                // .select([
-                //     col("TAG").list().get(lit(0), false).alias("name1"),
-                //     col("TAG").list().get(lit(1), false).alias("name2"),
-                //     col("TAG").list().get(lit(2), false).alias("name3"),
-                // ])
+            // .select([
+            //     col("TAG").list().get(lit(0), false).alias("name1"),
+            //     col("TAG").list().get(lit(1), false).alias("name2"),
+            //     col("TAG").list().get(lit(2), false).alias("name3"),
+            // ])
         )
     }
 }
 
 fn sort_by_species() -> Expr {
+    col("").sort_by(
+        [
+            // col("").r#struct().field_by_name("Label"),
+            col("").r#struct().field_by_name("Carbons"),
+            col("").r#struct().field_by_name("Doubles").list().len(),
+            col("").r#struct().field_by_name("Triples").list().len(),
+            col("").r#struct().field_by_name("Index"),
+        ],
+        Default::default(),
+    )
+}
+
+fn sort_by_type() -> Expr {
     col("").sort_by(
         [
             // col("").r#struct().field_by_name("Label"),
@@ -367,112 +382,11 @@ impl Composer {
             "after cartesian product data_frame: {}",
             lazy_frame.clone().collect().unwrap()
         );
-        // println!(
-        //     "!!! sort data_frame: {}",
-        //     lazy_frame
-        //         .clone()
-        //         // .select([concat_list([col(r#"^SN\d$"#)])
-        //         .select([concat_list([col("SN1"), col("SN2")])
-        //             .unwrap()
-        //             .list()
-        //             .eval(
-        //                 col("").sort_by(
-        //                     [
-        //                         // col("").r#struct().field_by_name("Label"),
-        //                         col("").r#struct().field_by_name("Carbons"),
-        //                         col("").r#struct().field_by_name("Doubles").list().len(),
-        //                         col("").r#struct().field_by_name("Triples").list().len(),
-        //                         col("").r#struct().field_by_name("Index"),
-        //                     ],
-        //                     Default::default(),
-        //                 ),
-        //                 false,
-        //             )
-        //             .alias("TAG")])
-        //         .select([
-        //             col("TAG").list().get(lit(0), false).alias("name1"),
-        //             col("TAG").list().get(lit(1), false).alias("name2"),
-        //             // col("TAG").list().get(lit(2), false).alias("name3"),
-        //         ])
-        //         .collect()
-        //         .unwrap()
-        // );
-        // col("Index"),
-        // col("Label"),
-        // col("Carbons"),
-        // col("Doubles"),
-        // col("Triples"),
-
-        println!(
-            "unnest: {}",
-            lazy_frame
-                .clone()
-                .select([col("SN1")])
-                .unnest(["SN1"])
-                .collect()
-                .unwrap()
-        );
-        // u32   ┆ str   ┆ u8      ┆ list[i8] ┆ list[i8] ┆ f64
-        // u32   ┆ str   ┆ u8      ┆ list[i8] ┆ list[i8] ┆ f64
-        let mut test = df!(
-            "u32" => &[0u32, 1, 2],
-            "str" => &["a", "b", "c"],
-            "u8" => &[0u8, 1, 2],
-            "list1" => &[Series::new_empty("", &DataType::Int8), Series::new_empty("", &DataType::Int8), Series::new_empty("", &DataType::Int8)],
-            "list2" => &[Series::new_empty("", &DataType::Int8), Series::new_empty("", &DataType::Int8), Series::new_empty("", &DataType::Int8)],
-            "f64" => &[1f64, 2., 3.],
-        )
-        .unwrap()
-        .lazy();
-        test = test
-            .select([
-                as_struct(vec![
-                    col("u32"),
-                    col("str"),
-                    col("u8"),
-                    col("list1"),
-                    col("list2"),
-                    col("f64"),
-                ])
-                .alias("0"),
-                as_struct(vec![
-                    col("u32") + lit(1),
-                    col("str"),
-                    col("u8"),
-                    col("list1"),
-                    col("list2"),
-                    col("f64"),
-                ])
-                .alias("1"),
-                as_struct(vec![
-                    col("u32") + lit(2),
-                    col("str"),
-                    col("u8"),
-                    col("list1"),
-                    col("list2"),
-                    col("f64"),
-                ])
-                .alias("2"),
-            ])
-            .select([concat_list(["0", "1", "2"]).unwrap().alias("LIST")]);
-        println!("test: {}", test.collect().unwrap());
-
-        // link:https://github.com/pola-rs/polars/issues/16110[sort an array of structs]
-        println!(
-            "!!! sort data_frame: {}",
-            lazy_frame
-                .clone()
-                .sort_columns(&[""], sort_by_species())
-                .unwrap()
-                .collect()
-                .unwrap()
-        );
-
         lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
-        // println!(
-        //     "after cartesian product before composition data_frame: {}",
-        //     lazy_frame.clone().collect().unwrap()
-        // );
+        println!(
+            "after cartesian product before composition data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
         // Group
         lazy_frame = lazy_frame
             .composition(key.settings.group)
