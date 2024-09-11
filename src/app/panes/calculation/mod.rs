@@ -3,10 +3,7 @@ use super::Behavior;
 use crate::{
     app::computers::calculator::{Calculated, Key as CalculatorKey},
     fatty_acid::{DisplayWithOptions, FattyAcid, Options},
-    localization::{
-        CALCULATION, DAG, DIACYLGLYCEROL, FA, FATTY_ACID, MAG, MONOACYLGLYCEROL, PROPERTIES,
-        SELECTIVITY_FACTOR, TAG, TRIACYLGLYCEROL,
-    },
+    localization::titlecase,
     utils::ui::{SubscriptedTextFormat, UiExt},
 };
 use anyhow::Result;
@@ -29,7 +26,9 @@ pub(crate) struct Pane {
 
 impl Pane {
     pub(crate) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
-        let response = ui.heading(&CALCULATION).on_hover_cursor(CursorIcon::Grab);
+        let response = ui
+            .heading(titlecase!("calculation"))
+            .on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         if let Err(error) = || -> Result<()> {
             behavior.data.fatty_acids = ui.memory_mut(|memory| {
@@ -82,26 +81,31 @@ impl Pane {
                 .header(height, |mut row| {
                     // Fatty acid
                     row.col(|ui| {
-                        ui.heading(&FA).on_hover_text(&FATTY_ACID);
+                        ui.heading(titlecase!("fatty_acid.abbreviation"))
+                            .on_hover_text(titlecase!("fatty_acid"));
                     });
                     // 1,2,3-TAGs
                     row.col(|ui| {
-                        ui.heading(&TAG).on_hover_text(&TRIACYLGLYCEROL);
+                        ui.heading(titlecase!("triacylglycerol.abbreviation"))
+                            .on_hover_text(titlecase!("triacylglycerol"));
                     });
                     // 1,2/2,3-DAGs
                     row.col(|ui| {
-                        ui.heading(format!("1,2/2,3-{DAG}"))
-                            .on_hover_text(format!("sn-1,2/2,3 {DIACYLGLYCEROL}"));
+                        ui.heading(format!(
+                            "1,2/2,3-{}",
+                            titlecase!("diacylglycerol.abbreviation"),
+                        ))
+                        .on_hover_text(format!("sn-1,2/2,3 {}", titlecase!("diacylglycerol")));
                     });
                     // 2-MAGs
                     row.col(|ui| {
-                        ui.heading(format!("2-{MAG}"))
-                            .on_hover_text(format!("sn-2 {MONOACYLGLYCEROL}"));
+                        ui.heading(format!("2-{}", titlecase!("monoacylglycerol.abbreviation")))
+                            .on_hover_text(format!("sn-2 {}", titlecase!("monoacylglycerol")));
                     });
                     // 1,3-DAGs
                     row.col(|ui| {
-                        ui.heading(format!("1,3-{DAG}"))
-                            .on_hover_text(format!("sn-1,3 {DIACYLGLYCEROL}"));
+                        ui.heading(format!("1,3-{}", titlecase!("diacylglycerol.abbreviation")))
+                            .on_hover_text(format!("sn-1,3 {}", titlecase!("diacylglycerol")));
                     });
                 })
                 .body(|body| {
@@ -177,7 +181,7 @@ impl Pane {
                                 let response = ui.label(precision(value));
                                 if true {
                                     response.on_hover_ui(|ui| {
-                                        ui.heading(&PROPERTIES);
+                                        ui.heading(titlecase!("properties"));
                                         let selectivity_factor = mags2
                                             .0
                                             .get(index)
@@ -185,7 +189,8 @@ impl Pane {
                                             .map(|(mag2, tag)| mag2 / tag)
                                             .unwrap_or(NAN);
                                         ui.label(format!(
-                                            "{SELECTIVITY_FACTOR}: {selectivity_factor}",
+                                            "{}: {selectivity_factor}",
+                                            titlecase!("selectivity_factor"),
                                         ));
                                     });
                                 }

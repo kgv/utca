@@ -1,10 +1,4 @@
-use crate::{
-    app::MAX_PRECISION,
-    localization::{
-        AS_IS, CALCULATION, FRACTION, PERCENT, PRECISION, SIGN, SIGNED, SIGNED_DESCRIPTION,
-        TO_MASS_FRACTION, TO_MOLE_FRACTION, UNSIGNED, UNSIGNED_DESCRIPTION,
-    },
-};
+use crate::{app::MAX_PRECISION, localization::titlecase};
 use egui::{ComboBox, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
 use egui_tiles::UiResponse;
 use serde::{Deserialize, Serialize};
@@ -34,20 +28,20 @@ impl Default for Settings {
 impl Settings {
     pub(crate) fn ui(&mut self, ui: &mut Ui) -> UiResponse {
         ui.visuals_mut().collapsing_header_frame = true;
-        ui.collapsing(RichText::new(&CALCULATION).heading(), |ui| {
+        ui.collapsing(RichText::new(titlecase!("calculation")).heading(), |ui| {
             ui.separator();
             ui.horizontal(|ui| {
-                ui.label(&PRECISION);
+                ui.label(titlecase!("precision"));
                 ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
             });
             ui.horizontal(|ui| {
-                ui.label(&PERCENT);
+                ui.label(titlecase!("percent"));
                 ui.checkbox(&mut self.percent, "");
             });
             ui.separator();
             ui.horizontal(|ui| {
                 let fraction = &mut self.fraction;
-                ui.label(&FRACTION);
+                ui.label(titlecase!("fraction"));
                 ComboBox::from_id_source("fraction")
                     .selected_text(fraction.text())
                     .show_ui(ui, |ui| {
@@ -68,7 +62,7 @@ impl Settings {
                     .on_hover_text(fraction.hover_text());
             });
             ui.horizontal(|ui| {
-                ui.label(&SIGN);
+                ui.label(titlecase!("sign"));
                 ComboBox::from_id_source("sign")
                     .selected_text(self.signedness.text())
                     .show_ui(ui, |ui| {
@@ -99,7 +93,8 @@ impl Settings {
                 }) {
                     self.from = From::Mag2;
                 }
-                ui.label("Calculate 1,3-DAG:");
+                ui.label(titlecase!("from"))
+                    .on_hover_text(titlecase!("from.description"));
                 ComboBox::from_id_source("1,3")
                     .selected_text(self.from.text())
                     .show_ui(ui, |ui| {
@@ -128,12 +123,12 @@ pub(in crate::app) enum Fraction {
 }
 
 impl Fraction {
-    pub(in crate::app) fn text(self) -> &'static str {
+    pub(in crate::app) fn text(self) -> String {
         match self {
-            Self::AsIs => &AS_IS,
-            Self::ToMole => &TO_MOLE_FRACTION,
-            Self::ToMass => &TO_MASS_FRACTION,
-            Self::Pchelkin => "Pchelkin",
+            Self::AsIs => titlecase!("as_is"),
+            Self::ToMole => titlecase!("to_mole_fraction"),
+            Self::ToMass => titlecase!("to_mass_fraction"),
+            Self::Pchelkin => "Pchelkin".to_owned(),
         }
     }
 
@@ -155,17 +150,17 @@ pub(crate) enum From {
 }
 
 impl From {
-    pub(crate) const fn text(self) -> &'static str {
+    pub(crate) fn text(self) -> String {
         match self {
-            Self::Dag1223 => "1,2/2,3-DAGs",
-            Self::Mag2 => "2-MAGs",
+            Self::Dag1223 => titlecase!("from_dag"),
+            Self::Mag2 => titlecase!("from_mag"),
         }
     }
 
-    pub(crate) const fn hover_text(self) -> &'static str {
+    pub(crate) fn hover_text(self) -> String {
         match self {
-            Self::Dag1223 => "Calculate 1,3-DAGs from 1,2/2,3-DAGs",
-            Self::Mag2 => "Calculate 1,3-DAGs from 2-MAGs",
+            Self::Dag1223 => titlecase!("from_dag.description"),
+            Self::Mag2 => titlecase!("from_mag.description"),
         }
     }
 }
@@ -179,17 +174,17 @@ pub(crate) enum Sign {
 }
 
 impl Sign {
-    pub(crate) fn text(self) -> &'static str {
+    pub(crate) fn text(self) -> String {
         match self {
-            Self::Signed => &SIGNED,
-            Self::Unsigned => &UNSIGNED,
+            Self::Signed => titlecase!("signed"),
+            Self::Unsigned => titlecase!("unsigned"),
         }
     }
 
-    pub(crate) fn hover_text(self) -> &'static str {
+    pub(crate) fn hover_text(self) -> String {
         match self {
-            Self::Signed => &SIGNED_DESCRIPTION,
-            Self::Unsigned => &UNSIGNED_DESCRIPTION,
+            Self::Signed => titlecase!("signed.description"),
+            Self::Unsigned => titlecase!("unsigned.description"),
         }
     }
 }

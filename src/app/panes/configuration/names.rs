@@ -1,6 +1,6 @@
 use crate::{
     fatty_acid::FattyAcid,
-    localization::{localize, ABBREVIATION, COMMON_NAME, NAMES, SYSTEMATIC_NAME},
+    localization::{lowercase, titlecase},
 };
 use egui::{Response, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
@@ -44,7 +44,7 @@ impl Widget for Names<'_> {
     //     response
     // }
     fn ui(self, ui: &mut Ui) -> Response {
-        let response = ui.heading(&NAMES);
+        let response = ui.heading(titlecase!("names"));
         let height = ui.spacing().interact_size.y;
         TableBuilder::new(ui)
             .striped(true)
@@ -53,9 +53,9 @@ impl Widget for Names<'_> {
             .body(|mut body| {
                 let id = self.fatty_acid.id();
                 body.row(height, |mut row| {
-                    if let Some(abbreviation) = localize(&format!("fa_{id}.abbreviation")) {
+                    if let Some(abbreviation) = lowercase!(&format!("fa_{id}.abbreviation")) {
                         row.col(|ui| {
-                            ui.label(&ABBREVIATION);
+                            ui.label(titlecase!("abbreviation"));
                         });
                         row.col(|ui| {
                             ui.label(abbreviation);
@@ -63,9 +63,9 @@ impl Widget for Names<'_> {
                     }
                 });
                 body.row(height, |mut row| {
-                    if let Some(common_name) = localize(&format!("fa_{id}.common_name")) {
+                    if let Some(common_name) = lowercase!(&format!("fa_{id}.common_name")) {
                         row.col(|ui| {
-                            ui.label(&COMMON_NAME);
+                            ui.label(titlecase!("common_name"));
                         });
                         row.col(|ui| {
                             ui.label(common_name);
@@ -73,9 +73,9 @@ impl Widget for Names<'_> {
                     }
                 });
                 body.row(height, |mut row| {
-                    if let Some(systematic_name) = localize(&format!("fa_{id}.systematic_name")) {
+                    if let Some(systematic_name) = lowercase!(&format!("fa_{id}.systematic_name")) {
                         row.col(|ui| {
-                            ui.label(&SYSTEMATIC_NAME);
+                            ui.label(titlecase!("systematic_name"));
                         });
                         row.col(|ui| {
                             ui.label(systematic_name);

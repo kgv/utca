@@ -1,4 +1,5 @@
-use crate::localization::{CALCULATION, COMPOSITION, CONFIGURATION, EDIT, RESIZE};
+// use crate::localization::{CALCULATION, COMPOSITION, CONFIGURATION, EDIT, RESIZE};
+use crate::localization::titlecase;
 use egui::{menu::bar, RichText, Ui, WidgetText};
 use egui_phosphor::regular::{ARROWS_HORIZONTAL, CALCULATOR, INTERSECT_THREE, NOTE_PENCIL, PENCIL};
 use egui_tiles::{Tile, TileId, Tree, UiResponse};
@@ -26,11 +27,11 @@ impl Pane {
         }
     }
 
-    pub(crate) fn title(&self) -> &str {
+    pub(crate) fn title(&self) -> String {
         match self {
-            Self::Configuration(_) => &CONFIGURATION,
-            Self::Calculation(_) => &CALCULATION,
-            Self::Composition(_) => &COMPOSITION,
+            Self::Configuration(_) => titlecase!("configuration"),
+            Self::Calculation(_) => titlecase!("calculation"),
+            Self::Composition(_) => titlecase!("composition"),
         }
     }
 
@@ -107,9 +108,9 @@ impl Settings {
                 &mut self.resizable,
                 RichText::new(ARROWS_HORIZONTAL).size(SIZE),
             )
-            .on_hover_text(&RESIZE);
+            .on_hover_text(titlecase!("resize"));
             ui.toggle_value(&mut self.editable, RichText::new(PENCIL).size(SIZE))
-                .on_hover_text(&EDIT);
+                .on_hover_text(titlecase!("edit"));
         });
         ui.separator();
         for tile_id in tree.active_tiles() {

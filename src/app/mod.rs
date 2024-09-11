@@ -3,7 +3,8 @@ use self::{
     windows::About,
 };
 use crate::{
-    localization::{LEFT_PANEL, RESET_APPLICATION, RESET_GUI},
+    // localization::{LEFT_PANEL, RESET_APPLICATION, RESET_GUI},
+    localization::{titlecase, UiExt},
     parsers::toml::{to_string, Parsed, Parsed as TomlParsed},
     widgets::{FileDialog, Github},
 };
@@ -50,6 +51,10 @@ const NOTIFICATIONS_DURATION: Duration = Duration::from_secs(15);
 // const DESCRIPTION: &str = "Positional-species and positional-type composition of TAG from mature fruit arils of the Euonymus section species, mol % of total TAG";
 
 const SIZE: f32 = 32.0;
+
+pub(crate) macro icon($icon:expr) {
+    RichText::new($icon).size(SIZE)
+}
 
 fn custom_style(ctx: &egui::Context) {
     let mut style = (*ctx.style()).clone();
@@ -268,7 +273,7 @@ impl App {
                     &mut self.left_panel,
                     RichText::new(SIDEBAR_SIMPLE).size(SIZE),
                 )
-                .on_hover_text(&LEFT_PANEL);
+                .on_hover_text(titlecase!("left_panel"));
                 ui.separator();
                 // Light/Dark
                 ui.light_dark_button(SIZE);
@@ -276,7 +281,7 @@ impl App {
                 // Reset
                 if ui
                     .button(RichText::new(TRASH).size(SIZE))
-                    .on_hover_text(&RESET_APPLICATION)
+                    .on_hover_text(titlecase!("reset_application"))
                     .clicked()
                 {
                     *self = Default::default();
@@ -284,7 +289,7 @@ impl App {
                 ui.separator();
                 if ui
                     .button(RichText::new(ARROWS_CLOCKWISE).size(SIZE))
-                    .on_hover_text(&RESET_GUI)
+                    .on_hover_text(titlecase!("reset_gui"))
                     .clicked()
                 {
                     ui.memory_mut(|memory| *memory = Default::default());
@@ -321,6 +326,9 @@ impl App {
                         error!(%error);
                     }
                 }
+                ui.separator();
+                // Locale
+                ui.locale_button().on_hover_text(titlecase!("language"));
 
                 // if ui.button("Cl").clicked() {
                 //     let mut children = vec![self.tree.tiles.insert_pane(Default::default())];

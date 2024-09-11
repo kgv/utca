@@ -31,8 +31,8 @@ impl Data {
             df! {
                 "Label" => &[""],
                 "Carbons" => &[0u8],
-                "Doubles" => &[Series::new_empty("", &DataType::Int8)],
-                "Triples" => &[Series::new_empty("", &DataType::Int8)],
+                "Doubles" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
+                "Triples" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
                 "TAG" => &[0.0],
                 "DAG1223" => &[0.0],
                 "MAG2" => &[0.0],
@@ -52,13 +52,13 @@ impl Default for Data {
     fn default() -> Self {
         Self {
             fatty_acids: DataFrame::empty_with_schema(&Schema::from_iter([
-                Field::new("Label", DataType::String),
-                Field::new("Carbons", DataType::UInt8),
-                Field::new("Doubles", DataType::List(Box::new(DataType::Int8))),
-                Field::new("Triples", DataType::List(Box::new(DataType::Int8))),
-                Field::new("TAG", DataType::Float64),
-                Field::new("DAG1223", DataType::Float64),
-                Field::new("MAG2", DataType::Float64),
+                Field::new("Label".into(), DataType::String),
+                Field::new("Carbons".into(), DataType::UInt8),
+                Field::new("Doubles".into(), DataType::List(Box::new(DataType::Int8))),
+                Field::new("Triples".into(), DataType::List(Box::new(DataType::Int8))),
+                Field::new("TAG".into(), DataType::Float64),
+                Field::new("DAG1223".into(), DataType::Float64),
+                Field::new("MAG2".into(), DataType::Float64),
             ])),
         }
     }

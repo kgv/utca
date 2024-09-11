@@ -112,7 +112,7 @@ impl LazyFrameExt for LazyFrame {
                 as_struct(vec![col("SN3").alias("SN1"), col("SN1").alias("SN3")]),
             )
             .r#struct()
-            .field_by_names(&["SN1", "SN3"])]),
+            .field_by_names(["SN1", "SN3"])]),
             Some(Stereospecificity::Stereo) => self,
         };
         // Label

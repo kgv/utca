@@ -1,11 +1,7 @@
 use crate::{
     acylglycerol::Stereospecificity,
     app::MAX_PRECISION,
-    localization::{
-        ADDUCT, ASCENDING, ASCENDING_DESCRIPTION, COMPOSITION, DESCENDING, DESCENDING_DESCRIPTION,
-        GROUP, GUNSTONE, GUNSTONE_DESCRIPTION, KEY, KEY_DESCRIPTION, METHOD, ORDER, PERCENT,
-        PRECISION, SORT, VALUE, VALUE_DESCRIPTION, VANDER_WAL, VANDER_WAL_DESCRIPTION,
-    },
+    localization::titlecase,
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
 };
 use egui::{ComboBox, DragValue, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
@@ -43,20 +39,20 @@ impl Default for Settings {
 impl Settings {
     pub(crate) fn ui(&mut self, ui: &mut Ui) -> UiResponse {
         ui.visuals_mut().collapsing_header_frame = true;
-        ui.collapsing(RichText::new(&COMPOSITION).heading(), |ui| {
+        ui.collapsing(RichText::new(titlecase!("composition")).heading(), |ui| {
             ui.separator();
             ui.horizontal(|ui| {
-                ui.label(&PRECISION);
+                ui.label(titlecase!("precision"));
                 ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
             });
             ui.horizontal(|ui| {
-                ui.label(&PERCENT);
+                ui.label(titlecase!("percent"));
                 ui.checkbox(&mut self.percent, "");
             });
             ui.separator();
             ui.horizontal(|ui| {
                 let adduct = &mut self.adduct;
-                ui.label(&ADDUCT);
+                ui.label(titlecase!("adduct"));
                 ui.add(
                     DragValue::new(&mut adduct.0)
                         .range(0.0..=f64::MAX)
@@ -91,7 +87,7 @@ impl Settings {
                 }) {
                     self.method = Method::VanderWal;
                 }
-                ui.label(&METHOD);
+                ui.label(titlecase!("method"));
                 ComboBox::from_id_source("method")
                     .selected_text(self.method.text())
                     .show_ui(ui, |ui| {
@@ -113,7 +109,7 @@ impl Settings {
             });
             // Group
             ui.horizontal(|ui| {
-                ui.label(&GROUP);
+                ui.label(titlecase!("group"));
                 ComboBox::from_id_source("group")
                     .selected_text(self.group.text())
                     .show_ui(ui, |ui| {
@@ -167,7 +163,7 @@ impl Settings {
 
             // Sort
             ui.horizontal(|ui| {
-                ui.label(&SORT);
+                ui.label(titlecase!("sort"));
                 ComboBox::from_id_source("sort")
                     .selected_text(self.sort.text())
                     .show_ui(ui, |ui| {
@@ -180,7 +176,7 @@ impl Settings {
                     .on_hover_text(self.sort.hover_text());
             });
             ui.horizontal(|ui| {
-                ui.label(&ORDER);
+                ui.label(titlecase!("order"));
                 ComboBox::from_id_source("order")
                     .selected_text(self.order.text())
                     .show_ui(ui, |ui| {
@@ -213,17 +209,17 @@ pub(crate) enum Method {
 }
 
 impl Method {
-    pub(crate) fn text(&self) -> &'static str {
+    pub(crate) fn text(&self) -> String {
         match self {
-            Self::Gunstone => &GUNSTONE,
-            Self::VanderWal => &VANDER_WAL,
+            Self::Gunstone => titlecase!("gunstone"),
+            Self::VanderWal => titlecase!("vander_wal"),
         }
     }
 
-    pub(crate) fn hover_text(&self) -> &'static str {
+    pub(crate) fn hover_text(&self) -> String {
         match self {
-            Self::Gunstone => &GUNSTONE_DESCRIPTION,
-            Self::VanderWal => &VANDER_WAL_DESCRIPTION,
+            Self::Gunstone => titlecase!("gunstone.description"),
+            Self::VanderWal => titlecase!("vander_wal.description"),
         }
     }
 }
@@ -236,17 +232,17 @@ pub(crate) enum Sort {
 }
 
 impl Sort {
-    pub(crate) fn text(self) -> &'static str {
+    pub(crate) fn text(self) -> String {
         match self {
-            Self::Key => &KEY,
-            Self::Value => &VALUE,
+            Self::Key => titlecase!("key"),
+            Self::Value => titlecase!("value"),
         }
     }
 
-    pub(crate) fn hover_text(self) -> &'static str {
+    pub(crate) fn hover_text(self) -> String {
         match self {
-            Self::Key => &KEY_DESCRIPTION,
-            Self::Value => &VALUE_DESCRIPTION,
+            Self::Key => titlecase!("key.description"),
+            Self::Value => titlecase!("value.description"),
         }
     }
 }
@@ -259,17 +255,17 @@ pub(crate) enum Order {
 }
 
 impl Order {
-    pub(crate) fn text(self) -> &'static str {
+    pub(crate) fn text(self) -> String {
         match self {
-            Self::Ascending => &ASCENDING,
-            Self::Descending => &DESCENDING,
+            Self::Ascending => titlecase!("ascending"),
+            Self::Descending => titlecase!("descending"),
         }
     }
 
-    pub(crate) fn hover_text(self) -> &'static str {
+    pub(crate) fn hover_text(self) -> String {
         match self {
-            Self::Ascending => &ASCENDING_DESCRIPTION,
-            Self::Descending => &DESCENDING_DESCRIPTION,
+            Self::Ascending => titlecase!("ascending.description"),
+            Self::Descending => titlecase!("descending.description"),
         }
     }
 }

@@ -1,63 +1,79 @@
 abbreviation = аббревиатура
-adduct = аддукт
-as_is = как есть
-ascending = по возрастанию
-ascending_description = обратный порядок (от максимума к минимуму)
-calculation = вычисление
 common_name = общее название
-composition = композиция
-configuration = конфигурация
-dag = ДАГ
-descending = по убыванию
-descending_description = прямой порядок (от минимума к максимуму)
-diacylglycerol = диацилглицерин
 edit = изменить
 experimental = экспериментальное значение
-fa = ЖК
-fatty_acid = { -fatty_acid_term }
 fatty_acid_mass = { mass } { -fatty_acid_term(genus: "genitive") }
 formula = формула
-fraction = доля
-group = группировка
-gunstone = Ганстоун
-gunstone_description = вычисление по теории Ганстоуна
-key = ключ
-key_description = сортировать по ключу
-left_panel = левая панель
-mag = МАГ
 mass = масса
-method = метод
 methyl_ester_mass = { mass } метилового эфира
 molar_mass = молярная { mass }
-monoacylglycerol = моноацилглицерин
 names = названия
 names_description = показать устоявшиеся названия для жирных кислот
-order = порядок
-percent = проценты
-precision = точность
 properties = свойства
 properties_description = показать { properties }
-reset_application = сбросить данные приложения
-reset_gui = сбросить настройки интерфейса
 resize = изменить размер
 selectivity_factor = фактор селективности
-sign = знак
-signed = со знаком
-signed_description = теоретически рассчитанные отрицательные значения отстаются без изменения
-sort = сотрировка
 species = вид
 systematic_name = систематическое название
-tag = ТАГ
 theoretical = теоретическое значение
+
+fatty_acid = { -fatty_acid_term }
+    .abbreviation = ЖК
+triacylglycerol = триацилглицерин
+    .abbreviation = ТАГ
+diacylglycerol = диацилглицерин
+    .abbreviation = ДАГ
+monoacylglycerol = моноацилглицерин
+    .abbreviation = МАГ
+
+configuration = конфигурация
+calculation = вычисление
+composition = композиция
+
+# Central panel
+
+# Left panel
+precision = точность
+percent = проценты
+
+## Calculation
+fraction = доля
+as_is = как есть
 to_mass_fraction = в массовую долю
 to_mole_fraction = в мольную долю
-triacylglycerol = триацилглицерин
+sign = знак
+signed = со знаком
+    .description = теоретически рассчитанные отрицательные значения отстаются без изменения
 unsigned = без знака
-unsigned_description = теоретически рассчитанные отрицательные значения замещаются нулем
-value = значение
-value_description = сортировать по значению
+    .description = теоретически рассчитанные отрицательные значения замещаются нулем
+from = вычислить из
+    .description = вычислить значения 1,3-{ diacylglycerol.abbreviation } из
+from_dag = из 1,2/2,3-{ diacylglycerol.abbreviation }
+    .description = вычислить значения 1,3-{ diacylglycerol.abbreviation } из 1,2/2,3-{ diacylglycerol.abbreviation }
+from_mag = из 2-{ monoacylglycerol.abbreviation }
+    .description = вычислить значения 1,3-{ diacylglycerol.abbreviation } из 2-{ monoacylglycerol.abbreviation }
+
+## Composition
+adduct = аддукт
+method = метод
+gunstone = Ганстоун
+    .description = вычисление по теории Ганстоуна
 vander_wal = Вандер Валь
-vander_wal_description = вычисление по теории Вандер Валя
+    .description = вычисление по теории Вандер Валя
+group = группировка
+sort = сотрировка
+by_key = по ключу
+    .description = сортировать по ключу
+by_value = по значению
+    .description = сортировать по значению
+order = порядок
+ascending = по возрастанию
+    .description = обратный порядок (от максимума к минимуму)
+descending = по убыванию
+    .description = прямой порядок (от минимума к максимуму)
+
+key = ключ
+value = значение
 
 -fatty_acid_term = { $genus ->
    *[nominative] жирная кислота

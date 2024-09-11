@@ -9,10 +9,7 @@ use super::Behavior;
 use crate::{
     app::data::Data,
     fatty_acid::{DisplayWithOptions, FattyAcid, Options, COMMON},
-    localization::{
-        CONFIGURATION, DAG, DIACYLGLYCEROL, FA, FATTY_ACID, FORMULA, MAG, MONOACYLGLYCEROL, TAG,
-        TRIACYLGLYCEROL,
-    },
+    localization::titlecase,
     utils::{
         ui::{SubscriptedTextFormat, UiExt},
         DataFrameExt,
@@ -43,7 +40,9 @@ pub(crate) struct Pane {
 
 impl Pane {
     pub(crate) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
-        let response = ui.heading(&CONFIGURATION).on_hover_cursor(CursorIcon::Grab);
+        let response = ui
+            .heading(titlecase!("configuration"))
+            .on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
@@ -82,18 +81,23 @@ impl Pane {
                     row.col(|_ui| {});
                 }
                 row.col(|ui| {
-                    ui.heading(&FA).on_hover_text(&FATTY_ACID);
+                    ui.heading(titlecase!("fatty_acid.abbreviation"))
+                        .on_hover_text(titlecase!("fatty_acid"));
                 });
                 row.col(|ui| {
-                    ui.heading(&TAG).on_hover_text(&TRIACYLGLYCEROL);
+                    ui.heading(titlecase!("triacylglycerol.abbreviation"))
+                        .on_hover_text(titlecase!("triacylglycerol"));
                 });
                 row.col(|ui| {
-                    ui.heading(format!("1,2/2,3-{DAG}"))
-                        .on_hover_text(format!("sn-1,2/2,3 {DIACYLGLYCEROL}"));
+                    ui.heading(format!(
+                        "1,2/2,3-{}",
+                        titlecase!("diacylglycerol.abbreviation"),
+                    ))
+                    .on_hover_text(format!("sn-1,2/2,3 {}", titlecase!("diacylglycerol")));
                 });
                 row.col(|ui| {
-                    ui.heading(format!("2-{MAG}"))
-                        .on_hover_text(format!("sn-2 {MONOACYLGLYCEROL}"));
+                    ui.heading(format!("2-{}", titlecase!("monoacylglycerol.abbreviation")))
+                        .on_hover_text(format!("sn-2 {}", titlecase!("monoacylglycerol")));
                 });
             })
             .body(|body| {
@@ -153,10 +157,11 @@ impl Pane {
                                 ui.label(title)
                             }
                             .on_hover_ui(|ui| {
-                                ui.heading(&FATTY_ACID);
-                                ui.label(format!("{FORMULA}: {fatty_acid:#}"));
+                                ui.heading(titlecase!("fatty_acid"));
+                                ui.label(format!("{}: {fatty_acid:#}", titlecase!("formula")));
                                 ui.label(format!(
-                                    "{FORMULA}: C{}H{}O2",
+                                    "{}: C{}H{}O2",
+                                    titlecase!("formula"),
                                     fatty_acid.c(),
                                     fatty_acid.h(),
                                 ));
@@ -307,7 +312,7 @@ impl Event {
                                     Value::Carbons(carbons) => lit(carbons),
                                     Value::Doubles(indices) | Value::Triples(indices) => {
                                         lit(Series::from_any_values(
-                                            "",
+                                            PlSmallStr::EMPTY,
                                             &[AnyValue::List(Series::from_iter(indices))],
                                             false,
                                         )?)

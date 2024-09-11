@@ -1,6 +1,6 @@
 use crate::{
     fatty_acid::FattyAcid,
-    localization::{FATTY_ACID_MASS, METHYL_ESTER_MASS, PROPERTIES},
+    localization::titlecase,
     r#const::relative_atomic_mass::{CH2, O2},
 };
 use egui::{Response, Ui, Widget};
@@ -19,7 +19,7 @@ impl<'a> Properties<'a> {
 
 impl Widget for Properties<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let response = ui.heading(&PROPERTIES);
+        let response = ui.heading(titlecase!("properties"));
         let height = ui.spacing().interact_size.y;
         TableBuilder::new(ui)
             .striped(true)
@@ -29,7 +29,7 @@ impl Widget for Properties<'_> {
                 let mass = self.fatty_acid.mass();
                 body.row(height, |mut row| {
                     row.col(|ui| {
-                        ui.label(&FATTY_ACID_MASS);
+                        ui.label(titlecase!("fatty_acid_mass"));
                     });
                     let value = mass;
                     row.col(|ui| {
@@ -38,7 +38,7 @@ impl Widget for Properties<'_> {
                 });
                 body.row(height, |mut row| {
                     row.col(|ui| {
-                        ui.label(&METHYL_ESTER_MASS);
+                        ui.label(titlecase!("methyl_ester_mass"));
                     });
                     let value = mass + CH2;
                     row.col(|ui| {

@@ -1,4 +1,4 @@
-use crate::localization::{EXPERIMENTAL, PROPERTIES, THEORETICAL};
+use crate::localization::titlecase;
 use egui::{Response, Ui, Widget};
 
 /// Cell widget
@@ -23,9 +23,9 @@ impl Widget for Cell {
         })
         .response
         .on_hover_ui(|ui| {
-            ui.heading(&PROPERTIES);
-            ui.label(format!("{EXPERIMENTAL}: {experimental}"));
-            ui.label(format!("{THEORETICAL}: {theoretical}"));
+            ui.heading(titlecase!("properties"));
+            ui.label(format!("{}: {experimental}", titlecase!("experimental")));
+            ui.label(format!("{}: {theoretical}", titlecase!("theoretical")));
         })
     }
 }

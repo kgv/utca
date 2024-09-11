@@ -2,7 +2,7 @@ use self::settings::Settings;
 use super::Behavior;
 use crate::{
     app::computers::composer::{Composed, Key as CompositionKey},
-    localization::{COMPOSITION, PROPERTIES, SPECIES, TAG, TRIACYLGLYCEROL, VALUE},
+    localization::titlecase,
     utils::DataFrameExt,
 };
 use anyhow::Result;
@@ -25,7 +25,9 @@ pub(crate) struct Pane {
 
 impl Pane {
     pub(crate) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
-        let response = ui.heading(&COMPOSITION).on_hover_cursor(CursorIcon::Grab);
+        let response = ui
+            .heading(titlecase!("composition"))
+            .on_hover_cursor(CursorIcon::Grab);
         let dragged = response.dragged();
         if let Err(error) = || -> Result<()> {
             let data_frame = ui.memory_mut(|memory| {
@@ -49,11 +51,12 @@ impl Pane {
                 .header(height, |mut row| {
                     // TAG
                     row.col(|ui| {
-                        ui.heading(&TAG).on_hover_text(&TRIACYLGLYCEROL);
+                        ui.heading(titlecase!("triacylglycerol.abbreviation"))
+                            .on_hover_text(titlecase!("triacylglycerol"));
                     });
                     // Value
                     row.col(|ui| {
-                        ui.heading(&VALUE);
+                        ui.heading(titlecase!("value"));
                     });
                 })
                 .body(|body| {
@@ -67,7 +70,8 @@ impl Pane {
                                 response.on_hover_ui(|ui| {
                                     if let Some(list) = species.get_as_series(index) {
                                         ui.label(format!(
-                                            "{SPECIES}: {}",
+                                            "{}: {}",
+                                            titlecase!("species"),
                                             list.str().unwrap().into_iter().flatten().format(","),
                                         ));
                                     }
@@ -99,7 +103,7 @@ impl Pane {
                                     sum *= 100.;
                                 }
                                 ui.heading(precision(sum)).on_hover_ui(|ui| {
-                                    ui.heading(&PROPERTIES);
+                                    ui.heading(titlecase!("properties"));
                                     ui.label(format!("Count: {}", values.len()));
                                 });
                             });
