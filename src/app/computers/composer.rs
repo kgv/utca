@@ -11,7 +11,7 @@ use crate::{
     },
     fatty_acid::FattyAcid,
     r#const::relative_atomic_mass::{C, CH2, H, O},
-    utils::{r#struct, DataFrameExt, ExprExt, SeriesExt},
+    utils::{r#struct, DataFrameExt as _, ExprExt, SeriesExt},
 };
 use anyhow::Result;
 use egui::{
@@ -66,15 +66,26 @@ fn array(name: &str) -> Expr {
 //         .field_by_names(names)
 // }
 
+/// Extension methods for [`DataFrame`]
+trait DataFrameExt: Sized {
+    fn cartesian_product(self) -> PolarsResult<Self>;
+}
+
+impl DataFrameExt for DataFrame {
+    fn cartesian_product(mut self) -> PolarsResult<Self> {
+        self = self.with_row_index("Index".into(), None)?;
+        self.cross_join(&self, Some("SN2".into()), None)?
+            .cross_join(&self, Some("SN3".into()), None)
+    }
+}
+
 /// Extension methods for [`LazyFrame`]
-trait LazyFrameExt {
+trait LazyFrameExt: Sized {
     fn cartesian_product(self) -> Self;
 
     fn composition(self, composition: Composition) -> Self;
 
-    fn sort_columns(self, names: &[&str], sort: Expr) -> PolarsResult<Self>
-    where
-        Self: Sized;
+    fn sort_columns(self, names: &[&str], sort: Expr) -> PolarsResult<Self>;
 }
 
 impl LazyFrameExt for LazyFrame {
@@ -376,6 +387,15 @@ impl Composer {
     // [abc] = [a13]*[b2]*[c13]
     // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
     fn vander_wal(&mut self, key: Key) -> DataFrame {
+        // let data_frame = key
+        //     .data_frame
+        //     .clone()
+        //     .cartesian_product()
+        //     .unwrap()
+        //     .with_row_index("Index".into(), None)
+        //     .unwrap();
+        // println!("after cartesian product data_frame: {data_frame}");
+
         let mut lazy_frame = key.data_frame.clone().lazy();
         lazy_frame = lazy_frame.cartesian_product().with_row_index("Index", None);
         println!(
@@ -406,6 +426,7 @@ impl Composer {
             Sort::Key => lazy_frame.sort_by_exprs(&[col("Label")], sort_options),
             Sort::Value => lazy_frame.sort_by_exprs(&[col("Value"), col("Label")], sort_options),
         };
+        // lazy_frame = lazy_frame.filter(col("Value").gt_eq(other));
         println!("data_frame: {}", lazy_frame.clone().collect().unwrap());
         lazy_frame.collect().unwrap()
 
@@ -629,3 +650,108 @@ impl Gunstone {
 //         })
 //         .normalized()
 // }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test() {
+        // manual cartesian product (OK)
+        {
+            let mut lazy_frame = df! {
+                "1" => df! {
+                    "u32" => &[0u32, 0, 0, 0, 1, 1, 1, 1],
+                    "str" => &["a", "a", "a", "a", "b", "b", "b", "b"],
+                }
+                .unwrap()
+                .into_struct(PlSmallStr::EMPTY),
+                "2" => df! {
+                    "u32" => &[0u32, 0, 1, 1, 0, 0, 1, 1],
+                    "str" => &["a", "a", "b", "b", "a", "a", "b", "b"],
+                }
+                .unwrap()
+                .into_struct(PlSmallStr::EMPTY),
+                "3" => df! {
+                    "u32" => &[0u32, 1, 0, 1, 0, 1, 0, 1],
+                    "str" => &["a", "b", "a", "b", "a", "b", "a", "b"],
+                }
+                .unwrap()
+                .into_struct(PlSmallStr::EMPTY),
+            }
+            .unwrap()
+            .lazy();
+            println!(
+                "manual cartesian product data_frame: {}",
+                lazy_frame.clone().collect().unwrap()
+            );
+            lazy_frame = lazy_frame.select([concat_list(["1", "2", "3"]).unwrap().alias("LIST")]);
+            println!(
+                "manual cartesian product concat_list data_frame: {}",
+                lazy_frame.clone().collect().unwrap()
+            );
+        }
+
+        // data_frame
+        {
+            let mut data_frame = df! {
+                "u32" => &[0u32, 1],
+                "str" => &["a", "b"],
+            }
+            .unwrap();
+            data_frame = data_frame
+                .cross_join(&data_frame, Some("SN2".into()), None)
+                .unwrap()
+                .cross_join(&data_frame, Some("SN3".into()), None)
+                .unwrap();
+            let lazy_frame = data_frame.lazy().select([
+                as_struct(vec![col("u32"), col("str")]).alias("1"),
+                as_struct(vec![col("u32SN2").alias("u32"), col("strSN2").alias("str")]).alias("2"),
+                as_struct(vec![col("u32SN3").alias("u32"), col("strSN3").alias("str")]).alias("3"),
+            ]);
+            println!(
+                "!!! cartesian product data_frame: {}",
+                lazy_frame.clone().collect().unwrap()
+            );
+            let lazy_frame =
+                lazy_frame.select([concat_list(["1", "2", "3"]).unwrap().alias("LIST")]);
+            println!(
+                "!!! cartesian product concat_list data_frame: {}",
+                lazy_frame.clone().collect().unwrap()
+            );
+        }
+
+        // `cross_join` cartesian product (ERROR)
+        {
+            let mut lazy_frame = df! {
+                "u32" => &[0u32, 1],
+                "str" => &["a", "b"],
+            }
+            .unwrap()
+            .lazy();
+            lazy_frame = lazy_frame
+                .clone()
+                .select([as_struct(vec![col("u32"), col("str")]).alias("1")])
+                .cross_join(
+                    lazy_frame
+                        .clone()
+                        .select([as_struct(vec![col("u32"), col("str")]).alias("2")]),
+                    None,
+                )
+                .cross_join(
+                    lazy_frame.select([as_struct(vec![col("u32"), col("str")]).alias("3")]),
+                    None,
+                );
+            println!(
+                "cross_join cartesian product data_frame: {}",
+                lazy_frame.clone().collect().unwrap()
+            );
+            // AFTER THIS LINE ERROR
+            lazy_frame = lazy_frame.select([concat_list(["1", "2", "3"]).unwrap().alias("LIST")]);
+            println!(
+                "cross_join cartesian product concat_list data_frame: {}",
+                lazy_frame.clone().collect().unwrap()
+            );
+        }
+    }
+}
