@@ -88,4 +88,36 @@ $env:RUST_LOG="utca=trace"
 
 // https://raw.githubusercontent.com/ippras/utca/gh-pages/configs/lunaria_rediviva/1.1.utca.toml
 
+== T
 
+Предметная модель оперирует двумя атомарными сущьностями: вид и тип.
+Вид - это конкретный экземпляр ЖК. Тип - это признак насыщенности для ЖК.
+
+Возможность рекурсивной композиции видов/типов.
+Для каждой итерация рекурсивной группировки может быть задана стереоспецифичность:
+- стерео-неспецифичная - SN1, SN2, SN3 положения эквивалентны
+- позиционно-специфичная - SN1, SN3 положения эквивалентны
+- стерео-специфичная - все SN положения неэквивалентны
+
+Таким образом получаем следующий возможный набор композиционных групп:
+- "NC": Equivalent carbon number composition,
+- "PNC": Positional equivalent carbon number composition,
+- "SNC": Stereo equivalent carbon number composition,
+- "MC": Mass composition,
+- "PMC": Positional mass composition,
+- "SMC": Stereo mass composition,
+- "TC": Type composition,
+- "PTC": Positional type composition,
+- "STC": Stereo type composition,
+- "SC": Species composition,
+- "PSC": Positional species composition,
+- "SSC": Stereo species composition.
+
+Пример:
+PNC -> SMC -> SC
+- Сначала все триглицириды будут распределены в группы, внутри которых позиционно-специфичная ECN триглицирида эквивалента.
+- Затем, все триглицириды внутри каждой из групп предыдущего этапа будут распределены в подгруппы, внутри которых стерео-специфичная масса триглицирида эквивалента.
+- Наконец, все триглицириды внутри каждой из групп предыдущего этапа будут распределены в подгруппы, внутри которых будут находиться только стерео-неспецифичные виды триглицирида эквивалента.
+
+
+Группировка в панели сравнения может 
