@@ -51,6 +51,7 @@ integrity:
 * https://github.com/hkBst/tic-tac-toe-seed/blob/main/.github/workflows/deploy.yml[workflows example]
 
 $env:RUST_LOG="utca=trace"
+$env:RUST_BACKTRACE=1
 
 14:0 - Myr
 16:0 - Pam

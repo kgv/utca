@@ -3,7 +3,6 @@ use crate::localization::titlecase;
 use egui::{menu::bar, RichText, Ui, WidgetText};
 use egui_phosphor::regular::{ARROWS_HORIZONTAL, CALCULATOR, INTERSECT_THREE, NOTE_PENCIL, PENCIL};
 use egui_tiles::{Tile, TileId, Tree, UiResponse};
-use polars::prelude::DataFrame;
 use serde::{Deserialize, Serialize};
 
 use super::data::Data;
@@ -100,6 +99,14 @@ pub(crate) struct Settings {
     pub(crate) resizable: bool,
     pub(crate) editable: bool,
 }
+impl Settings {
+    pub(crate) const fn new() -> Self {
+        Self {
+            resizable: false,
+            editable: false,
+        }
+    }
+}
 
 impl Settings {
     pub(crate) fn ui(&mut self, ui: &mut Ui, tree: &mut Tree<Pane>) {
@@ -125,10 +132,7 @@ impl Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self {
-            resizable: false,
-            editable: false,
-        }
+        Self::new()
     }
 }
 

@@ -1,8 +1,4 @@
-use crate::{
-    fatty_acid::FattyAcid,
-    localization::titlecase,
-    r#const::relative_atomic_mass::{CH2, O2},
-};
+use crate::{fatty_acid::FattyAcid, localization::titlecase, r#const::relative_atomic_mass::CH2};
 use egui::{Response, Ui, Widget};
 use egui_extras::{Column, TableBuilder};
 

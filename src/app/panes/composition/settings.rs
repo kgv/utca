@@ -9,7 +9,56 @@ use egui_tiles::UiResponse;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-/// Calculation settings
+pub(crate) const NC: Composition = Composition {
+    stereospecificity: None,
+    scope: Scope::Ecn,
+};
+pub(crate) const PNC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Positional),
+    scope: Scope::Ecn,
+};
+pub(crate) const SNC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Stereo),
+    scope: Scope::Ecn,
+};
+pub(crate) const MC: Composition = Composition {
+    stereospecificity: None,
+    scope: Scope::Mass,
+};
+pub(crate) const PMC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Positional),
+    scope: Scope::Mass,
+};
+pub(crate) const SMC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Stereo),
+    scope: Scope::Mass,
+};
+pub(crate) const SC: Composition = Composition {
+    stereospecificity: None,
+    scope: Scope::Species,
+};
+pub(crate) const PSC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Positional),
+    scope: Scope::Species,
+};
+pub(crate) const SSC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Stereo),
+    scope: Scope::Species,
+};
+pub(crate) const TC: Composition = Composition {
+    stereospecificity: None,
+    scope: Scope::Type,
+};
+pub(crate) const PTC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Positional),
+    scope: Scope::Type,
+};
+pub(crate) const STC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Stereo),
+    scope: Scope::Type,
+};
+
+/// Composition settings
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(crate) struct Settings {
     pub(crate) percent: bool,
@@ -17,19 +66,19 @@ pub(crate) struct Settings {
 
     pub(crate) adduct: OrderedFloat<f64>,
     pub(crate) method: Method,
-    pub(crate) group: Composition,
+    pub(crate) composition: Composition,
     pub(crate) sort: Sort,
     pub(crate) order: Order,
 }
 
-impl Default for Settings {
-    fn default() -> Self {
+impl Settings {
+    pub(crate) const fn new() -> Self {
         Self {
             percent: true,
             precision: 1,
             adduct: OrderedFloat(0.0),
             method: Method::VanderWal,
-            group: Composition::default(),
+            composition: Composition::new(),
             sort: Sort::Value,
             order: Order::Descending,
         }
@@ -111,35 +160,35 @@ impl Settings {
             ui.horizontal(|ui| {
                 ui.label(titlecase!("group"));
                 ComboBox::from_id_source("group")
-                    .selected_text(self.group.text())
+                    .selected_text(self.composition.text())
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.group, NC, NC.text())
+                        ui.selectable_value(&mut self.composition, NC, NC.text())
                             .on_hover_text(NC.hover_text());
-                        ui.selectable_value(&mut self.group, PNC, PNC.text())
+                        ui.selectable_value(&mut self.composition, PNC, PNC.text())
                             .on_hover_text(PNC.hover_text());
-                        ui.selectable_value(&mut self.group, SNC, SNC.text())
+                        ui.selectable_value(&mut self.composition, SNC, SNC.text())
                             .on_hover_text(SNC.hover_text());
-                        ui.selectable_value(&mut self.group, MC, MC.text())
+                        ui.selectable_value(&mut self.composition, MC, MC.text())
                             .on_hover_text(MC.hover_text());
-                        ui.selectable_value(&mut self.group, PMC, PMC.text())
+                        ui.selectable_value(&mut self.composition, PMC, PMC.text())
                             .on_hover_text(PMC.hover_text());
-                        ui.selectable_value(&mut self.group, SMC, SMC.text())
+                        ui.selectable_value(&mut self.composition, SMC, SMC.text())
                             .on_hover_text(SMC.hover_text());
-                        ui.selectable_value(&mut self.group, SC, SC.text())
+                        ui.selectable_value(&mut self.composition, SC, SC.text())
                             .on_hover_text(SC.hover_text());
-                        ui.selectable_value(&mut self.group, PSC, PSC.text())
+                        ui.selectable_value(&mut self.composition, PSC, PSC.text())
                             .on_hover_text(PSC.hover_text());
-                        ui.selectable_value(&mut self.group, SSC, SSC.text())
+                        ui.selectable_value(&mut self.composition, SSC, SSC.text())
                             .on_hover_text(SSC.hover_text());
-                        ui.selectable_value(&mut self.group, TC, TC.text())
+                        ui.selectable_value(&mut self.composition, TC, TC.text())
                             .on_hover_text(TC.hover_text());
-                        ui.selectable_value(&mut self.group, PTC, PTC.text())
+                        ui.selectable_value(&mut self.composition, PTC, PTC.text())
                             .on_hover_text(PTC.hover_text());
-                        ui.selectable_value(&mut self.group, STC, STC.text())
+                        ui.selectable_value(&mut self.composition, STC, STC.text())
                             .on_hover_text(STC.hover_text());
                     })
                     .response
-                    .on_hover_text(self.group.hover_text());
+                    .on_hover_text(self.composition.hover_text());
             });
             // ui.menu_button(&GROUP, |ui| {
             //     let mut response = ui
@@ -198,6 +247,12 @@ impl Settings {
             });
         });
         UiResponse::None
+    }
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -270,69 +325,20 @@ impl Order {
     }
 }
 
-// pub(crate) static BRANCHES: LazyLock<IndexMap<Scope, Vec<Composition>>> = LazyLock::new(|| {
-//     indexmap! {
-//         Scope::EquivalentCarbonNumber => vec![NC, PNC, SNC],
-//         Scope::Mass => vec![MC, PMC, SMC],
-//         Scope::Type => vec![TC, PTC, STC],
-//         Scope::Species => vec![SC, PSC],
-//     }
-// });
-
-pub(crate) const NC: Composition = Composition {
-    stereospecificity: None,
-    scope: Scope::EquivalentCarbonNumber,
-};
-pub(crate) const PNC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Positional),
-    scope: Scope::EquivalentCarbonNumber,
-};
-pub(crate) const SNC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Stereo),
-    scope: Scope::EquivalentCarbonNumber,
-};
-pub(crate) const MC: Composition = Composition {
-    stereospecificity: None,
-    scope: Scope::Mass,
-};
-pub(crate) const PMC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Positional),
-    scope: Scope::Mass,
-};
-pub(crate) const SMC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Stereo),
-    scope: Scope::Mass,
-};
-pub(crate) const SC: Composition = Composition {
-    stereospecificity: None,
-    scope: Scope::Species,
-};
-pub(crate) const PSC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Positional),
-    scope: Scope::Species,
-};
-pub(crate) const SSC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Stereo),
-    scope: Scope::Species,
-};
-pub(crate) const TC: Composition = Composition {
-    stereospecificity: None,
-    scope: Scope::Type,
-};
-pub(crate) const PTC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Positional),
-    scope: Scope::Type,
-};
-pub(crate) const STC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Stereo),
-    scope: Scope::Type,
-};
-
-/// Composition
+/// Group
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub(crate) struct Composition {
     pub(crate) scope: Scope,
     pub(crate) stereospecificity: Option<Stereospecificity>,
+}
+
+impl Composition {
+    pub(crate) const fn new() -> Self {
+        Self {
+            stereospecificity: Some(Stereospecificity::Positional),
+            scope: Scope::Species,
+        }
+    }
 }
 
 impl Composition {
@@ -379,17 +385,14 @@ impl Composition {
 
 impl Default for Composition {
     fn default() -> Self {
-        Self {
-            stereospecificity: Some(Stereospecificity::Positional),
-            scope: Scope::Species,
-        }
+        Self::new()
     }
 }
 
 /// Scope
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub(crate) enum Scope {
-    EquivalentCarbonNumber,
+    Ecn,
     Mass,
     Type,
     Species,
@@ -398,7 +401,7 @@ pub(crate) enum Scope {
 impl Scope {
     pub(crate) fn text(&self) -> &'static str {
         match self {
-            Self::EquivalentCarbonNumber => "Equivalent carbon number",
+            Self::Ecn => "Equivalent carbon number",
             Self::Mass => "Mass",
             Self::Species => "Species",
             Self::Type => "Type",
@@ -407,7 +410,7 @@ impl Scope {
 
     pub(crate) fn hover_text(&self) -> &'static str {
         match self {
-            Self::EquivalentCarbonNumber => "ECN",
+            Self::Ecn => "ECN",
             Self::Mass => "M",
             Self::Species => "S",
             Self::Type => "T",

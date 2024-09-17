@@ -2,7 +2,7 @@ use self::settings::{From, Settings};
 use super::Behavior;
 use crate::{
     app::computers::calculator::{Calculated, Key as CalculatorKey},
-    fatty_acid::{DisplayWithOptions, FattyAcid, Options},
+    fatty_acid::{DisplayWithOptions, FattyAcid},
     localization::titlecase,
     utils::ui::{SubscriptedTextFormat, UiExt},
 };

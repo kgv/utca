@@ -8,28 +8,22 @@ use self::{
 use super::Behavior;
 use crate::{
     app::data::Data,
-    fatty_acid::{DisplayWithOptions, FattyAcid, Options, COMMON},
+    fatty_acid::{DisplayWithOptions, FattyAcid, COMMON},
     localization::titlecase,
     utils::{
         ui::{SubscriptedTextFormat, UiExt},
         DataFrameExt,
     },
 };
-use anyhow::Result;
-use egui::{style::Widgets, CursorIcon, Direction, DragValue, Layout, RichText, TextEdit, Ui};
+use egui::{CursorIcon, Direction, Layout, RichText, Ui};
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
-use egui_phosphor::regular::{ARROW_FAT_LINE_DOWN, ARROW_FAT_LINE_UP, MINUS, PLUS, X};
+use egui_phosphor::regular::{ARROW_FAT_LINE_UP, PLUS, X};
 use egui_tiles::UiResponse;
-use polars::{functions::concat_df_diagonal, prelude::*};
+use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{f64::NAN, fmt::Display, iter::empty};
-use tracing::{warn, Level};
-
-/// Monospace macro
-macro monospace($text:expr) {
-    egui::RichText::new($text).monospace()
-}
+use std::f64::NAN;
+use tracing::warn;
 
 /// Central configuration pane
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
