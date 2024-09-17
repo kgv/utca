@@ -97,83 +97,87 @@ impl LazyFrameExt for LazyFrame {
     }
 
     fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
-        // Key
-        let sort = match settings.composition.scope {
-            Scope::Ecn => sort_by_ecn(),
-            Scope::Mass => sort_by_mass(),
-            Scope::Type => sort_by_type(),
-            Scope::Species => sort_by_species(),
-        };
-        // Sort
-        self = match settings.composition.stereospecificity {
-            None => self.sort_columns(["SN1", "SN2", "SN3"], sort)?,
-            Some(Stereospecificity::Positional) => self.sort_columns(["SN1", "SN3"], sort)?,
-            Some(Stereospecificity::Stereo) => self,
-        };
-        // Label
-        Ok(self.with_column(
-            match settings.composition.scope {
-                Scope::Ecn => match settings.composition.stereospecificity {
-                    None => (col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn())
+        if let Some(composition) = settings.compositions.get(0) {
+            // Key
+            let sort = match composition.scope {
+                Scope::Ecn => sort_by_ecn(),
+                Scope::Mass => sort_by_mass(),
+                Scope::Type => sort_by_type(),
+                Scope::Species => sort_by_species(),
+            };
+            // Sort
+            self = match composition.stereospecificity {
+                None => self.sort_columns(["SN1", "SN2", "SN3"], sort)?,
+                Some(Stereospecificity::Positional) => self.sort_columns(["SN1", "SN3"], sort)?,
+                Some(Stereospecificity::Stereo) => self,
+            };
+            // Label
+            Ok(self.with_column(
+                match composition.scope {
+                    Scope::Ecn => match composition.stereospecificity {
+                        None => (col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn())
+                            .cast(DataType::String),
+                        _ => concat_str(
+                            [
+                                lit("["),
+                                col("SN1").ecn(),
+                                lit("|"),
+                                col("SN2").ecn(),
+                                lit("|"),
+                                col("SN3").ecn(),
+                                lit("]"),
+                            ],
+                            "",
+                            false,
+                        ),
+                    },
+                    Scope::Mass => match composition.stereospecificity {
+                        None => (col("SN1").mass()
+                            + col("SN2").mass()
+                            + col("SN3").mass()
+                            + lit(*settings.adduct))
+                        .round(0)
+                        .cast(DataType::UInt64)
                         .cast(DataType::String),
-                    _ => concat_str(
+                        _ => concat_str(
+                            [
+                                lit("["),
+                                col("SN1").mass().round(0).cast(DataType::UInt64),
+                                lit("|"),
+                                col("SN2").mass().round(0).cast(DataType::UInt64),
+                                lit("|"),
+                                col("SN3").mass().round(0).cast(DataType::UInt64),
+                                lit("]"),
+                                lit(*settings.adduct).round(settings.precision as _),
+                            ],
+                            "",
+                            false,
+                        ),
+                    },
+                    Scope::Type => concat_str(
                         [
-                            lit("["),
-                            col("SN1").ecn(),
-                            lit("|"),
-                            col("SN2").ecn(),
-                            lit("|"),
-                            col("SN3").ecn(),
-                            lit("]"),
+                            col("SN1").r#type(),
+                            col("SN2").r#type(),
+                            col("SN3").r#type(),
                         ],
                         "",
                         false,
                     ),
-                },
-                Scope::Mass => match settings.composition.stereospecificity {
-                    None => (col("SN1").mass()
-                        + col("SN2").mass()
-                        + col("SN3").mass()
-                        + lit(*settings.adduct))
-                    .round(0)
-                    .cast(DataType::UInt64)
-                    .cast(DataType::String),
-                    _ => concat_str(
+                    Scope::Species => concat_str(
                         [
-                            lit("["),
-                            col("SN1").mass().round(0).cast(DataType::UInt64),
-                            lit("|"),
-                            col("SN2").mass().round(0).cast(DataType::UInt64),
-                            lit("|"),
-                            col("SN3").mass().round(0).cast(DataType::UInt64),
-                            lit("]"),
-                            lit(*settings.adduct).round(settings.precision as _),
+                            col("SN1").species(),
+                            col("SN2").species(),
+                            col("SN3").species(),
                         ],
                         "",
                         false,
                     ),
-                },
-                Scope::Type => concat_str(
-                    [
-                        col("SN1").r#type(),
-                        col("SN2").r#type(),
-                        col("SN3").r#type(),
-                    ],
-                    "",
-                    false,
-                ),
-                Scope::Species => concat_str(
-                    [
-                        col("SN1").species(),
-                        col("SN2").species(),
-                        col("SN3").species(),
-                    ],
-                    "",
-                    false,
-                ),
-            }
-            .alias("Label"),
-        ))
+                }
+                .alias("Label"),
+            ))
+        } else {
+            Ok(self.with_column(col("Species").alias("Label")))
+        }
     }
 
     fn sort_columns<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self> {

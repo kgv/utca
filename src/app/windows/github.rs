@@ -1,28 +1,32 @@
+use anyhow::{Error, Result};
+use base64::prelude::*;
 use egui::{
-    CollapsingHeader, Context, Grid, Id, Label, Response, RichText, Sense, Ui, Widget, Window,
+    CollapsingHeader, Context, Grid, Id, Label, RichText, ScrollArea, Sense, Ui, Widget, Window,
 };
 use egui_phosphor::regular::CLOUD_ARROW_DOWN;
-use ehttp::{fetch, Headers, Request, Response as EhttpResponse};
-use poll_promise::Promise;
+use ehttp::{fetch, fetch_async, Headers, Request, Response};
+use poll_promise::{Promise, Sender};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fmt::Debug;
-use tracing::{error, info};
+use tracing::{error, info, trace};
 use url::Url;
 
 // https://api.github.com/repos/ippras/utca/gh-pages/configs/H242_Tamia_Peroxide.toml
 // /repos/repos/ippras/git/trees/{tree_sha}
-const URL: &str = "https://api.github.com/repos/ippras/utca/contents/configs";
+// const URL: &str = "https://api.github.com/repos/ippras/utca/contents/configs";
 // const URL: &str = "https://api.github.com/repos/ippras/utca/contents/configs";
 // /repos/{owner}/{repo}/git/trees/{tree_sha}
 // https://api.github.com/repos/ippras/utca/git/trees/gh-pages?recursive=true
 // https://api.github.com/repos/ippras/utca/git/trees/gh-pages/configs?recursive=true
+
+const URL: &str = "https://api.github.com/repos/ippras/utca/git/trees/gh-pages?recursive=true";
 const GITHUB_TOKEN: &str = env!("GITHUB_TOKEN");
 
 /// `github.com tree` renders a nested list of debugger values.
 pub struct Github {
     pub url: String,
     pub open: bool,
-    promise: Option<Promise<Vec<Entry>>>,
+    promise: Promise<Option<Tree>>,
 }
 
 impl Default for Github {
@@ -37,42 +41,51 @@ impl Github {
         Self {
             url,
             open: false,
-            promise: None,
+            promise: Promise::from_ready(None),
         }
     }
 
     pub fn toggle(&mut self) {
         self.open ^= true;
-        self.promise = if self.open { Some(load(URL)) } else { None };
+        self.promise = if self.open {
+            load(URL)
+        } else {
+            Promise::from_ready(None)
+        };
     }
 
     pub fn window(&mut self, ctx: &Context) {
         Window::new(format!("{CLOUD_ARROW_DOWN} Load config"))
             .open(&mut self.open)
             .show(ctx, |ui| {
-                if let Some(entries) = self.promise.as_ref().and_then(Promise::ready) {
-                    for entry in entries {
-                        match entry.r#type {
-                            Type::Dir => {
-                                ui.collapsing(&entry.name, |ui| {
-                                    // load(self.url)
-                                });
-                            }
-                            Type::File => {
-                                ui.horizontal(|ui| {
-                                    if ui.button(CLOUD_ARROW_DOWN).clicked() {
-                                        if let Some(suffix) = &entry.download_url {
-                                            // let promise: Promise<String> = load(url);
+                ScrollArea::vertical().show(ui, |ui| {
+                    if let Some(Some(tree)) = self.promise.ready() {
+                        for node in &tree.tree {
+                            if node.r#type == "blob" {
+                                if let Some(path) = node.path.strip_prefix("configs/") {
+                                    ui.horizontal(|ui| {
+                                        if ui
+                                            .button(CLOUD_ARROW_DOWN)
+                                            .on_hover_text(&node.url)
+                                            .clicked()
+                                        {
+                                            let ctx = ctx.clone();
+                                            let request = Request::get(&node.url);
+                                            fetch(request, move |response| {
+                                                if let Err(error) = try_load_blob(ctx, response) {
+                                                    error!(%error);
+                                                }
+                                            });
                                         }
-                                    }
-                                    ui.label(&entry.name);
-                                });
+                                        ui.label(path);
+                                    });
+                                }
                             }
                         }
+                    } else {
+                        ui.spinner();
                     }
-                } else {
-                    ui.spinner();
-                }
+                });
             });
     }
 }
@@ -124,62 +137,134 @@ impl Github {
 //     }
 // }
 
-fn load(url: impl ToString) -> Promise<Vec<Entry>> {
+// fn load(url: impl ToString) -> Promise<Vec<Entry>> {
+//     let request = Request {
+//         headers: Headers::new(&[
+//             ("Accept", "application/vnd.github+json"),
+//             ("Authorization", &format!("Bearer {GITHUB_TOKEN}")),
+//             ("X-GitHub-Api-Version", "2022-11-28"),
+//         ]),
+//         ..Request::get(format!("{}?recursive=true", url.to_string()))
+//     };
+//     let (sender, promise) = Promise::new();
+//     fetch(request, move |response| match response {
+//         Ok(response) => match response.json::<Vec<Entry>>() {
+//             Ok(mut entries) => {
+//                 println!("entries: {entries:#?}");
+//                 entries.sort_by_key(|entry| entry.r#type);
+//                 sender.send(entries);
+//             }
+//             Err(error) => {
+//                 error!(%error);
+//                 info!("Status code: {}", response.status);
+//                 sender.send(Default::default());
+//             }
+//         },
+//         Err(error) => {
+//             error!(%error);
+//             sender.send(Default::default());
+//         }
+//     });
+//     promise
+// }
+fn load(url: impl ToString) -> Promise<Option<Tree>> {
     let request = Request {
         headers: Headers::new(&[
             ("Accept", "application/vnd.github+json"),
             ("Authorization", &format!("Bearer {GITHUB_TOKEN}")),
             ("X-GitHub-Api-Version", "2022-11-28"),
         ]),
-        ..Request::get(format!("{}?recursive=true", url.to_string()))
+        ..Request::get(url)
     };
-    let (sender, promise) = Promise::new();
-    fetch(request, move |response| match response {
-        Ok(response) => match response.json::<Vec<Entry>>() {
-            Ok(mut entries) => {
-                println!("entries: {entries:#?}");
-                entries.sort_by_key(|entry| entry.r#type);
-                sender.send(entries);
-            }
+    Promise::spawn_local(async {
+        match try_load_tree(request).await {
+            Ok(tree) => Some(tree),
             Err(error) => {
                 error!(%error);
-                info!("Status code: {}", response.status);
-                sender.send(Default::default());
+                None
             }
-        },
-        Err(error) => {
-            error!(%error);
-            sender.send(Default::default());
         }
-    });
-    promise
+    })
+    // let (sender, promise) = Promise::new();
+    // fetch(request, move |response| {
+    //     if let Err(error) = try_load_tree(sender, response) {
+    //         error!(%error);
+    //     }
+    //     // match response {
+    //     // Ok(response) => match response.json::<Tree>() {
+    //     //     Ok(tree) => sender.send(tree),
+    //     //     Err(error) => {
+    //     //         error!(%error);
+    //     //         info!("Status code: {}", response.status);
+    //     //         sender.send(Default::default());
+    //     //     }
+    //     // },
+    //     // Err(error) => {
+    //     //     error!(%error);
+    //     //     sender.send(Default::default());
+    //     // }
+    // });
+    // promise
 }
 
-// fn done(response: ehttp::Result<ehttp::Response>) -> anyhow::Result<Vec<Entry>> {
-//     let response = response?;
-//     info!("Status code: {}", response.status);
-//     Ok(response.json()?)
-// }
+async fn try_load_tree(request: Request) -> Result<Tree> {
+    let response = fetch_async(request).await.map_err(Error::msg)?;
+    let tree = response.json::<Tree>()?;
+    Ok(tree)
+}
 
-// #[derive(Clone, Debug, Error)]
-// enum Error {
-//     #[error("transparent")]
-//     Response(String),
-//     #[error(transparent)]
-//     Json(#[from] serde_json::Error),
-// }
+fn try_load_blob(ctx: Context, response: Result<Response, String>) -> Result<()> {
+    let blob = response.map_err(Error::msg)?.json::<Blob>()?;
+    trace!(?blob);
+    let mut content = String::new();
+    for line in blob.content.split_terminator('\n') {
+        content.push_str(&String::from_utf8(BASE64_STANDARD.decode(line)?)?);
+    }
+    ctx.data_mut(|data| data.insert_temp(Id::new("LOAD"), content));
+    Ok(())
+}
 
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+struct Tree {
+    sha: String,
+    url: String,
+    truncated: bool,
+    tree: Vec<Node>,
+}
+
+/// Node
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Entry {
-    pub name: String,
-    pub size: usize,
-    pub download_url: Option<Url>,
-    pub r#type: Type,
+struct Node {
+    path: String,
+    mode: String,
+    r#type: String,
+    sha: String,
+    size: Option<u64>,
+    url: String,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Type {
-    Dir,
-    File,
+/// Blob
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct Blob {
+    content: String,
+    encoding: String,
+    url: String,
+    sha: String,
+    size: u64,
+    node_id: String,
 }
+
+// #[derive(Clone, Debug, Deserialize, Serialize)]
+// pub struct Entry {
+//     pub name: String,
+//     pub size: usize,
+//     pub download_url: Option<Url>,
+//     pub r#type: Type,
+// }
+
+// #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+// #[serde(rename_all = "lowercase")]
+// pub enum Type {
+//     Dir,
+//     File,
+// }

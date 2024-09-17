@@ -5,6 +5,7 @@ version = "0.5.5"
 
 [dependencies]
 anyhow = "1.0.89"
+base64 = "0.22.1"
 eframe = { version = "0.28.1", default-features = false, features = [
     "accesskit",
     "default_fonts",
@@ -20,7 +21,7 @@ egui_ext = { git = "https://github.com/kgv/egui_ext" }
 egui_extras = "0.28.1"
 egui_plot = "0.28.1"
 egui_tiles = "0.9.1"
-ehttp = { version = "0.5.0", features = ["json"] }
+ehttp = { version = "0.5.0", features = ["json", "native-async"] }
 fluent = "0.16.1"
 fluent_content = "0.0.5"
 indexmap = { version = "2.5.0", features = ["serde"] }
@@ -53,22 +54,6 @@ polars = { version = "0.42.0", features = [
     "strings",
 ] }
 polars-lazy = "0.42.0"
-# polars = { git = "https://github.com/pola-rs/polars", features = [
-#     "abs",
-#     "concat_str",
-#     "cross_join",
-#     "dtype-i8",
-#     "dtype-u8",
-#     "is_in",
-#     "lazy",
-#     "list_any_all",
-#     "list_eval",
-#     "regex",
-#     "round_series",
-#     "serde",
-#     "strings",
-#     "zip_with",
-# ] }
 poll-promise = { version = "0.3.0", features = ["web"] }
 rawpointer = "0.2.1"
 rfd = "0.14.1"

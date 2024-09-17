@@ -5,6 +5,7 @@ use crate::{
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
 };
 use egui::{ComboBox, DragValue, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
+use egui_phosphor::regular::{MINUS, PLUS};
 use egui_tiles::UiResponse;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
@@ -59,14 +60,14 @@ pub(crate) const STC: Composition = Composition {
 };
 
 /// Composition settings
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(crate) struct Settings {
     pub(crate) percent: bool,
     pub(crate) precision: usize,
 
     pub(crate) adduct: OrderedFloat<f64>,
     pub(crate) method: Method,
-    pub(crate) composition: Composition,
+    pub(crate) compositions: Vec<Composition>,
     pub(crate) sort: Sort,
     pub(crate) order: Order,
 }
@@ -78,7 +79,7 @@ impl Settings {
             precision: 1,
             adduct: OrderedFloat(0.0),
             method: Method::VanderWal,
-            composition: Composition::new(),
+            compositions: Vec::new(),
             sort: Sort::Value,
             order: Order::Descending,
         }
@@ -157,59 +158,85 @@ impl Settings {
                     .on_hover_text(self.method.hover_text());
             });
             // Group
-            ui.horizontal(|ui| {
-                ui.label(titlecase!("group"));
-                ComboBox::from_id_source("group")
-                    .selected_text(self.composition.text())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut self.composition, NC, NC.text())
-                            .on_hover_text(NC.hover_text());
-                        ui.selectable_value(&mut self.composition, PNC, PNC.text())
-                            .on_hover_text(PNC.hover_text());
-                        ui.selectable_value(&mut self.composition, SNC, SNC.text())
-                            .on_hover_text(SNC.hover_text());
-                        ui.selectable_value(&mut self.composition, MC, MC.text())
-                            .on_hover_text(MC.hover_text());
-                        ui.selectable_value(&mut self.composition, PMC, PMC.text())
-                            .on_hover_text(PMC.hover_text());
-                        ui.selectable_value(&mut self.composition, SMC, SMC.text())
-                            .on_hover_text(SMC.hover_text());
-                        ui.selectable_value(&mut self.composition, SC, SC.text())
-                            .on_hover_text(SC.hover_text());
-                        ui.selectable_value(&mut self.composition, PSC, PSC.text())
-                            .on_hover_text(PSC.hover_text());
-                        ui.selectable_value(&mut self.composition, SSC, SSC.text())
-                            .on_hover_text(SSC.hover_text());
-                        ui.selectable_value(&mut self.composition, TC, TC.text())
-                            .on_hover_text(TC.hover_text());
-                        ui.selectable_value(&mut self.composition, PTC, PTC.text())
-                            .on_hover_text(PTC.hover_text());
-                        ui.selectable_value(&mut self.composition, STC, STC.text())
-                            .on_hover_text(STC.hover_text());
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label(titlecase!("group"));
+                    if ui.button(PLUS).clicked() {
+                        self.compositions.push(Composition::new());
+                    }
+                });
+                self.compositions.retain_mut(|composition| {
+                    ui.horizontal(|ui| {
+                        ComboBox::from_id_source(ui.next_auto_id())
+                            .selected_text(composition.text())
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(composition, NC, NC.text())
+                                    .on_hover_text(NC.hover_text());
+                                ui.selectable_value(composition, PNC, PNC.text())
+                                    .on_hover_text(PNC.hover_text());
+                                ui.selectable_value(composition, SNC, SNC.text())
+                                    .on_hover_text(SNC.hover_text());
+                                ui.selectable_value(composition, MC, MC.text())
+                                    .on_hover_text(MC.hover_text());
+                                ui.selectable_value(composition, PMC, PMC.text())
+                                    .on_hover_text(PMC.hover_text());
+                                ui.selectable_value(composition, SMC, SMC.text())
+                                    .on_hover_text(SMC.hover_text());
+                                ui.selectable_value(composition, TC, TC.text())
+                                    .on_hover_text(TC.hover_text());
+                                ui.selectable_value(composition, PTC, PTC.text())
+                                    .on_hover_text(PTC.hover_text());
+                                ui.selectable_value(composition, STC, STC.text())
+                                    .on_hover_text(STC.hover_text());
+                                ui.selectable_value(composition, SC, SC.text())
+                                    .on_hover_text(SC.hover_text());
+                                ui.selectable_value(composition, PSC, PSC.text())
+                                    .on_hover_text(PSC.hover_text());
+                                ui.selectable_value(composition, SSC, SSC.text())
+                                    .on_hover_text(SSC.hover_text());
+                            })
+                            .response
+                            .on_hover_text(composition.hover_text());
+                        !ui.button(MINUS).clicked()
                     })
-                    .response
-                    .on_hover_text(self.composition.hover_text());
+                    .inner
+                });
+                // for (index, composition) in self.compositions.iter_mut().enumerate() {
+                //     ComboBox::from_id_source(index)
+                //         .selected_text(composition.text())
+                //         .show_ui(ui, |ui| {
+                //             ui.selectable_value(composition, NC, NC.text())
+                //                 .on_hover_text(NC.hover_text());
+                //             ui.selectable_value(composition, PNC, PNC.text())
+                //                 .on_hover_text(PNC.hover_text());
+                //             ui.selectable_value(composition, SNC, SNC.text())
+                //                 .on_hover_text(SNC.hover_text());
+                //             ui.selectable_value(composition, MC, MC.text())
+                //                 .on_hover_text(MC.hover_text());
+                //             ui.selectable_value(composition, PMC, PMC.text())
+                //                 .on_hover_text(PMC.hover_text());
+                //             ui.selectable_value(composition, SMC, SMC.text())
+                //                 .on_hover_text(SMC.hover_text());
+                //             ui.selectable_value(composition, SC, SC.text())
+                //                 .on_hover_text(SC.hover_text());
+                //             ui.selectable_value(composition, PSC, PSC.text())
+                //                 .on_hover_text(PSC.hover_text());
+                //             ui.selectable_value(composition, SSC, SSC.text())
+                //                 .on_hover_text(SSC.hover_text());
+                //             ui.selectable_value(composition, TC, TC.text())
+                //                 .on_hover_text(TC.hover_text());
+                //             ui.selectable_value(composition, PTC, PTC.text())
+                //                 .on_hover_text(PTC.hover_text());
+                //             ui.selectable_value(composition, STC, STC.text())
+                //                 .on_hover_text(STC.hover_text());
+                //         })
+                //         .response
+                //         .on_hover_text(composition.hover_text());
+                //     if ui.button(MINUS).clicked() {
+                //         self.compositions.push(Composition::new());
+                //     }
+                // }
             });
-            // ui.menu_button(&GROUP, |ui| {
-            //     let mut response = ui
-            //         .selectable_value(&mut context.settings.composition.tree.leafs, SC, SC.text())
-            //         .on_hover_text(SC.hover_text());
-            //     response |= ui
-            //         .selectable_value(
-            //             &mut context.settings.composition.tree.leafs,
-            //             PSC,
-            //             PSC.text(),
-            //         )
-            //         .on_hover_text(PSC.hover_text());
-            //     response |= ui
-            //         .selectable_value(
-            //             &mut context.settings.composition.tree.leafs,
-            //             SSC,
-            //             SSC.text(),
-            //         )
-            //         .on_hover_text(SSC.hover_text());
-            // });
-
             // Sort
             ui.horizontal(|ui| {
                 ui.label(titlecase!("sort"));
