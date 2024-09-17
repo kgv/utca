@@ -1,12 +1,11 @@
 use self::{
     panes::{Behavior, Pane},
-    windows::About,
+    windows::{About, Github},
 };
 use crate::{
-    // localization::{LEFT_PANEL, RESET_APPLICATION, RESET_GUI},
     localization::{titlecase, UiExt},
     parsers::toml::{to_string, Parsed, Parsed as TomlParsed},
-    widgets::{FileDialog, Github},
+    widgets::FileDialog,
 };
 use anyhow::Result;
 use data::Data;
@@ -21,8 +20,7 @@ use egui_notify::Toasts;
 use egui_phosphor::{
     add_to_fonts,
     regular::{
-        ARROWS_CLOCKWISE, CALCULATOR, CHART_BAR, FLOPPY_DISK, INTERSECT_THREE, NOTE_PENCIL,
-        SIDEBAR_SIMPLE, TRASH,
+        ARROWS_CLOCKWISE, CHART_BAR, CLOUD_ARROW_DOWN, FLOPPY_DISK, INFO, SIDEBAR_SIMPLE, TRASH,
     },
     Variant,
 };
@@ -30,13 +28,10 @@ use egui_tiles::{Tile, Tiles, Tree};
 use ehttp::{fetch, Headers, Request, Response};
 use panes::{Settings, TreeExt};
 use polars::prelude::*;
-use poll_promise::Promise;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::BorrowMut,
     fmt::{Debug, Write},
-    fs,
-    mem::take,
     str,
     time::Duration,
 };
@@ -52,8 +47,14 @@ const NOTIFICATIONS_DURATION: Duration = Duration::from_secs(15);
 
 const SIZE: f32 = 32.0;
 
-pub(crate) macro icon($icon:expr) {
-    RichText::new($icon).size(SIZE)
+// pub(crate) macro icon($icon:expr,x32) {
+//     RichText::new($icon).size(SIZE)
+// }
+pub(crate) macro icon {
+    ($icon:expr, x8) => { RichText::new($icon).size(8.0) },
+    ($icon:expr, x16) => { RichText::new($icon).size(16.0) },
+    ($icon:expr, x32) => { RichText::new($icon).size(32.0) },
+    ($icon:expr, x64) => { RichText::new($icon).size(64.0) }
 }
 
 fn custom_style(ctx: &egui::Context) {
@@ -83,6 +84,8 @@ pub struct App {
     // Windows
     #[serde(skip)]
     about: About,
+    #[serde(skip)]
+    github: Github,
     // Notifications
     #[serde(skip)]
     toasts: Toasts,
@@ -98,6 +101,7 @@ impl Default for App {
             toasts: Default::default(),
             file_dialog: Default::default(),
             about: Default::default(),
+            github: Default::default(),
         }
     }
 }
@@ -269,18 +273,15 @@ impl App {
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             bar(ui, |ui| {
                 // Left panel
-                ui.toggle_value(
-                    &mut self.left_panel,
-                    RichText::new(SIDEBAR_SIMPLE).size(SIZE),
-                )
-                .on_hover_text(titlecase!("left_panel"));
+                ui.toggle_value(&mut self.left_panel, icon!(SIDEBAR_SIMPLE, x32))
+                    .on_hover_text(titlecase!("left_panel"));
                 ui.separator();
                 // Light/Dark
                 ui.light_dark_button(SIZE);
                 ui.separator();
                 // Reset
                 if ui
-                    .button(RichText::new(TRASH).size(SIZE))
+                    .button(icon!(TRASH, x32))
                     .on_hover_text(titlecase!("reset_application"))
                     .clicked()
                 {
@@ -288,7 +289,7 @@ impl App {
                 }
                 ui.separator();
                 if ui
-                    .button(RichText::new(ARROWS_CLOCKWISE).size(SIZE))
+                    .button(icon!(ARROWS_CLOCKWISE, x32))
                     .on_hover_text(titlecase!("reset_gui"))
                     .clicked()
                 {
@@ -300,7 +301,7 @@ impl App {
                     if ui
                         .selectable_label(
                             tile_id.is_some_and(|tile_id| self.tree.is_visible(tile_id)),
-                            RichText::new(pane.icon()).size(SIZE),
+                            icon!(pane.icon(), x32),
                         )
                         .on_hover_text(pane.title())
                         .clicked()
@@ -318,17 +319,32 @@ impl App {
                 toggle(ui, Pane::Calculation(Default::default()));
                 // Composition
                 toggle(ui, Pane::Composition(Default::default()));
-                if ui.button(RichText::new(CHART_BAR).size(SIZE)).clicked() {}
+                if ui.button(icon!(CHART_BAR, x32)).clicked() {}
                 ui.separator();
+                // Load
+                if ui.button(icon!(CLOUD_ARROW_DOWN, x32)).clicked() {
+                    self.github.toggle();
+                }
                 // Save
-                if ui.button(RichText::new(FLOPPY_DISK).size(SIZE)).clicked() {
+                if ui.button(icon!(FLOPPY_DISK, x32)).clicked() {
                     if let Err(error) = self.data.save("df.utca.ron") {
                         error!(%error);
                     }
                 }
                 ui.separator();
-                // Locale
-                ui.locale_button().on_hover_text(titlecase!("language"));
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    // About
+                    if ui
+                        .add(Button::new(icon!(INFO, x32)))
+                        .on_hover_text("About window")
+                        .clicked()
+                    {
+                        self.about.open ^= true;
+                    }
+                    ui.separator();
+                    // Locale
+                    ui.locale_button().on_hover_text(titlecase!("language"));
+                });
 
                 // if ui.button("Cl").clicked() {
                 //     let mut children = vec![self.tree.tiles.insert_pane(Default::default())];
@@ -349,7 +365,7 @@ impl App {
                 //     global_dark_light_mode_switch(ui);
                 //     ui.separator();
                 //     if ui
-                //         .add(Button::new(RichText::new("🗑")))
+                //         .add(Button::new(icon!("🗑")))
                 //         .on_hover_text("Reset data")
                 //         .clicked()
                 //     {
@@ -360,7 +376,7 @@ impl App {
                 //     }
                 //     // Reset gui
                 //     if ui
-                //         .add(Button::new(RichText::new("🔃")))
+                //         .add(Button::new(icon!("🔃")))
                 //         .on_hover_text("Reset gui")
                 //         .clicked()
                 //     {
@@ -368,7 +384,7 @@ impl App {
                 //     }
                 //     // Organize windows
                 //     if ui
-                //         .add(Button::new(RichText::new("▣")))
+                //         .add(Button::new(icon!("▣")))
                 //         .on_hover_text("Organize windows")
                 //         .clicked()
                 //     {
@@ -443,7 +459,7 @@ impl App {
                 //     let checked = self.docks.left.state.find_tab(&tab).is_some();
                 //     let text = if checked { "📂" } else { "📁" };
                 //     if ui
-                //         .selectable_label(checked, RichText::new(text))
+                //         .selectable_label(checked, icon!(text))
                 //         .on_hover_text(tab.to_string())
                 //         .clicked()
                 //     {
@@ -526,7 +542,7 @@ impl App {
                 //     // About
                 //     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 //         if ui
-                //             .add(Button::new(RichText::new("ℹ")))
+                //             .add(Button::new(icon!("ℹ")))
                 //             .on_hover_text("About window")
                 //             .clicked()
                 //         {
@@ -543,7 +559,7 @@ impl App {
 impl App {
     fn windows(&mut self, ctx: &egui::Context) {
         self.about.window(ctx);
-        // self.github.window(ctx);
+        self.github.window(ctx);
     }
 }
 
@@ -713,17 +729,7 @@ impl eframe::App for App {
     }
 }
 
-// #[derive(Default, Deserialize, Serialize)]
-// struct Docks {
-//     left: LeftDock,
-//     central: CentralDock,
-// }
-
-// mod context;
-// mod tabs;
-// mod view;
 mod computers;
-mod context;
 mod data;
 mod panes;
 mod windows;

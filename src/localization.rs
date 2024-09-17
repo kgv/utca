@@ -82,7 +82,7 @@ pub(crate) trait UiExt {
 
 impl UiExt for Ui {
     fn locale_button(&mut self) -> Response {
-        self.menu_button(icon!(TRANSLATE), |ui| {
+        self.menu_button(icon!(TRANSLATE, x32), |ui| {
             let mut locale = LOCALIZATION.read().unwrap().locale();
             let mut response = ui.selectable_value(&mut locale, EN, "🇺🇸");
             response |= ui.selectable_value(&mut locale, RU, "🇷🇺");

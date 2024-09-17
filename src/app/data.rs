@@ -31,8 +31,10 @@ impl Data {
             df! {
                 "Label" => &[""],
                 "Carbons" => &[0u8],
-                "Doubles" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
-                "Triples" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
+                // "Doubles" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
+                // "Triples" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
+                "Doubles" => &[Series::new_empty("", &DataType::Int8)],
+                "Triples" => &[Series::new_empty("", &DataType::Int8)],
                 "TAG" => &[0.0],
                 "DAG1223" => &[0.0],
                 "MAG2" => &[0.0],

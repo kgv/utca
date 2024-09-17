@@ -4,26 +4,34 @@ use crate::{
 };
 use polars::prelude::*;
 
-// Fatty acid value
+/// Fatty acid value
 pub(super) fn value(name: &str) -> Expr {
     r#struct(name).field_by_name("Value")
 }
 
-// Fatty acid species
+/// Fatty acid species
 pub(super) fn species(name: &str) -> Expr {
     r#struct(name).field_by_name("Label")
 }
 
-// Fatty acid type
+/// Fatty acid type
 pub(super) fn r#type(name: &str) -> Expr {
     ternary_expr(saturated(name), lit("S"), lit("U"))
 }
 
-// Fatty acid saturated
+/// Fatty acid saturated
 pub(super) fn saturated(name: &str) -> Expr {
     (r#struct(name).field_by_name("Doubles").list().len()
         + r#struct(name).field_by_name("Triples").list().len())
     .eq(lit(0))
+}
+
+/// Fatty acid ECN (Equivalent carbon number)
+///
+/// `ECN = CN - 2DB`
+pub(super) fn ecn(name: &str) -> Expr {
+    // c(name) * lit(C) + h(name) * lit(H) + lit(2) * lit(O)
+    h(name) - lit(C)
 }
 
 // Fatty acid methyl ester molar mass

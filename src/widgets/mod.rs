@@ -1,5 +1,4 @@
-pub(super) use self::{file_dialog::FileDialog, github::Github};
+pub(super) use self::file_dialog::FileDialog;
 
 mod file_dialog;
-mod github;
 mod variable_list;

@@ -109,7 +109,7 @@ impl LazyFrameExt for LazyFrame {
     fn composition(mut self, composition: Composition) -> Self {
         // Key
         let cmp = match composition.scope {
-            Scope::EquivalentCarbonNumber => todo!(),
+            Scope::EquivalentCarbonNumber => fatty_acid::ecn,
             Scope::Mass => fatty_acid::mass,
             Scope::Type => fatty_acid::r#type,
             Scope::Species => id,
@@ -123,7 +123,7 @@ impl LazyFrameExt for LazyFrame {
                 as_struct(vec![col("SN3").alias("SN1"), col("SN1").alias("SN3")]),
             )
             .r#struct()
-            .field_by_names(["SN1", "SN3"])]),
+            .field_by_names(&["SN1", "SN3"])]),
             Some(Stereospecificity::Stereo) => self,
         };
         // Label
@@ -398,15 +398,15 @@ impl Composer {
 
         let mut lazy_frame = key.data_frame.clone().lazy();
         lazy_frame = lazy_frame.cartesian_product().with_row_index("Index", None);
-        println!(
-            "after cartesian product data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
+        // println!(
+        //     "after cartesian product data_frame: {}",
+        //     lazy_frame.clone().collect().unwrap()
+        // );
         lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
-        println!(
-            "after cartesian product before composition data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
+        // println!(
+        //     "after cartesian product before composition data_frame: {}",
+        //     lazy_frame.clone().collect().unwrap()
+        // );
         // Group
         lazy_frame = lazy_frame
             .composition(key.settings.group)
@@ -427,7 +427,7 @@ impl Composer {
             Sort::Value => lazy_frame.sort_by_exprs(&[col("Value"), col("Label")], sort_options),
         };
         // lazy_frame = lazy_frame.filter(col("Value").gt_eq(other));
-        println!("data_frame: {}", lazy_frame.clone().collect().unwrap());
+        // println!("data_frame: {}", lazy_frame.clone().collect().unwrap());
         lazy_frame.collect().unwrap()
 
         // let Key { context } = key;
@@ -665,19 +665,20 @@ mod test {
                     "str" => &["a", "a", "a", "a", "b", "b", "b", "b"],
                 }
                 .unwrap()
-                .into_struct(PlSmallStr::EMPTY),
+                // .into_struct(PlSmallStr::EMPTY),
+                .into_struct(""),
                 "2" => df! {
                     "u32" => &[0u32, 0, 1, 1, 0, 0, 1, 1],
                     "str" => &["a", "a", "b", "b", "a", "a", "b", "b"],
                 }
                 .unwrap()
-                .into_struct(PlSmallStr::EMPTY),
+                .into_struct(""),
                 "3" => df! {
                     "u32" => &[0u32, 1, 0, 1, 0, 1, 0, 1],
                     "str" => &["a", "b", "a", "b", "a", "b", "a", "b"],
                 }
                 .unwrap()
-                .into_struct(PlSmallStr::EMPTY),
+                .into_struct(""),
             }
             .unwrap()
             .lazy();

@@ -312,7 +312,8 @@ impl Event {
                                     Value::Carbons(carbons) => lit(carbons),
                                     Value::Doubles(indices) | Value::Triples(indices) => {
                                         lit(Series::from_any_values(
-                                            PlSmallStr::EMPTY,
+                                            // PlSmallStr::EMPTY,
+                                            "",
                                             &[AnyValue::List(Series::from_iter(indices))],
                                             false,
                                         )?)

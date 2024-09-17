@@ -1,6 +1,7 @@
 use egui::{
     CollapsingHeader, Context, Grid, Id, Label, Response, RichText, Sense, Ui, Widget, Window,
 };
+use egui_phosphor::regular::CLOUD_ARROW_DOWN;
 use ehttp::{fetch, Headers, Request, Response as EhttpResponse};
 use poll_promise::Promise;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -8,56 +9,71 @@ use std::fmt::Debug;
 use tracing::{error, info};
 use url::Url;
 
+// https://api.github.com/repos/ippras/utca/gh-pages/configs/H242_Tamia_Peroxide.toml
+// /repos/repos/ippras/git/trees/{tree_sha}
+const URL: &str = "https://api.github.com/repos/ippras/utca/contents/configs";
+// const URL: &str = "https://api.github.com/repos/ippras/utca/contents/configs";
+// /repos/{owner}/{repo}/git/trees/{tree_sha}
+// https://api.github.com/repos/ippras/utca/git/trees/gh-pages?recursive=true
+// https://api.github.com/repos/ippras/utca/git/trees/gh-pages/configs?recursive=true
+const GITHUB_TOKEN: &str = env!("GITHUB_TOKEN");
+
 /// `github.com tree` renders a nested list of debugger values.
 pub struct Github {
-    pub open: bool,
     pub url: String,
-    promise: Promise<Vec<Entry>>,
+    pub open: bool,
+    promise: Option<Promise<Vec<Entry>>>,
 }
 
 impl Default for Github {
     fn default() -> Self {
-        Self::new("https://api.github.com/repos/ippras/utca/contents/configs")
+        Self::new(URL)
     }
 }
 
 impl Github {
     pub fn new(url: impl ToString) -> Self {
         let url = url.to_string();
-        let promise = load(&url);
         Self {
-            open: false,
             url,
-            promise,
+            open: false,
+            promise: None,
         }
     }
 
+    pub fn toggle(&mut self) {
+        self.open ^= true;
+        self.promise = if self.open { Some(load(URL)) } else { None };
+    }
+
     pub fn window(&mut self, ctx: &Context) {
-        Window::new("📥 Load").open(&mut self.open).show(ctx, |ui| {
-            if let Some(entries) = self.promise.ready() {
-                for entry in entries {
-                    match entry.r#type {
-                        Type::Dir => {
-                            ui.collapsing(&entry.name, |ui| {
-                                // load(self.url)
-                            });
-                        }
-                        Type::File => {
-                            ui.horizontal(|ui| {
-                                if ui.button("📥").clicked() {
-                                    if let Some(url) = &entry.download_url {
-                                        // let promise: Promise<String> = load(url);
+        Window::new(format!("{CLOUD_ARROW_DOWN} Load config"))
+            .open(&mut self.open)
+            .show(ctx, |ui| {
+                if let Some(entries) = self.promise.as_ref().and_then(Promise::ready) {
+                    for entry in entries {
+                        match entry.r#type {
+                            Type::Dir => {
+                                ui.collapsing(&entry.name, |ui| {
+                                    // load(self.url)
+                                });
+                            }
+                            Type::File => {
+                                ui.horizontal(|ui| {
+                                    if ui.button(CLOUD_ARROW_DOWN).clicked() {
+                                        if let Some(suffix) = &entry.download_url {
+                                            // let promise: Promise<String> = load(url);
+                                        }
                                     }
-                                }
-                                ui.label(&entry.name);
-                            });
+                                    ui.label(&entry.name);
+                                });
+                            }
                         }
                     }
+                } else {
+                    ui.spinner();
                 }
-            } else {
-                ui.spinner();
-            }
-        });
+            });
     }
 }
 
@@ -112,13 +128,10 @@ fn load(url: impl ToString) -> Promise<Vec<Entry>> {
     let request = Request {
         headers: Headers::new(&[
             ("Accept", "application/vnd.github+json"),
-            (
-                "Authorization",
-                "Bearer ghp_",
-            ),
+            ("Authorization", &format!("Bearer {GITHUB_TOKEN}")),
             ("X-GitHub-Api-Version", "2022-11-28"),
         ]),
-        ..Request::get(url)
+        ..Request::get(format!("{}?recursive=true", url.to_string()))
     };
     let (sender, promise) = Promise::new();
     fetch(request, move |response| match response {
