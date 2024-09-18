@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
     fs::write,
+    hash::{Hash, Hasher},
     path::Path,
 };
 
@@ -15,6 +16,10 @@ pub(crate) struct Data {
 }
 
 impl Data {
+    pub(crate) const fn new(fatty_acids: DataFrame) -> Self {
+        Self { fatty_acids }
+    }
+
     pub(crate) fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let contents = ron::ser::to_string_pretty(
             &self.fatty_acids.select([
@@ -63,6 +68,16 @@ impl Default for Data {
                 Field::new("DAG1223".into(), DataType::Float64),
                 Field::new("MAG2".into(), DataType::Float64),
             ])),
+        }
+    }
+}
+
+impl Hash for Data {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for column in self.fatty_acids.get_columns() {
+            for label in column.iter() {
+                label.hash(state);
+            }
         }
     }
 }

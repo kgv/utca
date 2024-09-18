@@ -161,3 +161,4 @@ impl TreeExt for Tree<Pane> {
 pub(crate) mod calculation;
 pub(crate) mod composition;
 pub(crate) mod configuration;
+pub(crate) mod files;

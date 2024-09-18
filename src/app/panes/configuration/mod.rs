@@ -47,8 +47,8 @@ impl Pane {
         // let triples = triples["Triples"].i8()?;
         let labels = behavior.data.fatty_acids.str("Label");
         let carbons = behavior.data.fatty_acids.u8("Carbons");
-        let doubles = behavior.data.fatty_acids["Doubles"].list().unwrap();
-        let triples = behavior.data.fatty_acids["Triples"].list().unwrap();
+        let doubles = behavior.data.fatty_acids.list("Doubles");
+        let triples = behavior.data.fatty_acids.list("Triples");
         // let doubles = behavior.data.fatty_acids.list("Doubles");
         // let triples = behavior.data.fatty_acids.list("Triples");
         let tags = behavior.data.fatty_acids.f64("TAG");
@@ -109,10 +109,10 @@ impl Pane {
                         }
                         // FA
                         row.left_align_col(|ui| {
-                            let label = labels.get(index).expect("get label");
-                            let carbons = carbons.get(index).expect("get carbons");
-                            let doubles = doubles.get_as_series(index).expect("get doubles");
-                            let triples = triples.get_as_series(index).expect("get triples");
+                            let label = labels.get(index).unwrap();
+                            let carbons = carbons.get(index).unwrap();
+                            let doubles = doubles.get_as_series(index).unwrap();
+                            let triples = triples.get_as_series(index).unwrap();
                             let fatty_acid = &mut FattyAcid {
                                 carbons,
                                 doubles: doubles.i8().unwrap().to_vec_null_aware().left().unwrap(),

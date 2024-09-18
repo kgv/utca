@@ -1,12 +1,12 @@
 use self::{
-    panes::{Behavior, Pane},
+    data::Data,
+    panes::{files::Files, Behavior, Pane, Settings, TreeExt},
     windows::{About, Github},
 };
 use crate::{
     localization::{titlecase, UiExt},
     widgets::FileDialog,
 };
-use data::Data;
 use eframe::{get_value, set_value, CreationContext, Storage, APP_KEY};
 use egui::{
     menu::bar, warn_if_debug_build, Align, Align2, Button, CentralPanel, Color32, FontDefinitions,
@@ -23,7 +23,7 @@ use egui_phosphor::{
     Variant,
 };
 use egui_tiles::Tree;
-use panes::{Settings, TreeExt};
+use indexmap::{IndexMap, IndexSet};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -74,8 +74,8 @@ pub struct App {
     // Panes
     tree: Tree<Pane>,
     // Data
-    index: usize,
     data: Vec<Data>,
+    index: usize,
     // Data channel
     #[serde(skip)]
     channel: (Sender<String>, Receiver<String>),
@@ -99,7 +99,8 @@ impl Default for App {
         Self {
             left_panel: true,
             tree: Tree::empty("central_tree"),
-            data: Data::default(),
+            data: Default::default(),
+            index: 0,
             channel: channel(),
             settings: Default::default(),
             toasts: Default::default(),
@@ -244,12 +245,14 @@ impl App {
         CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
             .show(ctx, |ui| {
-                let mut behavior = Behavior {
-                    data: &mut self.data,
-                    settings: &self.settings,
-                    close: None,
-                };
-                self.tree.ui(&mut behavior, ui);
+                if let Some(data) = self.data.get_mut(self.index) {
+                    let mut behavior = Behavior {
+                        data,
+                        settings: &self.settings,
+                        close: None,
+                    };
+                    self.tree.ui(&mut behavior, ui);
+                }
             });
     }
 
@@ -262,21 +265,8 @@ impl App {
                 ScrollArea::vertical().show(ui, |ui| {
                     self.settings.ui(ui, &mut self.tree);
                     ui.separator();
+                    ui.add(Files::new(&mut self.data, &mut self.index));
                 });
-                // let mut style = Style::from_egui(&ctx.style());
-                // style.tab_bar.fill_tab_bar = true;
-                // self.tree.ui(&mut SettingsBehavior, ui);
-
-                // DockArea::new(&mut self.docks.left.state)
-                //     .id(Id::new("left_dock"))
-                //     .style(style)
-                //     .show_inside(
-                //         ui,
-                //         &mut LeftTabs {
-                //             context: &mut self.context,
-                //             state: &self.docks.central,
-                //         },
-                //     );
             });
     }
 
@@ -628,19 +618,20 @@ impl App {
                     }
                 };
                 trace!(content);
-                let data_frame: DataFrame = match ron::de::from_str(&content) {
-                    Ok(data_frame) => data_frame,
-                    Err(error) => {
-                        error!(%error);
-                        self.toasts
-                            .error(format!("{}: {error}", dropped.display()))
-                            .set_closable(true)
-                            .set_duration(Some(NOTIFICATIONS_DURATION));
-                        continue;
-                    }
-                };
-                trace!(?data_frame);
-                self.data.fatty_acids = data_frame;
+                self.channel.0.send(content).ok();
+                // let data_frame: DataFrame = match ron::de::from_str(&content) {
+                //     Ok(data_frame) => data_frame,
+                //     Err(error) => {
+                //         error!(%error);
+                //         self.toasts
+                //             .error(format!("{}: {error}", dropped.display()))
+                //             .set_closable(true)
+                //             .set_duration(Some(NOTIFICATIONS_DURATION));
+                //         continue;
+                //     }
+                // };
+                // trace!(?data_frame);
+                // self.data.fatty_acids = data_frame;
             }
         }
     }
@@ -652,7 +643,8 @@ impl App {
                 Ok(data_frame) => {
                     trace!(?data_frame);
                     // println!("data_frame: {data_frame}");
-                    self.data.fatty_acids = data_frame;
+                    // self.data.fatty_acids = data_frame;
+                    self.data.push(Data::new(data_frame));
                     ctx.request_repaint();
                 }
                 Err(error) => error!(%error),
