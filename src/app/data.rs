@@ -1,5 +1,6 @@
 use anyhow::Result;
 use polars::{functions::concat_df_diagonal, prelude::*};
+use ron::{extensions::Extensions, ser::PrettyConfig};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
@@ -19,7 +20,7 @@ impl Data {
             &self.fatty_acids.select([
                 "Label", "Carbons", "Doubles", "Triples", "TAG", "DAG1223", "MAG2",
             ])?,
-            Default::default(),
+            PrettyConfig::new().extensions(Extensions::IMPLICIT_SOME),
         )?;
         write(path, contents)?;
         Ok(())

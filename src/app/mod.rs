@@ -26,7 +26,13 @@ use egui_tiles::Tree;
 use panes::{Settings, TreeExt};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{borrow::BorrowMut, fmt::Write, str, time::Duration};
+use std::{
+    borrow::BorrowMut,
+    fmt::Write,
+    str,
+    sync::mpsc::{channel, Receiver, Sender},
+    time::Duration,
+};
 use tracing::{debug, error, info, trace};
 use url::Url;
 
@@ -68,7 +74,12 @@ pub struct App {
     // Panes
     tree: Tree<Pane>,
     // Data
-    data: Data,
+    index: usize,
+    data: Vec<Data>,
+    // Data channel
+    #[serde(skip)]
+    channel: (Sender<String>, Receiver<String>),
+    // Settings
     settings: Settings,
 
     #[serde(skip)]
@@ -89,6 +100,7 @@ impl Default for App {
             left_panel: true,
             tree: Tree::empty("central_tree"),
             data: Data::default(),
+            channel: channel(),
             settings: Default::default(),
             toasts: Default::default(),
             file_dialog: Default::default(),
@@ -110,9 +122,17 @@ impl App {
         // return Default::default();
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        cc.storage
+        let app: Self = cc
+            .storage
             .and_then(|storage| get_value(storage, APP_KEY))
-            .unwrap_or_default()
+            .unwrap_or_default();
+        app.context(&cc.egui_ctx);
+        app
+    }
+
+    fn context(&self, ctx: &egui::Context) {
+        // Data channel
+        ctx.data_mut(|data| data.insert_temp(Id::new("Data"), self.channel.0.clone()));
     }
 
     // pub fn load_configs(&mut self) {
@@ -278,6 +298,7 @@ impl App {
                     .clicked()
                 {
                     *self = Default::default();
+                    self.context(ctx);
                 }
                 ui.separator();
                 if ui
@@ -286,6 +307,7 @@ impl App {
                     .clicked()
                 {
                     ui.memory_mut(|memory| *memory = Default::default());
+                    self.context(ctx);
                 }
                 ui.separator();
                 let mut toggle = |ui: &mut Ui, pane| {
@@ -315,11 +337,11 @@ impl App {
                 ui.separator();
                 // Load
                 if ui.button(icon!(CLOUD_ARROW_DOWN, x32)).clicked() {
-                    self.github.open ^= true;
+                    self.github.toggle();
                 }
                 // Save
                 if ui.button(icon!(FLOPPY_DISK, x32)).clicked() {
-                    if let Err(error) = self.data.save("df.utca.ron") {
+                    if let Err(error) = self.data[self.index].save("df.utca.ron") {
                         error!(%error);
                     }
                 }
@@ -623,6 +645,21 @@ impl App {
         }
     }
 
+    fn load(&mut self, ctx: &egui::Context) {
+        for content in self.channel.1.try_iter() {
+            trace!(content);
+            match ron::de::from_str(&content) {
+                Ok(data_frame) => {
+                    trace!(?data_frame);
+                    // println!("data_frame: {data_frame}");
+                    self.data.fatty_acids = data_frame;
+                    ctx.request_repaint();
+                }
+                Err(error) => error!(%error),
+            };
+        }
+    }
+
     // fn paste(&mut self, ctx: &egui::Context) {
     //     if !ctx.memory(|memory| memory.focused().is_some()) {
     //         ctx.input(|input| {
@@ -717,7 +754,7 @@ impl eframe::App for App {
         self.notifications(ctx);
         // Post update
         self.drag_and_drop(ctx);
-        // self.paste(ctx);
+        self.load(ctx);
     }
 }
 

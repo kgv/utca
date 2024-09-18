@@ -5,9 +5,9 @@ use egui::{
 };
 use egui_phosphor::regular::CLOUD_ARROW_DOWN;
 use ehttp::{fetch, fetch_async, Headers, Request, Response};
-use poll_promise::{Promise, Sender};
+use poll_promise::Promise;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{env::var, fmt::Debug, future::Future};
+use std::{env::var, fmt::Debug, future::Future, sync::mpsc::Sender};
 use tracing::{error, info, trace};
 use url::Url;
 
@@ -47,14 +47,14 @@ impl Github {
         }
     }
 
-    // pub fn toggle(&mut self) {
-    //     self.open ^= true;
-    //     self.promise = if self.open {
-    //         load_tree(URL)
-    //     } else {
-    //         Promise::from_ready(None)
-    //     };
-    // }
+    pub fn toggle(&mut self) {
+        self.open ^= true;
+        self.promise = if self.open {
+            load_tree(URL)
+        } else {
+            Promise::from_ready(None)
+        };
+    }
 
     // if self.show_confirmation_dialog {
     //     egui::Window::new("Do you want to quit?")
@@ -66,7 +66,6 @@ impl Github {
     //                     self.show_confirmation_dialog = false;
     //                     self.allowed_to_close = false;
     //                 }
-
     //                 if ui.button("Yes").clicked() {
     //                     self.show_confirmation_dialog = false;
     //                     self.allowed_to_close = true;
@@ -103,9 +102,6 @@ impl Github {
                     }
                 });
             });
-        if !self.open {
-            self.promise = Promise::from_ready(None);
-        }
     }
 }
 
@@ -222,9 +218,14 @@ fn load_tree(url: impl ToString) -> Promise<Option<Tree>> {
 fn load_blob(ctx: &Context, url: impl ToString) {
     let ctx = ctx.clone();
     let url = url.to_string();
-    let _ = spawn(async {
-        if let Err(error) = try_load_blob(ctx, url).await {
-            error!(%error);
+    let _ = spawn(async move {
+        match try_load_blob(url).await {
+            Ok(blob) => ctx.data_mut(|data| {
+                if let Some(sender) = data.get_temp::<Sender<String>>(Id::new("Data")) {
+                    sender.send(blob).ok();
+                }
+            }),
+            Err(error) => error!(%error),
         }
     });
 }
@@ -244,7 +245,7 @@ async fn try_load_tree(url: impl ToString) -> Result<Tree> {
     Ok(tree)
 }
 
-async fn try_load_blob(ctx: Context, url: impl ToString) -> Result<()> {
+async fn try_load_blob(url: impl ToString) -> Result<String> {
     let request = Request::get(url);
     let response = fetch_async(request).await.map_err(Error::msg)?;
     let blob = response.json::<Blob>()?;
@@ -253,8 +254,7 @@ async fn try_load_blob(ctx: Context, url: impl ToString) -> Result<()> {
     for line in blob.content.split_terminator('\n') {
         content.push_str(&String::from_utf8(BASE64_STANDARD.decode(line)?)?);
     }
-    ctx.data_mut(|data| data.insert_temp(Id::new("LOAD"), content));
-    Ok(())
+    Ok(content)
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
