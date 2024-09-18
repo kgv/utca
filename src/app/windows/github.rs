@@ -7,9 +7,11 @@ use egui_phosphor::regular::CLOUD_ARROW_DOWN;
 use ehttp::{fetch, fetch_async, Headers, Request, Response};
 use poll_promise::{Promise, Sender};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{env::var, fmt::Debug, future::Future};
 use tracing::{error, info, trace};
 use url::Url;
+
+use crate::utils::spawn;
 
 // https://api.github.com/repos/ippras/utca/gh-pages/configs/H242_Tamia_Peroxide.toml
 // /repos/repos/ippras/git/trees/{tree_sha}
@@ -20,7 +22,7 @@ use url::Url;
 // https://api.github.com/repos/ippras/utca/git/trees/gh-pages/configs?recursive=true
 
 const URL: &str = "https://api.github.com/repos/ippras/utca/git/trees/gh-pages?recursive=true";
-const GITHUB_TOKEN: &str = env!("GITHUB_TOKEN");
+// const GITHUB_TOKEN: &str = env!("GITHUB_TOKEN");
 
 /// `github.com tree` renders a nested list of debugger values.
 pub struct Github {
@@ -168,16 +170,9 @@ impl Github {
 //     promise
 // }
 fn load(url: impl ToString) -> Promise<Option<Tree>> {
-    let request = Request {
-        headers: Headers::new(&[
-            ("Accept", "application/vnd.github+json"),
-            ("Authorization", &format!("Bearer {GITHUB_TOKEN}")),
-            ("X-GitHub-Api-Version", "2022-11-28"),
-        ]),
-        ..Request::get(url)
-    };
-    Promise::spawn_local(async {
-        match try_load_tree(request).await {
+    let url = url.to_string();
+    spawn(async {
+        match try_load_tree(url).await {
             Ok(tree) => Some(tree),
             Err(error) => {
                 error!(%error);
@@ -207,7 +202,16 @@ fn load(url: impl ToString) -> Promise<Option<Tree>> {
     // promise
 }
 
-async fn try_load_tree(request: Request) -> Result<Tree> {
+async fn try_load_tree(url: impl ToString) -> Result<Tree> {
+    let github_token = var("GITHUB_TOKEN").expect("GITHUB_TOKEN not found");
+    let request = Request {
+        headers: Headers::new(&[
+            ("Accept", "application/vnd.github+json"),
+            ("Authorization", &format!("Bearer {github_token}")),
+            ("X-GitHub-Api-Version", "2022-11-28"),
+        ]),
+        ..Request::get(url)
+    };
     let response = fetch_async(request).await.map_err(Error::msg)?;
     let tree = response.json::<Tree>()?;
     Ok(tree)

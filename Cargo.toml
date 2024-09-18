@@ -29,51 +29,51 @@ intl-memoizer = "0.5.2"
 itertools = "0.13.0"
 maplit = "1.0.2"
 molecule = { git = "https://github.com/ippras/molecule" }
-nom = "7.1.3"
 num = "0.4.3"
 ordered-float = { version = "4.2.2", features = ["serde"] }
-peroxide = "0.37.9"
-polars = { version = "0.42.0", features = [
-    "abs",
+polars = { version = "0.42.0", default-features = false, features = [
     "concat_str",
     "cross_join",
-    "cum_agg",
     "diagonal_concat",
     "dtype-array",
     "dtype-i8",
     "dtype-struct",
     "dtype-u8",
-    "is_in",
     "lazy",
-    "list_any_all",
-    "list_count",
     "list_eval",
-    "regex",
     "round_series",
-    "serde",
+    "serde-lazy",
     "strings",
+    # "abs",
+    # "cum_agg",
+    # "is_in",
+    # "list_any_all",
+    # "list_count",
+    # "regex",
 ] }
-polars-lazy = "0.42.0"
-poll-promise = { version = "0.3.0", features = ["web"] }
-rawpointer = "0.2.1"
-rfd = "0.14.1"
 ron = "0.8.1"
 serde = { version = "1.0.210", features = ["derive", "std"] }
-simple-easing = "1.0.1"
-tabled = "0.16.0"
 thiserror = "1.0.63"
-toml_edit = { version = "0.22.20", features = ["serde"] }
 tracing = "0.1.40"
 unic-langid = { version = "0.9.5", features = ["macros"] }
 uom = "0.36.0"
 url = { version = "2.5.2", features = ["serde"] }
 
-# egui_dock = { version = "0.13.0", features = ["serde"] }
+nom = "7.1.3"
+peroxide = "0.37.9"
+rfd = "0.14.1"
+simple-easing = "1.0.1"
+# polars-lazy = "0.42.0"
+# rawpointer = "0.2.1"
+# toml_edit = { version = "0.22.20", features = ["serde"] }
+# tabled = "0.16.0"
 # thiserror = "1.0.49"
 # regex = "1.9.6"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+poll-promise = { version = "0.3.0", features = ["tokio"] }
+tokio = { version = "1.40.0", features = ["full"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 # web
@@ -81,6 +81,7 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 console_error_panic_hook = "0.1.7"
 getrandom = { version = "0.2.15", features = ["js"] }
 js-sys = "0.3.70"
+poll-promise = { version = "0.3.0", features = ["web"] }
 tracing-wasm = "0.2.1"
 wasm-bindgen = "0.2.93"
 wasm-bindgen-futures = "0.4.43"

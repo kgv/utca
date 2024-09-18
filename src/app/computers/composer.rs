@@ -1,7 +1,7 @@
 use super::fatty_acid::ExprExt as _;
 use crate::{
     acylglycerol::Stereospecificity,
-    app::panes::composition::settings::{Order, Scope, Settings, Sort},
+    app::panes::composition::settings::{Method, Order, Scope, Settings, Sort},
     utils::{r#struct, DataFrameExt as _, ExprExt as _, SeriesExt},
 };
 use egui::{
@@ -444,23 +444,23 @@ impl Composer {
     // [aba] = [a13]^2*[b2]
     // [abc] = [a13]*[b2]*[c13]
     // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
-    fn vander_wal(&mut self, key: Key) -> DataFrame {
+    fn vander_wal(&mut self, key: Key) -> PolarsResult<DataFrame> {
         let mut lazy_frame = key.data_frame.clone().lazy();
         lazy_frame = lazy_frame.cartesian_product().with_row_index("Index", None);
         println!(
             "after cartesian product data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
+            lazy_frame.clone().collect()?
         );
         lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
         println!(
             "after cartesian product before composition data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
+            lazy_frame.clone().collect()?
         );
         // Group
-        lazy_frame = lazy_frame.composition(key.settings).unwrap();
+        lazy_frame = lazy_frame.composition(key.settings)?;
         println!(
             "after composition before group data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
+            lazy_frame.clone().collect()?
         );
         lazy_frame = lazy_frame
             .group_by([col("Label")])
@@ -468,7 +468,7 @@ impl Composer {
             .with_row_index("Index", None);
         println!(
             "after group before sort data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
+            lazy_frame.clone().collect()?
         );
         // Sort
         let mut sort_options = SortMultipleOptions::default();
@@ -480,8 +480,8 @@ impl Composer {
             Sort::Value => lazy_frame.sort_by_exprs(&[col("Value"), col("Label")], sort_options),
         };
         // lazy_frame = lazy_frame.filter(col("Value").gt_eq(other));
-        // println!("data_frame: {}", lazy_frame.clone().collect().unwrap());
-        lazy_frame.collect().unwrap()
+        // println!("data_frame: {}", lazy_frame.clone().collect()?);
+        lazy_frame.collect()
 
         // let Key { context } = key;
         // let dags13 = &context
@@ -516,8 +516,10 @@ impl Composer {
 
 impl ComputerMut<Key<'_>, Value> for Composer {
     fn compute(&mut self, key: Key) -> Value {
-        // self.gunstone(key)
-        self.vander_wal(key)
+        match key.settings.method {
+            Method::Gunstone => self.gunstone(key),
+            Method::VanderWal => self.vander_wal(key).unwrap(),
+        }
     }
 }
 

@@ -24,7 +24,8 @@ use app::App;
 
 // When compiling natively
 #[cfg(not(target_arch = "wasm32"))]
-fn main() -> eframe::Result<()> {
+#[tokio::main]
+async fn main() -> eframe::Result<()> {
     // std::env::set_var("POLARS_FMT_MAX_COLS", "256");
     std::env::set_var("POLARS_FMT_MAX_ROWS", "32");
     // std::env::set_var("POLARS_FMT_TABLE_CELL_LIST_LEN", "256");
@@ -60,11 +61,9 @@ fn main() {
 
 mod acylglycerol;
 mod app;
-mod r#const;
-mod ecn;
 mod fatty_acid;
 mod localization;
-mod parsers;
 mod properties;
+mod r#const;
 mod utils;
 mod widgets;

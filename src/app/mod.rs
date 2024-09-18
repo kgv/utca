@@ -4,18 +4,16 @@ use self::{
 };
 use crate::{
     localization::{titlecase, UiExt},
-    parsers::toml::{to_string, Parsed, Parsed as TomlParsed},
     widgets::FileDialog,
 };
-use anyhow::Result;
 use data::Data;
 use eframe::{get_value, set_value, CreationContext, Storage, APP_KEY};
 use egui::{
-    global_dark_light_mode_switch, menu::bar, warn_if_debug_build, Align, Align2, Button,
-    CentralPanel, Color32, ComboBox, Event, FontDefinitions, Id, LayerId, Layout, Order, RichText,
-    ScrollArea, SidePanel, TextStyle, TopBottomPanel, Ui, Visuals, Widget,
+    menu::bar, warn_if_debug_build, Align, Align2, Button, CentralPanel, Color32, FontDefinitions,
+    Id, LayerId, Layout, Order, RichText, ScrollArea, SidePanel, TextStyle, TopBottomPanel, Ui,
+    Visuals,
 };
-use egui_ext::{DroppedFileExt, HoveredFileExt, LightDarkButton, WithVisuals};
+use egui_ext::{DroppedFileExt, HoveredFileExt, LightDarkButton};
 use egui_notify::Toasts;
 use egui_phosphor::{
     add_to_fonts,
@@ -24,17 +22,11 @@ use egui_phosphor::{
     },
     Variant,
 };
-use egui_tiles::{Tile, Tiles, Tree};
-use ehttp::{fetch, Headers, Request, Response};
+use egui_tiles::Tree;
 use panes::{Settings, TreeExt};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    borrow::BorrowMut,
-    fmt::{Debug, Write},
-    str,
-    time::Duration,
-};
+use std::{borrow::BorrowMut, fmt::Write, str, time::Duration};
 use tracing::{debug, error, info, trace};
 use url::Url;
 
