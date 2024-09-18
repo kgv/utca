@@ -315,7 +315,7 @@ impl App {
                 ui.separator();
                 // Load
                 if ui.button(icon!(CLOUD_ARROW_DOWN, x32)).clicked() {
-                    self.github.toggle();
+                    self.github.open ^= true;
                 }
                 // Save
                 if ui.button(icon!(FLOPPY_DISK, x32)).clicked() {

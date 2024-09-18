@@ -47,14 +47,34 @@ impl Github {
         }
     }
 
-    pub fn toggle(&mut self) {
-        self.open ^= true;
-        self.promise = if self.open {
-            load(URL)
-        } else {
-            Promise::from_ready(None)
-        };
-    }
+    // pub fn toggle(&mut self) {
+    //     self.open ^= true;
+    //     self.promise = if self.open {
+    //         load_tree(URL)
+    //     } else {
+    //         Promise::from_ready(None)
+    //     };
+    // }
+
+    // if self.show_confirmation_dialog {
+    //     egui::Window::new("Do you want to quit?")
+    //         .collapsible(false)
+    //         .resizable(false)
+    //         .show(ctx, |ui| {
+    //             ui.horizontal(|ui| {
+    //                 if ui.button("No").clicked() {
+    //                     self.show_confirmation_dialog = false;
+    //                     self.allowed_to_close = false;
+    //                 }
+
+    //                 if ui.button("Yes").clicked() {
+    //                     self.show_confirmation_dialog = false;
+    //                     self.allowed_to_close = true;
+    //                     ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+    //                 }
+    //             });
+    //         });
+    // }
 
     pub fn window(&mut self, ctx: &Context) {
         Window::new(format!("{CLOUD_ARROW_DOWN} Load config"))
@@ -71,13 +91,7 @@ impl Github {
                                             .on_hover_text(&node.url)
                                             .clicked()
                                         {
-                                            let ctx = ctx.clone();
-                                            let request = Request::get(&node.url);
-                                            fetch(request, move |response| {
-                                                if let Err(error) = try_load_blob(ctx, response) {
-                                                    error!(%error);
-                                                }
-                                            });
+                                            load_blob(ctx, &node.url);
                                         }
                                         ui.label(path);
                                     });
@@ -89,6 +103,9 @@ impl Github {
                     }
                 });
             });
+        if !self.open {
+            self.promise = Promise::from_ready(None);
+        }
     }
 }
 
@@ -169,7 +186,7 @@ impl Github {
 //     });
 //     promise
 // }
-fn load(url: impl ToString) -> Promise<Option<Tree>> {
+fn load_tree(url: impl ToString) -> Promise<Option<Tree>> {
     let url = url.to_string();
     spawn(async {
         match try_load_tree(url).await {
@@ -202,6 +219,16 @@ fn load(url: impl ToString) -> Promise<Option<Tree>> {
     // promise
 }
 
+fn load_blob(ctx: &Context, url: impl ToString) {
+    let ctx = ctx.clone();
+    let url = url.to_string();
+    let _ = spawn(async {
+        if let Err(error) = try_load_blob(ctx, url).await {
+            error!(%error);
+        }
+    });
+}
+
 async fn try_load_tree(url: impl ToString) -> Result<Tree> {
     let github_token = var("GITHUB_TOKEN").expect("GITHUB_TOKEN not found");
     let request = Request {
@@ -217,8 +244,10 @@ async fn try_load_tree(url: impl ToString) -> Result<Tree> {
     Ok(tree)
 }
 
-fn try_load_blob(ctx: Context, response: Result<Response, String>) -> Result<()> {
-    let blob = response.map_err(Error::msg)?.json::<Blob>()?;
+async fn try_load_blob(ctx: Context, url: impl ToString) -> Result<()> {
+    let request = Request::get(url);
+    let response = fetch_async(request).await.map_err(Error::msg)?;
+    let blob = response.json::<Blob>()?;
     trace!(?blob);
     let mut content = String::new();
     for line in blob.content.split_terminator('\n') {
