@@ -5,6 +5,7 @@ use egui::{
 };
 use egui_phosphor::regular::CLOUD_ARROW_DOWN;
 use ehttp::{fetch, fetch_async, Headers, Request, Response};
+use itertools::Itertools;
 use poll_promise::Promise;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{env::var, fmt::Debug, future::Future, sync::mpsc::Sender};
@@ -81,22 +82,57 @@ impl Github {
             .show(ctx, |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
                     if let Some(Some(tree)) = self.promise.ready() {
-                        for node in &tree.tree {
-                            if node.r#type == "blob" {
-                                if let Some(path) = node.path.strip_prefix("configs/") {
-                                    ui.horizontal(|ui| {
-                                        if ui
-                                            .button(CLOUD_ARROW_DOWN)
-                                            .on_hover_text(&node.url)
-                                            .clicked()
-                                        {
-                                            load_blob(ctx, &node.url);
-                                        }
-                                        ui.label(path);
-                                    });
-                                }
+                        // fn key(node: &Node) -> Option<&str> {
+                        //     node.path.split_once('/').map(|(prefix, _)| prefix)
+                        // }
+
+                        let chunks = tree
+                            .tree
+                            .iter()
+                            .filter(|node| node.r#type == "blob")
+                            .filter_map(|node| {
+                                Some((node.path.strip_prefix("configs/")?, &node.url))
+                            })
+                            .chunk_by(|(path, _)| path.split_once('/').map(|(prefix, _)| prefix));
+                        for (key, group) in &chunks {
+                            // let heading = key.unwrap_or("Root");
+                            if let Some(key) = key {
+                                ui.collapsing(key, |ui| {
+                                    for (path, url) in group {
+                                        ui.horizontal(|ui| {
+                                            if ui
+                                                .button(CLOUD_ARROW_DOWN)
+                                                .on_hover_text(url)
+                                                .clicked()
+                                            {
+                                                load_blob(ctx, url);
+                                            }
+                                            let text = path
+                                                .strip_prefix(&format!("{key}/"))
+                                                .unwrap_or(path);
+                                            ui.label(text);
+                                        });
+                                    }
+                                });
                             }
                         }
+
+                        // for node in &tree.tree {
+                        //     if node.r#type == "blob" {
+                        //         if let Some(path) = node.path.strip_prefix("configs/") {
+                        //             ui.horizontal(|ui| {
+                        //                 if ui
+                        //                     .button(CLOUD_ARROW_DOWN)
+                        //                     .on_hover_text(&node.url)
+                        //                     .clicked()
+                        //                 {
+                        //                     load_blob(ctx, &node.url);
+                        //                 }
+                        //                 ui.label(path);
+                        //             });
+                        //         }
+                        //     }
+                        // }
                     } else {
                         ui.spinner();
                     }
@@ -256,6 +292,37 @@ async fn try_load_blob(url: impl ToString) -> Result<String> {
     }
     Ok(content)
 }
+
+#[derive(Debug)]
+struct Hierarchy {
+    name: String,
+    children: Vec<Hierarchy>,
+}
+
+// impl Hierarchy {
+//     fn new(tree: Tree) -> Self {
+//         tree.tree.chunk_by(|left, right| left.path.split_once('/').0 == right.path.split_once('/').0);
+//         // for p in paths.iter() {
+//         //     for part in p.parts.iter() {
+//         //         if !cwd.has_child(part) {
+//         //             // cwd.add_child(dir(part));
+//         //             // cwd = &cwd.children[cwd.children.len() - 1];
+//         //         }
+//         //     }
+//         // }
+//     }
+// }
+
+// let top = dir("root");
+// let mut cwd = &top;
+// for p in paths.iter() {
+//     for part in p.parts.iter() {
+//         if !cwd.has_child(part) {
+//             // cwd.add_child(dir(part));
+//             // cwd = &cwd.children[cwd.children.len() - 1];
+//         }
+//     }
+// }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 struct Tree {
