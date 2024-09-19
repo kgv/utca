@@ -2,7 +2,7 @@ use self::settings::{From, Settings};
 use super::Behavior;
 use crate::{
     app::computers::{CalculationComputed, CalculationKey},
-    fatty_acid::{DisplayWithOptions, FattyAcid},
+    fatty_acid::{DisplayWithOptions, FattyAcid, COMMON},
     localization::localize,
     utils::{
         ui::{SubscriptedTextFormat, UiExt},
@@ -129,7 +129,7 @@ impl Pane {
                                 let text = if label.is_empty() { "C" } else { label };
                                 let title = ui.subscripted_text(
                                     text,
-                                    &fatty_acid.display(Default::default()).to_string(),
+                                    &fatty_acid.display(COMMON).to_string(),
                                     SubscriptedTextFormat {
                                         widget: true,
                                         ..Default::default()

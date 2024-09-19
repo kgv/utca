@@ -81,34 +81,41 @@ impl Data {
     pub(in crate::app) fn set(
         &mut self,
         row: usize,
-        mut column: &str,
+        column: &str,
         value: LiteralValue,
     ) -> PolarsResult<()> {
-        println!("set: {row}, {column}, {value:?}");
         let lazy_frame = self
             .fatty_acids
             .clone()
             .lazy()
             .with_row_index("Index", None)
             .with_column(
+                
                 when(col("Index").eq(lit(row as i64)))
                     .then({
+                        println!("set: {row}, {column}, {value:?}");
                         if let Some((prefix, suffix)) = column.split_once('.') {
                             println!("split_once: {prefix}, {suffix}");
-                            column = prefix;
                             // println!("{}", self.fatty_acids);
                             // let field = col(prefix).r#struct().field_by_name(suffix);
                             // if let "Doubles" | "Triples" = suffix {
                             //     field;
                             // }
+                            // col(prefix)
+                            //     .r#struct()
+                            //     .with_fields(vec![lit(value).alias("suffix")])?
+                            //     .alias("FA")
                             // as_struct(vec![
                             //     lit(value).alias(suffix),
                             //     col(prefix),
                             //     // col(prefix).r#struct().field_by_names(),
                             // ]).alias("FACK")
+                            // col(prefix).alias("FACK")
                             col(prefix)
                                 .r#struct()
                                 .with_fields(vec![lit(value).alias(suffix)])?
+                                .alias("FA")
+                            // lit(88).alias(column)
                         } else {
                             lit(value).alias(column)
                         }

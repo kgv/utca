@@ -113,7 +113,7 @@ impl Pane {
                             let text = if label.is_empty() { "C" } else { label };
                             let title = ui.subscripted_text(
                                 text,
-                                &fatty_acid.display(COMMON).to_string(),
+                                &format!("{:#}", fatty_acid.display(COMMON)),
                                 SubscriptedTextFormat {
                                     widget: true,
                                     ..Default::default()
@@ -157,7 +157,11 @@ impl Pane {
                             }
                             .on_hover_ui(|ui| {
                                 ui.heading(localize!("fatty_acid"));
-                                ui.label(format!("{}: {fatty_acid:#}", localize!("formula")));
+                                ui.label(format!(
+                                    "{}: {:#}",
+                                    localize!("formula"),
+                                    fatty_acid.display(COMMON),
+                                ));
                                 ui.label(format!(
                                     "{}: C{}H{}O2",
                                     localize!("formula"),
@@ -300,7 +304,7 @@ impl Event {
         match self {
             Self::Add => data.add()?,
             Self::Delete { row } => data.delete(row)?,
-            Self::Set { row, column, value } => data.set(row, column, value)?,
+            Self::Set { row, column, value } => data.set(row, column, value).unwrap(),
             Self::Up { row } => data.up(row)?,
             // Self::Set { row, column, value } => {
             //     data.fatty_acids = data
