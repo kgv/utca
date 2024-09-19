@@ -19,7 +19,8 @@ use egui_notify::Toasts;
 use egui_phosphor::{
     add_to_fonts,
     regular::{
-        ARROWS_CLOCKWISE, CHART_BAR, CLOUD_ARROW_DOWN, FLOPPY_DISK, INFO, SIDEBAR_SIMPLE, TRASH,
+        ARROWS_CLOCKWISE, CHART_BAR, CLOUD_ARROW_DOWN, FLOPPY_DISK, INFO, PLUS, SIDEBAR_SIMPLE,
+        TRASH,
     },
     Variant,
 };
@@ -325,6 +326,10 @@ impl App {
                 // Comparison
                 toggle(ui, Pane::Comparison(Default::default()));
                 ui.separator();
+                // Create
+                if ui.button(icon!(PLUS, x32)).clicked() {
+                    self.data.push(Default::default());
+                }
                 // Load
                 if ui.button(icon!(CLOUD_ARROW_DOWN, x32)).clicked() {
                     self.github.toggle();
