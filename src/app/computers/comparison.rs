@@ -10,7 +10,7 @@ use std::{
     sync::Arc,
 };
 
-/// Comparison computer
+/// Comparison computed
 pub(in crate::app) type Computed = FrameCache<Value, Computer>;
 
 /// Comparison computer

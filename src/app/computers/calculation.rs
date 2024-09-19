@@ -1,58 +1,34 @@
+use super::fatty_acid::ExprExt as _;
 use crate::{
     app::panes::calculation::settings::{Fraction, From, Settings, Sign},
-    r#const::relative_atomic_mass::{C, H, O},
-    utils::{DataFrameExt, ExprExt},
+    utils::ExprExt as _,
 };
-use egui::{
-    emath::OrderedFloat,
-    util::cache::{ComputerMut, FrameCache},
-};
+use egui::util::cache::{ComputerMut, FrameCache};
 use polars::prelude::*;
 use std::hash::{Hash, Hasher};
 
-/// Calculated
-pub(in crate::app) type Calculated = FrameCache<Value, Calculator>;
+/// Calculation computed
+pub(in crate::app) type Computed = FrameCache<Value, Computer>;
 
-/// Calculator
+/// Calculation computer
 #[derive(Default)]
-pub(in crate::app) struct Calculator;
+pub(in crate::app) struct Computer;
 
 // n = m / M
 fn to_mole(name: &str) -> Expr {
-    col(name) / molar_mass()
+    col(name) / col("FA").mass()
 }
 
 // m = n * M
 fn to_mass(name: &str) -> Expr {
-    col(name) * molar_mass()
+    col(name) * col("FA").mass()
 }
 
 fn pchelkin_fraction(name: &str) -> Expr {
-    col(name) / (col(name) * molar_mass() / lit(10)).sum()
+    col(name) / (col(name) * col("FA").mass() / lit(10)).sum()
 }
 
-// Fatty acid methyl ester molar mass
-fn molar_mass() -> Expr {
-    c() * lit(C) + h() * lit(H) + lit(2) * lit(O)
-}
-
-fn c() -> Expr {
-    col("Carbons")
-}
-
-fn h() -> Expr {
-    lit(2) * c() - lit(2) * d() - lit(4) * t()
-}
-
-fn d() -> Expr {
-    col("Doubles").list().len()
-}
-
-fn t() -> Expr {
-    col("Triples").list().len()
-}
-
-impl ComputerMut<Key<'_>, Value> for Calculator {
+impl ComputerMut<Key<'_>, Value> for Computer {
     fn compute(&mut self, key: Key) -> Value {
         // Clip
         let clip = |expr: Expr| match key.settings.signedness {
@@ -121,39 +97,30 @@ impl ComputerMut<Key<'_>, Value> for Calculator {
     }
 }
 
-/// Key
+/// Calculation key
 #[derive(Clone, Copy, Debug)]
-pub struct Key<'a> {
+pub(in crate::app) struct Key<'a> {
     pub(in crate::app) data_frame: &'a DataFrame,
     pub(in crate::app) settings: &'a Settings,
 }
 
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for label in self.data_frame.str("Label") {
-            label.hash(state);
+        for fatty_acid in self.data_frame["FA"].iter() {
+            fatty_acid.hash(state);
         }
-        for carbons in self.data_frame.u8("Carbons") {
-            carbons.hash(state);
+        for tag in self.data_frame["TAG"].iter() {
+            tag.hash(state);
         }
-        // for label in self.data_frame["Doubles"].list().unwrap() {
-        //     label.hash(state);
-        // }
-        // for label in self.data_frame["Triples"].list().unwrap() {
-        //     label.hash(state);
-        // }
-        for tag in self.data_frame.f64("TAG") {
-            tag.map(OrderedFloat).hash(state);
+        for dag1223 in self.data_frame["DAG1223"].iter() {
+            dag1223.hash(state);
         }
-        for dag1223 in self.data_frame.f64("DAG1223") {
-            dag1223.map(OrderedFloat).hash(state);
-        }
-        for mag2 in self.data_frame.f64("MAG2") {
-            mag2.map(OrderedFloat).hash(state);
+        for mag2 in self.data_frame["MAG2"].iter() {
+            mag2.hash(state);
         }
         self.settings.hash(state);
     }
 }
 
-/// Value
+/// Calculation value
 type Value = DataFrame;

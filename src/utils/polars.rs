@@ -6,6 +6,8 @@ pub fn r#struct(name: &str) -> StructNameSpace {
 
 /// Extension methods for [`DataFrame`]
 pub trait DataFrameExt {
+    fn destruct(&self, name: &str) -> DataFrame;
+
     fn f64(&self, name: &str) -> &Float64Chunked;
 
     fn list(&self, name: &str) -> &ListChunked;
@@ -30,6 +32,10 @@ impl DataFrameExt for DataFrame {
 
     fn u8(&self, name: &str) -> &UInt8Chunked {
         self[name].u8().unwrap()
+    }
+
+    fn destruct(&self, name: &str) -> DataFrame {
+        self.unnest([name]).unwrap()
     }
 }
 

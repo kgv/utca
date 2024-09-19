@@ -10,6 +10,12 @@ use std::{
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+pub(in crate::app) struct Bundle {
+    pub(in crate::app) entries: Vec<Data>,
+    // pub(in crate::app) triacylglycerols: DataFrame,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub(in crate::app) struct Data {
     pub(in crate::app) fatty_acids: DataFrame,
     // pub(in crate::app) triacylglycerols: DataFrame,
@@ -21,10 +27,26 @@ impl Data {
     }
 
     pub(in crate::app) fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        // let value = self
+        //     .fatty_acids
+        //     .clone()
+        //     .lazy()
+        //     .select([
+        //         as_struct(vec![
+        //             col("Label"),
+        //             col("Carbons"),
+        //             col("Doubles"),
+        //             col("Triples"),
+        //         ])
+        //         .alias("FA"),
+        //         col("TAG"),
+        //         col("DAG1223"),
+        //         col("MAG2"),
+        //     ])
+        //     .collect();
+        let value = self.fatty_acids.select(["FA", "TAG", "DAG1223", "MAG2"]);
         let contents = ron::ser::to_string_pretty(
-            &self.fatty_acids.select([
-                "Label", "Carbons", "Doubles", "Triples", "TAG", "DAG1223", "MAG2",
-            ])?,
+            &value?,
             PrettyConfig::new().extensions(Extensions::IMPLICIT_SOME),
         )?;
         write(path, contents)?;

@@ -2,56 +2,18 @@ use super::fatty_acid::ExprExt as _;
 use crate::{
     acylglycerol::Stereospecificity,
     app::panes::composition::settings::{Method, Order, Scope, Settings, Sort},
-    utils::{r#struct, DataFrameExt as _, ExprExt as _, SeriesExt},
+    utils::{r#struct, ExprExt as _, SeriesExt},
 };
-use egui::{
-    emath::OrderedFloat,
-    util::cache::{ComputerMut, FrameCache},
-};
+use egui::util::cache::{ComputerMut, FrameCache};
 use polars::prelude::*;
 use std::hash::{Hash, Hasher};
 
-/// Composed
-pub(in crate::app) type Composed = FrameCache<Value, Composer>;
+/// Composition computed
+pub(in crate::app) type Computed = FrameCache<Value, Computer>;
 
-/// Composer
+/// Composition computer
 #[derive(Default)]
-pub(in crate::app) struct Composer;
-
-fn stereospecific_number_struct(value: &str) -> Expr {
-    as_struct(vec![
-        col("Index"),
-        col("Label"),
-        col("Carbons"),
-        col("Doubles"),
-        col("Triples"),
-        col(value).alias("Value"),
-    ])
-}
-
-fn array(name: &str) -> Expr {
-    concat_list(vec![
-        r#struct("SN1").field_by_name(name),
-        r#struct("SN2").field_by_name(name),
-        r#struct("SN3").field_by_name(name),
-    ])
-    .unwrap()
-    .list()
-    .to_array(3)
-}
-
-/// Extension methods for [`DataFrame`]
-trait DataFrameExt: Sized {
-    fn cartesian_product(self) -> PolarsResult<Self>;
-}
-
-impl DataFrameExt for DataFrame {
-    fn cartesian_product(mut self) -> PolarsResult<Self> {
-        self = self.with_row_index("Index".into(), None)?;
-        self.cross_join(&self, Some("SN2".into()), None)?
-            .cross_join(&self, Some("SN3".into()), None)
-    }
-}
+pub(in crate::app) struct Computer;
 
 /// Extension methods for [`LazyFrame`]
 trait LazyFrameExt: Sized {
@@ -59,7 +21,7 @@ trait LazyFrameExt: Sized {
 
     fn composition(self, settings: &Settings) -> PolarsResult<Self>;
 
-    fn sort_columns<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self>;
+    fn reorder<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self>;
 }
 
 impl LazyFrameExt for LazyFrame {
@@ -67,15 +29,15 @@ impl LazyFrameExt for LazyFrame {
         let lazy_frame = self.with_row_index("Index", None);
         lazy_frame
             .clone()
-            .select([stereospecific_number_struct("DAG13.Calculated").alias("SN1")])
+            .select([fatty_acid("DAG13.Calculated").alias("SN1")])
             .cross_join(
                 lazy_frame
                     .clone()
-                    .select([stereospecific_number_struct("MAG2.Calculated").alias("SN2")]),
+                    .select([fatty_acid("MAG2.Calculated").alias("SN2")]),
                 None,
             )
             .cross_join(
-                lazy_frame.select([stereospecific_number_struct("DAG13.Calculated").alias("SN3")]),
+                lazy_frame.select([fatty_acid("DAG13.Calculated").alias("SN3")]),
                 None,
             )
             // TODO
@@ -107,8 +69,8 @@ impl LazyFrameExt for LazyFrame {
             };
             // Sort
             self = match composition.stereospecificity {
-                None => self.sort_columns(["SN1", "SN2", "SN3"], sort)?,
-                Some(Stereospecificity::Positional) => self.sort_columns(["SN1", "SN3"], sort)?,
+                None => self.reorder(["SN1", "SN2", "SN3"], sort)?,
+                Some(Stereospecificity::Positional) => self.reorder(["SN1", "SN3"], sort)?,
                 Some(Stereospecificity::Stereo) => self,
             };
             // Label
@@ -180,7 +142,7 @@ impl LazyFrameExt for LazyFrame {
         }
     }
 
-    fn sort_columns<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self> {
+    fn reorder<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self> {
         const NAME: &str = "TAG";
 
         let mut lazy_frame = self.with_column(
@@ -199,6 +161,23 @@ impl LazyFrameExt for LazyFrame {
         }
         Ok(lazy_frame.drop([NAME]))
     }
+}
+
+// fn stereospecific_number_struct(value: &str) -> Expr {
+//     as_struct(vec![
+//         col("Index"),
+//         col("Label"),
+//         col("Carbons"),
+//         col("Doubles"),
+//         col("Triples"),
+//         col(value).alias("Value"),
+//     ])
+// }
+fn fatty_acid(value: &str) -> Expr {
+    col("FA")
+        .r#struct()
+        .with_fields(vec![col("Index"), col(value).alias("Value")])
+        .unwrap()
 }
 
 fn sort_by_ecn() -> Expr {
@@ -387,40 +366,7 @@ fn value() -> Expr {
 //     // // .field_by_names(names)
 // }
 
-fn id(name: &str) -> Expr {
-    fn format(expr: Expr) -> Expr {
-        expr.map(
-            |series| {
-                Ok(series
-                    .cast(&DataType::UInt8)?
-                    .u8()?
-                    .into_iter()
-                    .map(|item| Some(format!("{:02}", item?)))
-                    .collect())
-            },
-            GetOutput::from_type(DataType::String),
-        )
-    }
-    fn indices(expr: Expr) -> Expr {
-        expr.list()
-            .eval(format(col("")), false)
-            .list()
-            .join(lit(""), true)
-    }
-    concat_str(
-        [
-            format(r#struct(name).field_by_name("Carbons")),
-            format(r#struct(name).field_by_name("Doubles").list().len()),
-            format(r#struct(name).field_by_name("Triples").list().len()),
-            indices(r#struct(name).field_by_name("Doubles")),
-            // indices("Triples"),
-        ],
-        "",
-        false,
-    )
-}
-
-impl Composer {
+impl Computer {
     fn gunstone(&mut self, key: Key) -> DataFrame {
         // let gunstone = Gunstone::new(s);
         let lazy_frame = key.data_frame.clone().lazy();
@@ -514,7 +460,7 @@ impl Composer {
     }
 }
 
-impl ComputerMut<Key<'_>, Value> for Composer {
+impl ComputerMut<Key<'_>, Value> for Computer {
     fn compute(&mut self, key: Key) -> Value {
         match key.settings.method {
             Method::Gunstone => self.gunstone(key),
@@ -523,32 +469,29 @@ impl ComputerMut<Key<'_>, Value> for Composer {
     }
 }
 
-/// Key
+/// Composition key
 #[derive(Clone, Copy, Debug)]
-pub struct Key<'a> {
+pub(in crate::app) struct Key<'a> {
     pub(in crate::app) data_frame: &'a DataFrame,
     pub(in crate::app) settings: &'a Settings,
 }
 
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for label in self.data_frame.str("Label") {
-            label.hash(state);
+        for fatty_acid in self.data_frame["FA"].iter() {
+            fatty_acid.hash(state);
         }
-        for carbons in self.data_frame.u8("Carbons") {
-            carbons.hash(state);
+        for mag2 in self.data_frame["MAG2.Calculated"].iter() {
+            mag2.hash(state);
         }
-        for mag2 in self.data_frame.f64("MAG2.Calculated") {
-            mag2.map(OrderedFloat).hash(state);
-        }
-        for dag13 in self.data_frame.f64("DAG13.Calculated") {
-            dag13.map(OrderedFloat).hash(state);
+        for dag13 in self.data_frame["DAG13.Calculated"].iter() {
+            dag13.hash(state);
         }
         self.settings.hash(state);
     }
 }
 
-/// Value
+/// Composition value
 type Value = DataFrame;
 
 // impl Composer {

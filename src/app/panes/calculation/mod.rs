@@ -1,10 +1,13 @@
 use self::settings::{From, Settings};
 use super::Behavior;
 use crate::{
-    app::computers::calculator::{Calculated, Key as CalculatorKey},
+    app::computers::{CalculationComputed, CalculationKey},
     fatty_acid::{DisplayWithOptions, FattyAcid},
     localization::localize,
-    utils::ui::{SubscriptedTextFormat, UiExt},
+    utils::{
+        ui::{SubscriptedTextFormat, UiExt},
+        DataFrameExt,
+    },
 };
 use anyhow::Result;
 use egui::{Direction, Layout, Ui};
@@ -27,44 +30,38 @@ impl Pane {
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
         if let Err(error) = || -> Result<()> {
             behavior.data.fatty_acids = ui.memory_mut(|memory| {
-                memory.caches.cache::<Calculated>().get(CalculatorKey {
-                    data_frame: &behavior.data.fatty_acids,
-                    settings: &self.settings,
-                })
+                memory
+                    .caches
+                    .cache::<CalculationComputed>()
+                    .get(CalculationKey {
+                        data_frame: &behavior.data.fatty_acids,
+                        settings: &self.settings,
+                    })
             });
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
             let total_rows = behavior.data.fatty_acids.height();
-            let labels = behavior.data.fatty_acids["Label"].str().unwrap();
-            let carbons = behavior.data.fatty_acids["Carbons"].u8().unwrap();
-            let doubles = behavior.data.fatty_acids["Doubles"].list().unwrap();
-            let triples = behavior.data.fatty_acids["Triples"].list().unwrap();
+            let fatty_acids = behavior.data.fatty_acids.destruct("FA");
+            let labels = fatty_acids.str("Label");
+            let carbons = fatty_acids.u8("Carbons");
+            let doubles = fatty_acids.list("Doubles");
+            let triples = fatty_acids.list("Triples");
             let tags = (
-                behavior.data.fatty_acids["TAG.Experimental"].f64().unwrap(),
-                behavior.data.fatty_acids["TAG.Theoretical"].f64().unwrap(),
+                behavior.data.fatty_acids.f64("TAG.Experimental"),
+                behavior.data.fatty_acids.f64("TAG.Theoretical"),
             );
             let dags1223 = (
-                behavior.data.fatty_acids["DAG1223.Experimental"]
-                    .f64()
-                    .unwrap(),
-                behavior.data.fatty_acids["DAG1223.Theoretical"]
-                    .f64()
-                    .unwrap(),
+                behavior.data.fatty_acids.f64("DAG1223.Experimental"),
+                behavior.data.fatty_acids.f64("DAG1223.Theoretical"),
             );
             let mags2 = (
-                behavior.data.fatty_acids["MAG2.Experimental"]
-                    .f64()
-                    .unwrap(),
-                behavior.data.fatty_acids["MAG2.Theoretical"].f64().unwrap(),
+                behavior.data.fatty_acids.f64("MAG2.Experimental"),
+                behavior.data.fatty_acids.f64("MAG2.Theoretical"),
             );
             let dags13 = (
-                behavior.data.fatty_acids["DAG13.Calculated"].f64().unwrap(),
-                behavior.data.fatty_acids["DAG13.DAG1223.Theoretical"]
-                    .f64()
-                    .unwrap(),
-                behavior.data.fatty_acids["DAG13.MAG2.Theoretical"]
-                    .f64()
-                    .unwrap(),
+                behavior.data.fatty_acids.f64("DAG13.Calculated"),
+                behavior.data.fatty_acids.f64("DAG13.DAG1223.Theoretical"),
+                behavior.data.fatty_acids.f64("DAG13.MAG2.Theoretical"),
             );
             TableBuilder::new(ui)
                 .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
@@ -110,10 +107,10 @@ impl Pane {
                         if index < total_rows {
                             // FA
                             row.left_align_col(|ui| {
-                                let label = labels.get(index).expect("get label");
-                                let carbons = carbons.get(index).expect("get carbons");
-                                let doubles = doubles.get_as_series(index).expect("get doubles");
-                                let triples = triples.get_as_series(index).expect("get triples");
+                                let label = labels.get(index).unwrap();
+                                let carbons = carbons.get(index).unwrap();
+                                let doubles = doubles.get_as_series(index).unwrap();
+                                let triples = triples.get_as_series(index).unwrap();
                                 let fatty_acid = &mut FattyAcid {
                                     carbons,
                                     doubles: doubles

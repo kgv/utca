@@ -37,15 +37,13 @@ impl Pane {
         let width = ui.spacing().interact_size.x;
         let total_rows = behavior.data.fatty_acids.height();
 
-        // let fatty_acids = behavior.data.fatty_acids_frame.unnest(["FA"])?;
+        let fatty_acids = behavior.data.fatty_acids.destruct("FA");
         // let triples = fatty_acids.explode(["Triples"])?;
         // let triples = triples["Triples"].i8()?;
-        let labels = behavior.data.fatty_acids.str("Label");
-        let carbons = behavior.data.fatty_acids.u8("Carbons");
-        let doubles = behavior.data.fatty_acids.list("Doubles");
-        let triples = behavior.data.fatty_acids.list("Triples");
-        // let doubles = behavior.data.fatty_acids.list("Doubles");
-        // let triples = behavior.data.fatty_acids.list("Triples");
+        let labels = fatty_acids.str("Label");
+        let carbons = fatty_acids.u8("Carbons");
+        let doubles = fatty_acids.list("Doubles");
+        let triples = fatty_acids.list("Triples");
         let tags = behavior.data.fatty_acids.f64("TAG");
         let dags1223 = behavior.data.fatty_acids.f64("DAG1223");
         let mags2 = behavior.data.fatty_acids.f64("MAG2");

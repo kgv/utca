@@ -1,6 +1,6 @@
 use crate::{
     r#const::relative_atomic_mass::{C, H, O},
-    utils::{r#struct, ExprExt as _},
+    utils::ExprExt as _,
 };
 use polars::prelude::*;
 

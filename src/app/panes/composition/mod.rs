@@ -1,7 +1,7 @@
 use self::settings::Settings;
 use super::Behavior;
 use crate::{
-    app::computers::composer::{Composed, Key as CompositionKey},
+    app::computers::{CompositionComputed, CompositionKey},
     localization::localize,
     utils::DataFrameExt,
 };
@@ -26,10 +26,13 @@ impl Pane {
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
         if let Err(error) = || -> Result<()> {
             let data_frame = ui.memory_mut(|memory| {
-                memory.caches.cache::<Composed>().get(CompositionKey {
-                    data_frame: &behavior.data.fatty_acids,
-                    settings: &self.settings,
-                })
+                memory
+                    .caches
+                    .cache::<CompositionComputed>()
+                    .get(CompositionKey {
+                        data_frame: &behavior.data.fatty_acids,
+                        settings: &self.settings,
+                    })
             });
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
