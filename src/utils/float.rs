@@ -1,4 +1,4 @@
-pub(crate) trait FloatExt {
+pub trait FloatExt {
     fn is_approx_integer(&self) -> bool;
 
     fn is_approx_zero(&self) -> bool;

@@ -1,16 +1,16 @@
-use crate::{app::MAX_PRECISION, localization::titlecase};
+use crate::{app::MAX_PRECISION, localization::localize};
 use egui::{ComboBox, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
 use egui_tiles::UiResponse;
 use serde::{Deserialize, Serialize};
 
 /// Calculation settings
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) struct Settings {
-    pub(crate) percent: bool,
-    pub(crate) precision: usize,
-    pub(crate) fraction: Fraction,
-    pub(crate) from: From,
-    pub(crate) signedness: Sign,
+pub(in crate::app) struct Settings {
+    pub(in crate::app) percent: bool,
+    pub(in crate::app) precision: usize,
+    pub(in crate::app) fraction: Fraction,
+    pub(in crate::app) from: From,
+    pub(in crate::app) signedness: Sign,
 }
 
 impl Default for Settings {
@@ -26,22 +26,22 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub(crate) fn ui(&mut self, ui: &mut Ui) -> UiResponse {
+    pub(in crate::app) fn ui(&mut self, ui: &mut Ui) -> UiResponse {
         ui.visuals_mut().collapsing_header_frame = true;
-        ui.collapsing(RichText::new(titlecase!("calculation")).heading(), |ui| {
+        ui.collapsing(RichText::new(localize!("calculation")).heading(), |ui| {
             ui.separator();
             ui.horizontal(|ui| {
-                ui.label(titlecase!("precision"));
+                ui.label(localize!("precision"));
                 ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
             });
             ui.horizontal(|ui| {
-                ui.label(titlecase!("percent"));
+                ui.label(localize!("percent"));
                 ui.checkbox(&mut self.percent, "");
             });
             ui.separator();
             ui.horizontal(|ui| {
                 let fraction = &mut self.fraction;
-                ui.label(titlecase!("fraction"));
+                ui.label(localize!("fraction"));
                 ComboBox::from_id_source("fraction")
                     .selected_text(fraction.text())
                     .show_ui(ui, |ui| {
@@ -62,7 +62,7 @@ impl Settings {
                     .on_hover_text(fraction.hover_text());
             });
             ui.horizontal(|ui| {
-                ui.label(titlecase!("sign"));
+                ui.label(localize!("sign"));
                 ComboBox::from_id_source("sign")
                     .selected_text(self.signedness.text())
                     .show_ui(ui, |ui| {
@@ -93,8 +93,8 @@ impl Settings {
                 }) {
                     self.from = From::Mag2;
                 }
-                ui.label(titlecase!("from"))
-                    .on_hover_text(titlecase!("from.description"));
+                ui.label(localize!("from"))
+                    .on_hover_text(localize!("from.description"));
                 ComboBox::from_id_source("1,3")
                     .selected_text(self.from.text())
                     .show_ui(ui, |ui| {
@@ -125,9 +125,9 @@ pub(in crate::app) enum Fraction {
 impl Fraction {
     pub(in crate::app) fn text(self) -> String {
         match self {
-            Self::AsIs => titlecase!("as_is"),
-            Self::ToMole => titlecase!("to_mole_fraction"),
-            Self::ToMass => titlecase!("to_mass_fraction"),
+            Self::AsIs => localize!("as_is"),
+            Self::ToMole => localize!("to_mole_fraction"),
+            Self::ToMass => localize!("to_mass_fraction"),
             Self::Pchelkin => "Pchelkin".to_owned(),
         }
     }
@@ -144,47 +144,47 @@ impl Fraction {
 
 /// From
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) enum From {
+pub(in crate::app) enum From {
     Dag1223,
     Mag2,
 }
 
 impl From {
-    pub(crate) fn text(self) -> String {
+    pub(in crate::app) fn text(self) -> String {
         match self {
-            Self::Dag1223 => titlecase!("from_dag"),
-            Self::Mag2 => titlecase!("from_mag"),
+            Self::Dag1223 => localize!("from_dag"),
+            Self::Mag2 => localize!("from_mag"),
         }
     }
 
-    pub(crate) fn hover_text(self) -> String {
+    pub(in crate::app) fn hover_text(self) -> String {
         match self {
-            Self::Dag1223 => titlecase!("from_dag.description"),
-            Self::Mag2 => titlecase!("from_mag.description"),
+            Self::Dag1223 => localize!("from_dag.description"),
+            Self::Mag2 => localize!("from_mag.description"),
         }
     }
 }
 
 /// Sign
 #[derive(Clone, Copy, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) enum Sign {
+pub(in crate::app) enum Sign {
     Signed,
     #[default]
     Unsigned,
 }
 
 impl Sign {
-    pub(crate) fn text(self) -> String {
+    pub(in crate::app) fn text(self) -> String {
         match self {
-            Self::Signed => titlecase!("signed"),
-            Self::Unsigned => titlecase!("unsigned"),
+            Self::Signed => localize!("signed"),
+            Self::Unsigned => localize!("unsigned"),
         }
     }
 
-    pub(crate) fn hover_text(self) -> String {
+    pub(in crate::app) fn hover_text(self) -> String {
         match self {
-            Self::Signed => titlecase!("signed.description"),
-            Self::Unsigned => titlecase!("unsigned.description"),
+            Self::Signed => localize!("signed.description"),
+            Self::Unsigned => localize!("unsigned.description"),
         }
     }
 }

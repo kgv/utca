@@ -526,8 +526,8 @@ impl ComputerMut<Key<'_>, Value> for Composer {
 /// Key
 #[derive(Clone, Copy, Debug)]
 pub struct Key<'a> {
-    pub(crate) data_frame: &'a DataFrame,
-    pub(crate) settings: &'a Settings,
+    pub(in crate::app) data_frame: &'a DataFrame,
+    pub(in crate::app) settings: &'a Settings,
 }
 
 impl Hash for Key<'_> {

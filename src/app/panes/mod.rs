@@ -1,44 +1,49 @@
 // use crate::localization::{CALCULATION, COMPOSITION, CONFIGURATION, EDIT, RESIZE};
-use crate::localization::titlecase;
+use self::behavior::Behavior;
+use crate::localization::localize;
 use egui::{menu::bar, RichText, Ui, WidgetText};
-use egui_phosphor::regular::{ARROWS_HORIZONTAL, CALCULATOR, INTERSECT_THREE, NOTE_PENCIL, PENCIL};
+use egui_phosphor::regular::{
+    ARROWS_HORIZONTAL, CALCULATOR, INTERSECT_THREE, NOTE_PENCIL, PENCIL, TABLE,
+};
 use egui_tiles::{Tile, TileId, Tree, UiResponse};
 use serde::{Deserialize, Serialize};
-
-use super::data::Data;
 
 const SIZE: f32 = 16.0;
 
 /// Central pane
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub(crate) enum Pane {
+pub(in crate::app) enum Pane {
     Configuration(configuration::Pane),
     Calculation(calculation::Pane),
     Composition(composition::Pane),
+    Comparison(comparison::Pane),
 }
 
 impl Pane {
-    pub(crate) const fn icon(&self) -> &str {
+    pub(in crate::app) const fn icon(&self) -> &str {
         match self {
             Self::Configuration(_) => NOTE_PENCIL,
             Self::Calculation(_) => CALCULATOR,
             Self::Composition(_) => INTERSECT_THREE,
+            Self::Comparison(_) => TABLE,
         }
     }
 
-    pub(crate) fn title(&self) -> String {
+    pub(in crate::app) fn title(&self) -> String {
         match self {
-            Self::Configuration(_) => titlecase!("configuration"),
-            Self::Calculation(_) => titlecase!("calculation"),
-            Self::Composition(_) => titlecase!("composition"),
+            Self::Configuration(_) => localize!("configuration"),
+            Self::Calculation(_) => localize!("calculation"),
+            Self::Composition(_) => localize!("composition"),
+            Self::Comparison(_) => localize!("comparison"),
         }
     }
 
-    fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
+    fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
         match self {
             Self::Configuration(pane) => pane.ui(ui, behavior),
             Self::Calculation(pane) => pane.ui(ui, behavior),
             Self::Composition(pane) => pane.ui(ui, behavior),
+            Self::Comparison(pane) => pane.ui(ui, behavior),
         }
     }
 
@@ -47,6 +52,7 @@ impl Pane {
             Self::Configuration(pane) => pane.settings.ui(ui),
             Self::Calculation(pane) => pane.settings.ui(ui),
             Self::Composition(pane) => pane.settings.ui(ui),
+            Self::Comparison(pane) => pane.settings.ui(ui),
         }
     }
 }
@@ -57,6 +63,7 @@ impl From<&Pane> for Kind {
             Pane::Configuration(_) => Self::Configuration,
             Pane::Calculation(_) => Self::Calculation,
             Pane::Composition(_) => Self::Composition,
+            Pane::Comparison(_) => Self::Comparison,
         }
     }
 }
@@ -69,38 +76,22 @@ impl PartialEq for Pane {
 
 /// Central pane kind
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum Kind {
+pub(in crate::app) enum Kind {
     Configuration,
     Calculation,
     Composition,
-}
-
-/// Behavior
-#[derive(Debug)]
-pub(crate) struct Behavior<'a> {
-    pub(crate) data: &'a mut Data,
-    pub(crate) settings: &'a Settings,
-    pub(crate) close: Option<TileId>,
-}
-
-impl egui_tiles::Behavior<Pane> for Behavior<'_> {
-    fn tab_title_for_pane(&mut self, pane: &Pane) -> WidgetText {
-        pane.title().into()
-    }
-
-    fn pane_ui(&mut self, ui: &mut Ui, _tile_id: TileId, pane: &mut Pane) -> UiResponse {
-        pane.ui(ui, self)
-    }
+    Comparison,
 }
 
 /// Settings
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) struct Settings {
-    pub(crate) resizable: bool,
-    pub(crate) editable: bool,
+pub(in crate::app) struct Settings {
+    pub(in crate::app) resizable: bool,
+    pub(in crate::app) editable: bool,
 }
+
 impl Settings {
-    pub(crate) const fn new() -> Self {
+    pub(in crate::app) const fn new() -> Self {
         Self {
             resizable: false,
             editable: false,
@@ -109,15 +100,15 @@ impl Settings {
 }
 
 impl Settings {
-    pub(crate) fn ui(&mut self, ui: &mut Ui, tree: &mut Tree<Pane>) {
+    pub(in crate::app) fn ui(&mut self, ui: &mut Ui, tree: &mut Tree<Pane>) {
         bar(ui, |ui| {
             ui.toggle_value(
                 &mut self.resizable,
                 RichText::new(ARROWS_HORIZONTAL).size(SIZE),
             )
-            .on_hover_text(titlecase!("resize"));
+            .on_hover_text(localize!("resize"));
             ui.toggle_value(&mut self.editable, RichText::new(PENCIL).size(SIZE))
-                .on_hover_text(titlecase!("edit"));
+                .on_hover_text(localize!("edit"));
         });
         ui.separator();
         for tile_id in tree.active_tiles() {
@@ -136,29 +127,9 @@ impl Default for Settings {
     }
 }
 
-/// [`Tree`] extension methods
-pub(crate) trait TreeExt {
-    fn insert_pane(&mut self, pane: Pane);
-}
-
-impl TreeExt for Tree<Pane> {
-    fn insert_pane(&mut self, pane: Pane) {
-        let child = self.tiles.insert_pane(pane);
-        if let Some(root) = self.root {
-            if let Some(tile) = self.tiles.get_mut(root) {
-                if let Tile::Container(container) = tile {
-                    container.add_child(child);
-                } else {
-                    self.root = Some(self.tiles.insert_vertical_tile(vec![root, child]));
-                }
-            }
-        } else {
-            self.root = Some(child)
-        }
-    }
-}
-
-pub(crate) mod calculation;
-pub(crate) mod composition;
-pub(crate) mod configuration;
-pub(crate) mod files;
+pub(in crate::app) mod behavior;
+pub(in crate::app) mod calculation;
+pub(in crate::app) mod comparison;
+pub(in crate::app) mod composition;
+pub(in crate::app) mod configuration;
+pub(in crate::app) mod files;

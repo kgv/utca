@@ -1,10 +1,11 @@
 use self::{
     data::Data,
-    panes::{files::Files, Behavior, Pane, Settings, TreeExt},
+    panes::{behavior::Behavior, files::Files, Pane, Settings},
     windows::{About, Github},
 };
 use crate::{
-    localization::{titlecase, UiExt},
+    localization::{localize, UiExt},
+    utils::TreeExt,
     widgets::FileDialog,
 };
 use eframe::{get_value, set_value, CreationContext, Storage, APP_KEY};
@@ -23,8 +24,6 @@ use egui_phosphor::{
     Variant,
 };
 use egui_tiles::Tree;
-use indexmap::{IndexMap, IndexSet};
-use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::BorrowMut,
@@ -33,8 +32,7 @@ use std::{
     sync::mpsc::{channel, Receiver, Sender},
     time::Duration,
 };
-use tracing::{debug, error, info, trace};
-use url::Url;
+use tracing::{error, info, trace};
 
 /// IEEE 754-2008
 const MAX_PRECISION: usize = 16;
@@ -45,9 +43,6 @@ const NOTIFICATIONS_DURATION: Duration = Duration::from_secs(15);
 
 const SIZE: f32 = 32.0;
 
-// pub(crate) macro icon($icon:expr,x32) {
-//     RichText::new($icon).size(SIZE)
-// }
 pub(crate) macro icon {
     ($icon:expr, x8) => { RichText::new($icon).size(8.0) },
     ($icon:expr, x16) => { RichText::new($icon).size(16.0) },
@@ -252,6 +247,9 @@ impl App {
                         close: None,
                     };
                     self.tree.ui(&mut behavior, ui);
+                    if let Some(id) = behavior.close {
+                        self.tree.tiles.remove(id);
+                    }
                 }
             });
     }
@@ -259,7 +257,6 @@ impl App {
     // Left panel
     fn left_panel(&mut self, ctx: &egui::Context) {
         SidePanel::left("left_panel")
-            .frame(egui::Frame::side_top_panel(&ctx.style()).inner_margin(0.0))
             .resizable(true)
             .show_animated(ctx, self.left_panel, |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
@@ -276,7 +273,7 @@ impl App {
             bar(ui, |ui| {
                 // Left panel
                 ui.toggle_value(&mut self.left_panel, icon!(SIDEBAR_SIMPLE, x32))
-                    .on_hover_text(titlecase!("left_panel"));
+                    .on_hover_text(localize!("left_panel"));
                 ui.separator();
                 // Light/Dark
                 ui.light_dark_button(SIZE);
@@ -284,7 +281,7 @@ impl App {
                 // Reset
                 if ui
                     .button(icon!(TRASH, x32))
-                    .on_hover_text(titlecase!("reset_application"))
+                    .on_hover_text(localize!("reset_application"))
                     .clicked()
                 {
                     *self = Default::default();
@@ -293,7 +290,7 @@ impl App {
                 ui.separator();
                 if ui
                     .button(icon!(ARROWS_CLOCKWISE, x32))
-                    .on_hover_text(titlecase!("reset_gui"))
+                    .on_hover_text(localize!("reset_gui"))
                     .clicked()
                 {
                     ui.memory_mut(|memory| *memory = Default::default());
@@ -323,7 +320,10 @@ impl App {
                 toggle(ui, Pane::Calculation(Default::default()));
                 // Composition
                 toggle(ui, Pane::Composition(Default::default()));
+                // Visualization
                 if ui.button(icon!(CHART_BAR, x32)).clicked() {}
+                // Comparison
+                toggle(ui, Pane::Comparison(Default::default()));
                 ui.separator();
                 // Load
                 if ui.button(icon!(CLOUD_ARROW_DOWN, x32)).clicked() {
@@ -347,7 +347,7 @@ impl App {
                     }
                     ui.separator();
                     // Locale
-                    ui.locale_button().on_hover_text(titlecase!("language"));
+                    ui.locale_button().on_hover_text(localize!("language"));
                 });
 
                 // if ui.button("Cl").clicked() {

@@ -4,24 +4,25 @@ use egui_phosphor::regular::{
     ARROWS_OUT, ARROWS_OUT_CARDINAL, CARET_UP_DOWN, HAND, HAND_GRABBING, TRASH,
 };
 
-use crate::{app::data::Data, localization::titlecase};
+use crate::{app::data::Data, localization::localize};
 
 /// Files
 #[derive(Debug)]
-pub(crate) struct Files<'a> {
-    pub(crate) data: &'a mut Vec<Data>,
-    pub(crate) index: &'a mut usize,
+pub(in crate::app) struct Files<'a> {
+    pub(in crate::app) data: &'a mut Vec<Data>,
+    pub(in crate::app) index: &'a mut usize,
 }
 
 impl<'a> Files<'a> {
-    pub(crate) fn new(data: &'a mut Vec<Data>, index: &'a mut usize) -> Self {
+    pub(in crate::app) fn new(data: &'a mut Vec<Data>, index: &'a mut usize) -> Self {
         Self { data, index }
     }
 }
 
 impl Widget for Files<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        ui.collapsing(RichText::new(titlecase!("files")).heading(), |ui| {
+        ui.visuals_mut().collapsing_header_frame = true;
+        ui.collapsing(RichText::new(localize!("files")).heading(), |ui| {
             let mut remove = None;
             // dnd(ui, Id::new("files")).show_vec(self.data, |ui, item, handle, state| {
             //     ui.horizontal(|ui| {

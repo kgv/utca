@@ -1,13 +1,13 @@
-use crate::localization::titlecase;
+use crate::localization::localize;
 use egui::{Response, Ui, Widget};
 
 /// Cell widget
-pub(crate) struct Cell {
-    pub(crate) experimental: Option<f64>,
-    pub(crate) theoretical: Option<f64>,
-    pub(crate) enabled: bool,
-    pub(crate) percent: bool,
-    pub(crate) precision: usize,
+pub(in crate::app) struct Cell {
+    pub(in crate::app) experimental: Option<f64>,
+    pub(in crate::app) theoretical: Option<f64>,
+    pub(in crate::app) enabled: bool,
+    pub(in crate::app) percent: bool,
+    pub(in crate::app) precision: usize,
 }
 
 impl Widget for Cell {
@@ -23,9 +23,9 @@ impl Widget for Cell {
         })
         .response
         .on_hover_ui(|ui| {
-            ui.heading(titlecase!("properties"));
-            ui.label(format!("{}: {experimental}", titlecase!("experimental")));
-            ui.label(format!("{}: {theoretical}", titlecase!("theoretical")));
+            ui.heading(localize!("properties"));
+            ui.label(format!("{}: {experimental}", localize!("experimental")));
+            ui.label(format!("{}: {theoretical}", localize!("theoretical")));
         })
     }
 }

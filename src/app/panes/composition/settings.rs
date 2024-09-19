@@ -1,7 +1,7 @@
 use crate::{
     acylglycerol::Stereospecificity,
     app::MAX_PRECISION,
-    localization::titlecase,
+    localization::localize,
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
 };
 use egui::{ComboBox, DragValue, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
@@ -10,70 +10,70 @@ use egui_tiles::UiResponse;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
-pub(crate) const NC: Composition = Composition {
+pub(in crate::app) const NC: Composition = Composition {
     stereospecificity: None,
     scope: Scope::Ecn,
 };
-pub(crate) const PNC: Composition = Composition {
+pub(in crate::app) const PNC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Positional),
     scope: Scope::Ecn,
 };
-pub(crate) const SNC: Composition = Composition {
+pub(in crate::app) const SNC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
     scope: Scope::Ecn,
 };
-pub(crate) const MC: Composition = Composition {
+pub(in crate::app) const MC: Composition = Composition {
     stereospecificity: None,
     scope: Scope::Mass,
 };
-pub(crate) const PMC: Composition = Composition {
+pub(in crate::app) const PMC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Positional),
     scope: Scope::Mass,
 };
-pub(crate) const SMC: Composition = Composition {
+pub(in crate::app) const SMC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
     scope: Scope::Mass,
 };
-pub(crate) const SC: Composition = Composition {
+pub(in crate::app) const SC: Composition = Composition {
     stereospecificity: None,
     scope: Scope::Species,
 };
-pub(crate) const PSC: Composition = Composition {
+pub(in crate::app) const PSC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Positional),
     scope: Scope::Species,
 };
-pub(crate) const SSC: Composition = Composition {
+pub(in crate::app) const SSC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
     scope: Scope::Species,
 };
-pub(crate) const TC: Composition = Composition {
+pub(in crate::app) const TC: Composition = Composition {
     stereospecificity: None,
     scope: Scope::Type,
 };
-pub(crate) const PTC: Composition = Composition {
+pub(in crate::app) const PTC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Positional),
     scope: Scope::Type,
 };
-pub(crate) const STC: Composition = Composition {
+pub(in crate::app) const STC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
     scope: Scope::Type,
 };
 
 /// Composition settings
 #[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) struct Settings {
-    pub(crate) percent: bool,
-    pub(crate) precision: usize,
+pub(in crate::app) struct Settings {
+    pub(in crate::app) percent: bool,
+    pub(in crate::app) precision: usize,
 
-    pub(crate) adduct: OrderedFloat<f64>,
-    pub(crate) method: Method,
-    pub(crate) compositions: Vec<Composition>,
-    pub(crate) sort: Sort,
-    pub(crate) order: Order,
+    pub(in crate::app) adduct: OrderedFloat<f64>,
+    pub(in crate::app) method: Method,
+    pub(in crate::app) compositions: Vec<Composition>,
+    pub(in crate::app) sort: Sort,
+    pub(in crate::app) order: Order,
 }
 
 impl Settings {
-    pub(crate) const fn new() -> Self {
+    pub(in crate::app) const fn new() -> Self {
         Self {
             percent: true,
             precision: 1,
@@ -87,22 +87,22 @@ impl Settings {
 }
 
 impl Settings {
-    pub(crate) fn ui(&mut self, ui: &mut Ui) -> UiResponse {
+    pub(in crate::app) fn ui(&mut self, ui: &mut Ui) -> UiResponse {
         ui.visuals_mut().collapsing_header_frame = true;
-        ui.collapsing(RichText::new(titlecase!("composition")).heading(), |ui| {
+        ui.collapsing(RichText::new(localize!("composition")).heading(), |ui| {
             ui.separator();
             ui.horizontal(|ui| {
-                ui.label(titlecase!("precision"));
+                ui.label(localize!("precision"));
                 ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
             });
             ui.horizontal(|ui| {
-                ui.label(titlecase!("percent"));
+                ui.label(localize!("percent"));
                 ui.checkbox(&mut self.percent, "");
             });
             ui.separator();
             ui.horizontal(|ui| {
                 let adduct = &mut self.adduct;
-                ui.label(titlecase!("adduct"));
+                ui.label(localize!("adduct"));
                 ui.add(
                     DragValue::new(&mut adduct.0)
                         .range(0.0..=f64::MAX)
@@ -137,7 +137,7 @@ impl Settings {
                 }) {
                     self.method = Method::VanderWal;
                 }
-                ui.label(titlecase!("method"));
+                ui.label(localize!("method"));
                 ComboBox::from_id_source("method")
                     .selected_text(self.method.text())
                     .show_ui(ui, |ui| {
@@ -160,7 +160,7 @@ impl Settings {
             // Group
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.label(titlecase!("group"));
+                    ui.label(localize!("group"));
                     if ui.button(PLUS).clicked() {
                         self.compositions.push(Composition::new());
                     }
@@ -239,7 +239,7 @@ impl Settings {
             });
             // Sort
             ui.horizontal(|ui| {
-                ui.label(titlecase!("sort"));
+                ui.label(localize!("sort"));
                 ComboBox::from_id_source("sort")
                     .selected_text(self.sort.text())
                     .show_ui(ui, |ui| {
@@ -252,7 +252,7 @@ impl Settings {
                     .on_hover_text(self.sort.hover_text());
             });
             ui.horizontal(|ui| {
-                ui.label(titlecase!("order"));
+                ui.label(localize!("order"));
                 ComboBox::from_id_source("order")
                     .selected_text(self.order.text())
                     .show_ui(ui, |ui| {
@@ -285,82 +285,82 @@ impl Default for Settings {
 
 /// Method
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) enum Method {
+pub(in crate::app) enum Method {
     Gunstone,
     VanderWal,
 }
 
 impl Method {
-    pub(crate) fn text(&self) -> String {
+    pub(in crate::app) fn text(&self) -> String {
         match self {
-            Self::Gunstone => titlecase!("gunstone"),
-            Self::VanderWal => titlecase!("vander_wal"),
+            Self::Gunstone => localize!("gunstone"),
+            Self::VanderWal => localize!("vander_wal"),
         }
     }
 
-    pub(crate) fn hover_text(&self) -> String {
+    pub(in crate::app) fn hover_text(&self) -> String {
         match self {
-            Self::Gunstone => titlecase!("gunstone.description"),
-            Self::VanderWal => titlecase!("vander_wal.description"),
+            Self::Gunstone => localize!("gunstone.description"),
+            Self::VanderWal => localize!("vander_wal.description"),
         }
     }
 }
 
 /// Sort
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) enum Sort {
+pub(in crate::app) enum Sort {
     Key,
     Value,
 }
 
 impl Sort {
-    pub(crate) fn text(self) -> String {
+    pub(in crate::app) fn text(self) -> String {
         match self {
-            Self::Key => titlecase!("key"),
-            Self::Value => titlecase!("value"),
+            Self::Key => localize!("key"),
+            Self::Value => localize!("value"),
         }
     }
 
-    pub(crate) fn hover_text(self) -> String {
+    pub(in crate::app) fn hover_text(self) -> String {
         match self {
-            Self::Key => titlecase!("key.description"),
-            Self::Value => titlecase!("value.description"),
+            Self::Key => localize!("key.description"),
+            Self::Value => localize!("value.description"),
         }
     }
 }
 
 /// Order
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) enum Order {
+pub(in crate::app) enum Order {
     Ascending,
     Descending,
 }
 
 impl Order {
-    pub(crate) fn text(self) -> String {
+    pub(in crate::app) fn text(self) -> String {
         match self {
-            Self::Ascending => titlecase!("ascending"),
-            Self::Descending => titlecase!("descending"),
+            Self::Ascending => localize!("ascending"),
+            Self::Descending => localize!("descending"),
         }
     }
 
-    pub(crate) fn hover_text(self) -> String {
+    pub(in crate::app) fn hover_text(self) -> String {
         match self {
-            Self::Ascending => titlecase!("ascending.description"),
-            Self::Descending => titlecase!("descending.description"),
+            Self::Ascending => localize!("ascending.description"),
+            Self::Descending => localize!("descending.description"),
         }
     }
 }
 
 /// Group
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(crate) struct Composition {
-    pub(crate) scope: Scope,
-    pub(crate) stereospecificity: Option<Stereospecificity>,
+pub(in crate::app) struct Composition {
+    pub(in crate::app) scope: Scope,
+    pub(in crate::app) stereospecificity: Option<Stereospecificity>,
 }
 
 impl Composition {
-    pub(crate) const fn new() -> Self {
+    pub(in crate::app) const fn new() -> Self {
         Self {
             stereospecificity: Some(Stereospecificity::Positional),
             scope: Scope::Species,
@@ -369,7 +369,7 @@ impl Composition {
 }
 
 impl Composition {
-    pub(crate) fn text(&self) -> &'static str {
+    pub(in crate::app) fn text(&self) -> &'static str {
         match *self {
             NC => "NC",
             PNC => "PNC",
@@ -389,7 +389,7 @@ impl Composition {
         }
     }
 
-    pub(crate) fn hover_text(&self) -> &'static str {
+    pub(in crate::app) fn hover_text(&self) -> &'static str {
         match *self {
             NC => "Equivalent carbon number composition",
             PNC => "Positional equivalent carbon number composition",
@@ -418,7 +418,7 @@ impl Default for Composition {
 
 /// Scope
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(crate) enum Scope {
+pub(in crate::app) enum Scope {
     Ecn,
     Mass,
     Type,
@@ -426,7 +426,7 @@ pub(crate) enum Scope {
 }
 
 impl Scope {
-    pub(crate) fn text(&self) -> &'static str {
+    pub(in crate::app) fn text(&self) -> &'static str {
         match self {
             Self::Ecn => "Equivalent carbon number",
             Self::Mass => "Mass",
@@ -435,7 +435,7 @@ impl Scope {
         }
     }
 
-    pub(crate) fn hover_text(&self) -> &'static str {
+    pub(in crate::app) fn hover_text(&self) -> &'static str {
         match self {
             Self::Ecn => "ECN",
             Self::Mass => "M",

@@ -10,17 +10,17 @@ use std::{
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub(crate) struct Data {
-    pub(crate) fatty_acids: DataFrame,
-    // pub(crate) triacylglycerols: DataFrame,
+pub(in crate::app) struct Data {
+    pub(in crate::app) fatty_acids: DataFrame,
+    // pub(in crate::app) triacylglycerols: DataFrame,
 }
 
 impl Data {
-    pub(crate) const fn new(fatty_acids: DataFrame) -> Self {
+    pub(in crate::app) const fn new(fatty_acids: DataFrame) -> Self {
         Self { fatty_acids }
     }
 
-    pub(crate) fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+    pub(in crate::app) fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let contents = ron::ser::to_string_pretty(
             &self.fatty_acids.select([
                 "Label", "Carbons", "Doubles", "Triples", "TAG", "DAG1223", "MAG2",
@@ -31,7 +31,7 @@ impl Data {
         Ok(())
     }
 
-    pub(crate) fn add(&mut self) -> PolarsResult<()> {
+    pub(in crate::app) fn add(&mut self) -> PolarsResult<()> {
         self.fatty_acids = concat_df_diagonal(&[
             self.fatty_acids.clone(),
             df! {

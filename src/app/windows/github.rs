@@ -80,6 +80,7 @@ impl Github {
         Window::new(format!("{CLOUD_ARROW_DOWN} Load config"))
             .open(&mut self.open)
             .show(ctx, |ui| {
+                ui.visuals_mut().collapsing_header_frame = true;
                 ScrollArea::vertical().show(ui, |ui| {
                     if let Some(Some(tree)) = self.promise.ready() {
                         // fn key(node: &Node) -> Option<&str> {

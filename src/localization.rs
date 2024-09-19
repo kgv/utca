@@ -12,7 +12,7 @@ pub(crate) macro lowercase($key:expr) {
     LOCALIZATION.read().unwrap().0.content($key)
 }
 
-pub(crate) macro titlecase($key:literal) {
+pub(crate) macro localize($key:literal) {
     match LOCALIZATION.read().unwrap().0.content($key) {
         Some(content) => {
             let mut chars = content.chars();

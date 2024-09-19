@@ -3,14 +3,13 @@ use super::Behavior;
 use crate::{
     app::computers::calculator::{Calculated, Key as CalculatorKey},
     fatty_acid::{DisplayWithOptions, FattyAcid},
-    localization::titlecase,
+    localization::localize,
     utils::ui::{SubscriptedTextFormat, UiExt},
 };
 use anyhow::Result;
-use egui::{CursorIcon, Direction, Layout, Ui};
+use egui::{Direction, Layout, Ui};
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
-use egui_tiles::UiResponse;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
@@ -19,17 +18,13 @@ use widgets::Cell;
 
 /// Central calculation pane
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(crate) struct Pane {
+pub(in crate::app) struct Pane {
     /// Calculation special settings
-    pub(crate) settings: Settings,
+    pub(in crate::app) settings: Settings,
 }
 
 impl Pane {
-    pub(crate) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
-        let response = ui
-            .heading(titlecase!("calculation"))
-            .on_hover_cursor(CursorIcon::Grab);
-        let dragged = response.dragged();
+    pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
         if let Err(error) = || -> Result<()> {
             behavior.data.fatty_acids = ui.memory_mut(|memory| {
                 memory.caches.cache::<Calculated>().get(CalculatorKey {
@@ -81,31 +76,31 @@ impl Pane {
                 .header(height, |mut row| {
                     // Fatty acid
                     row.col(|ui| {
-                        ui.heading(titlecase!("fatty_acid.abbreviation"))
-                            .on_hover_text(titlecase!("fatty_acid"));
+                        ui.heading(localize!("fatty_acid.abbreviation"))
+                            .on_hover_text(localize!("fatty_acid"));
                     });
                     // 1,2,3-TAGs
                     row.col(|ui| {
-                        ui.heading(titlecase!("triacylglycerol.abbreviation"))
-                            .on_hover_text(titlecase!("triacylglycerol"));
+                        ui.heading(localize!("triacylglycerol.abbreviation"))
+                            .on_hover_text(localize!("triacylglycerol"));
                     });
                     // 1,2/2,3-DAGs
                     row.col(|ui| {
                         ui.heading(format!(
                             "1,2/2,3-{}",
-                            titlecase!("diacylglycerol.abbreviation"),
+                            localize!("diacylglycerol.abbreviation"),
                         ))
-                        .on_hover_text(format!("sn-1,2/2,3 {}", titlecase!("diacylglycerol")));
+                        .on_hover_text(format!("sn-1,2/2,3 {}", localize!("diacylglycerol")));
                     });
                     // 2-MAGs
                     row.col(|ui| {
-                        ui.heading(format!("2-{}", titlecase!("monoacylglycerol.abbreviation")))
-                            .on_hover_text(format!("sn-2 {}", titlecase!("monoacylglycerol")));
+                        ui.heading(format!("2-{}", localize!("monoacylglycerol.abbreviation")))
+                            .on_hover_text(format!("sn-2 {}", localize!("monoacylglycerol")));
                     });
                     // 1,3-DAGs
                     row.col(|ui| {
-                        ui.heading(format!("1,3-{}", titlecase!("diacylglycerol.abbreviation")))
-                            .on_hover_text(format!("sn-1,3 {}", titlecase!("diacylglycerol")));
+                        ui.heading(format!("1,3-{}", localize!("diacylglycerol.abbreviation")))
+                            .on_hover_text(format!("sn-1,3 {}", localize!("diacylglycerol")));
                     });
                 })
                 .body(|body| {
@@ -181,7 +176,7 @@ impl Pane {
                                 let response = ui.label(precision(value));
                                 if true {
                                     response.on_hover_ui(|ui| {
-                                        ui.heading(titlecase!("properties"));
+                                        ui.heading(localize!("properties"));
                                         let selectivity_factor = mags2
                                             .0
                                             .get(index)
@@ -190,7 +185,7 @@ impl Pane {
                                             .unwrap_or(NAN);
                                         ui.label(format!(
                                             "{}: {selectivity_factor}",
-                                            titlecase!("selectivity_factor"),
+                                            localize!("selectivity_factor"),
                                         ));
                                     });
                                 }
@@ -243,14 +238,9 @@ impl Pane {
         }() {
             error!(%error);
         }
-        if dragged {
-            UiResponse::DragStarted
-        } else {
-            UiResponse::None
-        }
     }
 }
 
-pub(crate) mod settings;
+pub(in crate::app) mod settings;
 
 mod widgets;

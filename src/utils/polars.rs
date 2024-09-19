@@ -5,7 +5,7 @@ pub fn r#struct(name: &str) -> StructNameSpace {
 }
 
 /// Extension methods for [`DataFrame`]
-pub(crate) trait DataFrameExt {
+pub trait DataFrameExt {
     fn f64(&self, name: &str) -> &Float64Chunked;
 
     fn list(&self, name: &str) -> &ListChunked;
@@ -34,7 +34,7 @@ impl DataFrameExt for DataFrame {
 }
 
 /// Extension methods for [`Expr`]
-pub(crate) trait ExprExt {
+pub trait ExprExt {
     fn normalize(self) -> Expr;
 
     fn r#struct(self) -> StructNameSpace;
@@ -68,7 +68,7 @@ impl ExprExt for Expr {
 }
 
 /// Extension methods for [`Series`]
-pub(crate) trait SeriesExt {
+pub trait SeriesExt {
     fn r#struct(&self) -> PolarsResult<&ChunkedArray<StructType>>;
 }
 

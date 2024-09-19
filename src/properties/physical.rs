@@ -8,14 +8,14 @@ use uom::si::{
 };
 
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct Properties {
-    pub(crate) dynamic_viscosity: DynamicViscosity,
-    pub(crate) molar_volume: MolarVolume,
-    pub(crate) critical_temperatures: Tag<ThermodynamicTemperature>,
+pub(in crate::app) struct Properties {
+    pub(in crate::app) dynamic_viscosity: DynamicViscosity,
+    pub(in crate::app) molar_volume: MolarVolume,
+    pub(in crate::app) critical_temperatures: Tag<ThermodynamicTemperature>,
 }
 
 impl Properties {
-    pub(crate) fn fatty_acid(formula: &Counter, t: f64) -> Self {
+    pub(in crate::app) fn fatty_acid(formula: &Counter, t: f64) -> Self {
         const A1: f64 = -6.09;
         const A2: f64 = -3.536;
         const A3: f64 = 5.40;
@@ -38,7 +38,7 @@ impl Properties {
         }
     }
 
-    pub(crate) fn triglyceride(formula: Tag<&Counter>, t: f64) -> Self {
+    pub(in crate::app) fn triglyceride(formula: Tag<&Counter>, t: f64) -> Self {
         const A1: f64 = -4.01;
         const A2: f64 = -2.954;
         const A3: f64 = 28.9;

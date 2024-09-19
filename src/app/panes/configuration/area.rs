@@ -1,14 +1,14 @@
 use egui::{DragValue, Response, Ui, Widget};
 
 /// Area
-pub(crate) struct Area<'a> {
-    pub(crate) value: &'a mut f64,
-    pub(crate) editable: bool,
-    pub(crate) precision: usize,
+pub(in crate::app) struct Area<'a> {
+    pub(in crate::app) value: &'a mut f64,
+    pub(in crate::app) editable: bool,
+    pub(in crate::app) precision: usize,
 }
 
 impl<'a> Area<'a> {
-    pub(crate) fn new(value: &'a mut f64, editable: bool, precision: usize) -> Self {
+    pub(in crate::app) fn new(value: &'a mut f64, editable: bool, precision: usize) -> Self {
         Self {
             value,
             editable,

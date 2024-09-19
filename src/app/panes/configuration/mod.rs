@@ -5,21 +5,20 @@ use self::{
     settings::Settings,
     widgets::{Change, FattyAcidWidget},
 };
-use super::Behavior;
+use super::behavior::Behavior;
 use crate::{
     app::data::Data,
     fatty_acid::{DisplayWithOptions, FattyAcid, COMMON},
-    localization::titlecase,
+    localization::localize,
     utils::{
         ui::{SubscriptedTextFormat, UiExt},
         DataFrameExt,
     },
 };
-use egui::{CursorIcon, Direction, Layout, RichText, Ui};
+use egui::{CursorIcon, Direction, Layout, Response, RichText, Ui};
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
 use egui_phosphor::regular::{ARROW_FAT_LINE_UP, PLUS, X};
-use egui_tiles::UiResponse;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
@@ -27,17 +26,13 @@ use tracing::warn;
 
 /// Central configuration pane
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(crate) struct Pane {
+pub(in crate::app) struct Pane {
     /// Configuration special settings
-    pub(crate) settings: Settings,
+    pub(in crate::app) settings: Settings,
 }
 
 impl Pane {
-    pub(crate) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> UiResponse {
-        let response = ui
-            .heading(titlecase!("configuration"))
-            .on_hover_cursor(CursorIcon::Grab);
-        let dragged = response.dragged();
+    pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
         let total_rows = behavior.data.fatty_acids.height();
@@ -75,23 +70,23 @@ impl Pane {
                     row.col(|_ui| {});
                 }
                 row.col(|ui| {
-                    ui.heading(titlecase!("fatty_acid.abbreviation"))
-                        .on_hover_text(titlecase!("fatty_acid"));
+                    ui.heading(localize!("fatty_acid.abbreviation"))
+                        .on_hover_text(localize!("fatty_acid"));
                 });
                 row.col(|ui| {
-                    ui.heading(titlecase!("triacylglycerol.abbreviation"))
-                        .on_hover_text(titlecase!("triacylglycerol"));
+                    ui.heading(localize!("triacylglycerol.abbreviation"))
+                        .on_hover_text(localize!("triacylglycerol"));
                 });
                 row.col(|ui| {
                     ui.heading(format!(
                         "1,2/2,3-{}",
-                        titlecase!("diacylglycerol.abbreviation"),
+                        localize!("diacylglycerol.abbreviation"),
                     ))
-                    .on_hover_text(format!("sn-1,2/2,3 {}", titlecase!("diacylglycerol")));
+                    .on_hover_text(format!("sn-1,2/2,3 {}", localize!("diacylglycerol")));
                 });
                 row.col(|ui| {
-                    ui.heading(format!("2-{}", titlecase!("monoacylglycerol.abbreviation")))
-                        .on_hover_text(format!("sn-2 {}", titlecase!("monoacylglycerol")));
+                    ui.heading(format!("2-{}", localize!("monoacylglycerol.abbreviation")))
+                        .on_hover_text(format!("sn-2 {}", localize!("monoacylglycerol")));
                 });
             })
             .body(|body| {
@@ -151,11 +146,11 @@ impl Pane {
                                 ui.label(title)
                             }
                             .on_hover_ui(|ui| {
-                                ui.heading(titlecase!("fatty_acid"));
-                                ui.label(format!("{}: {fatty_acid:#}", titlecase!("formula")));
+                                ui.heading(localize!("fatty_acid"));
+                                ui.label(format!("{}: {fatty_acid:#}", localize!("formula")));
                                 ui.label(format!(
                                     "{}: C{}H{}O2",
-                                    titlecase!("formula"),
+                                    localize!("formula"),
                                     fatty_acid.c(),
                                     fatty_acid.h(),
                                 ));
@@ -266,11 +261,6 @@ impl Pane {
             if let Err(error) = event.apply(&mut behavior.data) {
                 warn!(%error);
             }
-        }
-        if dragged {
-            UiResponse::DragStarted
-        } else {
-            UiResponse::None
         }
     }
 }
