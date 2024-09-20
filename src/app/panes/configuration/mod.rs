@@ -12,7 +12,7 @@ use crate::{
     localization::localize,
     utils::{
         ui::{SubscriptedTextFormat, UiExt},
-        DataFrameExt,
+        DataFrameExt, VecExt,
     },
 };
 use egui::{Direction, Layout, RichText, Ui};
@@ -22,7 +22,7 @@ use egui_phosphor::regular::{ARROW_FAT_LINE_UP, PLUS, X};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
-use tracing::warn;
+use tracing::error;
 
 /// Central configuration pane
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -135,13 +135,15 @@ impl Pane {
                                             ),
                                             Change::Doubles => (
                                                 "FA.Doubles",
-                                                // LiteralValue::Binary(fatty_acid.doubles.clone()),
-                                                LiteralValue::Binary(Vec::new()),
+                                                LiteralValue::Binary(
+                                                    fatty_acid.doubles.clone().r#as(),
+                                                ),
                                             ),
                                             Change::Triples => (
                                                 "FA.Triples",
-                                                // LiteralValue::Binary(fatty_acid.triples.clone()),
-                                                LiteralValue::Binary(Vec::new()),
+                                                LiteralValue::Binary(
+                                                    fatty_acid.triples.clone().r#as(),
+                                                ),
                                             ),
                                         };
                                         event = Some(Event::Set {
@@ -276,7 +278,7 @@ impl Pane {
         // Mutable
         if let Some(event) = event {
             if let Err(error) = event.apply(&mut behavior.data) {
-                warn!(%error);
+                error!(%error);
             }
         }
     }
@@ -302,130 +304,11 @@ enum Event {
 impl Event {
     fn apply(self, data: &mut Data) -> PolarsResult<()> {
         match self {
-            Self::Add => data.add()?,
-            Self::Delete { row } => data.delete(row)?,
-            Self::Set { row, column, value } => data.set(row, column, value).unwrap(),
-            Self::Up { row } => data.up(row)?,
-            // Self::Set { row, column, value } => {
-            //     data.fatty_acids = data
-            //         .fatty_acids
-            //         .clone()
-            //         .lazy()
-            //         .with_row_index("Index", None)
-            //         .with_column({
-            //             let name = value.column();
-            //             when(col("Index").eq(lit(row as i64)))
-            //                 .then({
-            //                     println!("value: {value:?}");
-            //                     match value {
-            //                         Value::FaLabel(label) => lit(label),
-            //                         Value::FaCarbons(carbons) => lit(carbons),
-            //                         Value::FaDoubles(indices) | Value::FaTriples(indices) => {
-            //                             lit(Series::from_any_values(
-            //                                 // PlSmallStr::EMPTY,
-            //                                 "",
-            //                                 &[AnyValue::List(Series::from_iter(indices))],
-            //                                 false,
-            //                             )?)
-            //                         }
-            //                         // Value::Struct(label, fatty_acid) => {
-            //                         //     // let l = as_struct(vec![
-            //                         //     //     lit(label.clone()).alias("Label"),
-            //                         //     //     lit(fatty_acid.carbons).alias("Carbons"),
-            //                         //     //     concat_list(&fatty_acid.doubles)
-            //                         //     //         .unwrap_or_default()
-            //                         //     //         .alias("Doubles"),
-            //                         //     //     concat_list(&fatty_acid.triples)
-            //                         //     //         .unwrap_or_default()
-            //                         //     //         .alias("Triples"),
-            //                         //     // ]);
-            //                         //     // println!("l struct: {}", l);
-            //                         //     // println!(
-            //                         //     //     "series: {}",
-            //                         //     //     Series::from_iter(&fatty_acid.doubles)
-            //                         //     // );
-            //                         //     // println!(
-            //                         //     //     "lit: {}",
-            //                         //     //     lit(Series::from_iter(&fatty_acid.doubles))
-            //                         //     // );
-            //                         //     let t = as_struct(vec![
-            //                         //         lit(label).alias("Label"),
-            //                         //         lit(fatty_acid.carbons).alias("Carbons"),
-            //                         //         lit(Series::from_any_values_and_dtype(
-            //                         //             "",
-            //                         //             &[AnyValue::List(Series::from_iter(
-            //                         //                 &fatty_acid.doubles,
-            //                         //             ))],
-            //                         //             &DataType::List(Box::new(DataType::Int8)),
-            //                         //             true,
-            //                         //         )
-            //                         //         .unwrap())
-            //                         //         .alias("Doubles"),
-            //                         //         lit(Series::from_any_values_and_dtype(
-            //                         //             "",
-            //                         //             &[AnyValue::List(Series::from_iter(
-            //                         //                 fatty_acid.triples,
-            //                         //             ))],
-            //                         //             &DataType::List(Box::new(DataType::Int8)),
-            //                         //             true,
-            //                         //         )
-            //                         //         .unwrap())
-            //                         //         .alias("Triples"),
-            //                         //     ]);
-            //                         //     println!("t struct: {}", t);
-            //                         //     // df!(
-            //                         //     //     "Label" => &[""],
-            //                         //     //     "Carbons" => &[0u8],
-            //                         //     //     "Doubles" => &[Series::from_iter(empty::<i8>())],
-            //                         //     //     "Triples" => &[Series::from_iter(empty::<i8>())],
-            //                         //     // )?
-            //                         //     // .into_struct("FA")
-            //                         //     t
-            //                         // }
-            //                         Value::Tag(float) | Value::Dag(float) | Value::Mag(float) => {
-            //                             lit(float)
-            //                         } // Value::List(list) => {
-            //                           //     let mut builder: ListPrimitiveChunkedBuilder<Int8Type> =
-            //                           //         ListPrimitiveChunkedBuilder::new(
-            //                           //             "",
-            //                           //             total_rows,
-            //                           //             64,
-            //                           //             DataType::Int8,
-            //                           //         );
-            //                           //     for _ in 0..total_rows {
-            //                           //         builder.append_slice(&list);
-            //                           //     }
-            //                           //     let series = builder.finish().into_series();
-            //                           //     lit(LiteralValue::Series(SpecialEq::new(series)))
-            //                           // }
-            //                           // Value::String(string) => lit(string),
-            //                     }
-            //                     .alias(name)
-            //                     // if let Value::List(series) =  {
-            //                     //     let mut builder: ListPrimitiveChunkedBuilder<UInt8Type> =
-            //                     //         ListPrimitiveChunkedBuilder::new(
-            //                     //             "",
-            //                     //             total_rows,
-            //                     //             24,
-            //                     //             DataType::UInt8,
-            //                     //         );
-            //                     //     for _ in 0..total_rows {
-            //                     //         builder.append_series(series)?;
-            //                     //     }
-            //                     //     let series = builder.finish().into_series();
-            //                     //     lit(LiteralValue::Series(SpecialEq::new(series)))
-            //                     // } else {
-            //                     //     lit(value)
-            //                     // }
-            //                 })
-            //                 .otherwise(col(name))
-            //         })
-            //         .drop(["Index"])
-            //         .collect()?;
-            //     println!("self.data_frame: {}", data);
-            // }
-        };
-        Ok(())
+            Self::Add => data.add(),
+            Self::Delete { row } => data.delete(row),
+            Self::Set { row, column, value } => data.set(row, column, value),
+            Self::Up { row } => data.up(row),
+        }
     }
 }
 

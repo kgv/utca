@@ -18,6 +18,7 @@
 #![feature(hash_extract_if)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(option_get_or_insert_default)]
+#![feature(vec_into_raw_parts)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use app::App;
@@ -27,7 +28,7 @@ use app::App;
 #[tokio::main]
 async fn main() -> eframe::Result<()> {
     // std::env::set_var("POLARS_FMT_MAX_COLS", "256");
-    std::env::set_var("POLARS_FMT_MAX_ROWS", "32");
+    // std::env::set_var("POLARS_FMT_MAX_ROWS", "32");
     // std::env::set_var("POLARS_FMT_TABLE_CELL_LIST_LEN", "256");
     // std::env::set_var("POLARS_FMT_STR_LEN", "256");
 
@@ -61,9 +62,9 @@ fn main() {
 
 mod acylglycerol;
 mod app;
+mod r#const;
 mod fatty_acid;
 mod localization;
 mod properties;
-mod r#const;
 mod utils;
 mod widgets;

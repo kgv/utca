@@ -17,7 +17,7 @@ pub(in crate::app) struct Computer;
 
 /// Extension methods for [`LazyFrame`]
 trait LazyFrameExt: Sized {
-    fn cartesian_product(self) -> Self;
+    fn cartesian_product(self) -> PolarsResult<Self>;
 
     fn composition(self, settings: &Settings) -> PolarsResult<Self>;
 
@@ -25,37 +25,25 @@ trait LazyFrameExt: Sized {
 }
 
 impl LazyFrameExt for LazyFrame {
-    fn cartesian_product(self) -> Self {
+    fn cartesian_product(self) -> PolarsResult<Self> {
         let lazy_frame = self.with_row_index("Index", None);
-        lazy_frame
+        let mut data_frame = lazy_frame
             .clone()
-            .select([fatty_acid("DAG13.Calculated").alias("SN1")])
+            .select([fatty_acid("DAG13.Calculated")?.alias("SN1")])
             .cross_join(
                 lazy_frame
                     .clone()
-                    .select([fatty_acid("MAG2.Calculated").alias("SN2")]),
+                    .select([fatty_acid("MAG2.Calculated")?.alias("SN2")]),
                 None,
             )
             .cross_join(
-                lazy_frame.select([fatty_acid("DAG13.Calculated").alias("SN3")]),
+                lazy_frame.select([fatty_acid("DAG13.Calculated")?.alias("SN3")]),
                 None,
             )
-            // TODO
-            .with_column(col("SN3").map(
-                |series| {
-                    let r#struct = series.r#struct()?;
-                    let data_frame = df! {
-                        "Index" => r#struct.field_by_name("Index")?.u32()?.to_vec(),
-                        "Label" => r#struct.field_by_name("Label")?,
-                        "Carbons" => r#struct.field_by_name("Carbons")?,
-                        "Doubles" => r#struct.field_by_name("Doubles")?,
-                        "Triples" => r#struct.field_by_name("Triples")?,
-                        "Value" => r#struct.field_by_name("Value")?,
-                    }?;
-                    Ok(Some(data_frame.into_struct("SN3").into_series()))
-                },
-                GetOutput::same_type(),
-            ))
+            .collect()?;
+        // TODO https://github.com/pola-rs/polars/issues/18587
+        data_frame.as_single_chunk_par();
+        Ok(data_frame.lazy())
     }
 
     fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
@@ -173,11 +161,10 @@ impl LazyFrameExt for LazyFrame {
 //         col(value).alias("Value"),
 //     ])
 // }
-fn fatty_acid(value: &str) -> Expr {
+fn fatty_acid(value: &str) -> PolarsResult<Expr> {
     col("FA")
         .r#struct()
         .with_fields(vec![col("Index"), col(value).alias("Value")])
-        .unwrap()
 }
 
 fn sort_by_ecn() -> Expr {
@@ -240,132 +227,6 @@ fn value() -> Expr {
     col("SN1").value() * col("SN2").value() * col("SN3").value()
 }
 
-// fn normalize(self) -> Expr {
-//     self.apply(
-//         |series| {
-//             let chunked_array = series.f64()?;
-//             Ok(Some(
-//                 chunked_array
-//                     .into_iter()
-//                     .map(|option| Some(option? / chunked_array.sum()?))
-//                     .collect(),
-//             ))
-//         },
-//         GetOutput::same_type(),
-//     )
-// }
-
-// struct StereospecificNumber<T, U, V> {
-//     carbons: T,
-//     doubles: U,
-//     triples: V,
-// }
-// impl<T, U, V> Iterator for StereospecificNumber<T, U, V>
-// where
-//     T: PolarsIterator<Item = Option<u8>>,
-//     U: PolarsIterator<Item = Option<Series>>,
-//     V: PolarsIterator<Item = Option<Series>>,
-// {
-//     type Item = StereospecificNumber<Option<u8>, Option<Series>, Option<Series>>;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         Some(StereospecificNumber {
-//             carbons: self.carbons.next()?,
-//             doubles: self.doubles.next()?,
-//             triples: self.doubles.next()?,
-//         })
-//     }
-// }
-// impl<'a> StereospecificNumber<&'a UInt8Chunked, &'a ListChunked, &'a ListChunked> {
-//     fn new(s: &'a ChunkedArray<StructType>) -> PolarsResult<Self> {
-//         Ok(StereospecificNumber {
-//             carbons: s.field_by_name("Carbons")?.u8()?,
-//             doubles: s.field_by_name("Doubles")?.list()?,
-//             triples: s.field_by_name("Triples")?.list()?,
-//         })
-//     }
-// }
-
-// fn ptc(expr: Expr) -> Expr {
-//     expr.map(
-//         |series| {
-//             let chunked_array = series.r#struct()?;
-//             let sn1 = chunked_array.field_by_name("SN1")?;
-//             let sn1 = sn1.r#struct()?;
-//             let carbons = sn1.field_by_name("Carbons")?;
-//             let doubles = sn1.field_by_name("Doubles")?;
-//             let triples = sn1.field_by_name("Triples")?;
-//             let sn1 = StereospecificNumber {
-//                 carbons: carbons.u8()?.into_iter(),
-//                 doubles: doubles.list()?.into_iter(),
-//                 triples: triples.list()?.into_iter(),
-//             };
-//             let sn3 = chunked_array.field_by_name("SN3")?;
-//             let sn3 = sn3.r#struct()?;
-//             let carbons = sn3.field_by_name("Carbons")?;
-//             let doubles = sn3.field_by_name("Doubles")?;
-//             let triples = sn3.field_by_name("Triples")?;
-//             let sn3 = StereospecificNumber {
-//                 carbons: carbons.u8()?.into_iter(),
-//                 doubles: doubles.list()?.into_iter(),
-//                 triples: triples.list()?.into_iter(),
-//             };
-//             Ok(Some({
-//                 zip(sn1, sn3).map(|(sn1, sn3)| {
-//                     let sn1 = FattyAcid {
-//                         carbons: sn1.carbons?,
-//                         doubles: sn1.doubles?.i8().ok()?.to_vec_null_aware().left()?,
-//                         triples: sn1.triples?.i8().ok()?.to_vec_null_aware().left()?,
-//                     };
-//                     let sn3 = FattyAcid {
-//                         carbons: sn3.carbons?,
-//                         doubles: sn3.doubles?.i8().ok()?.to_vec_null_aware().left()?,
-//                         triples: sn3.triples?.i8().ok()?.to_vec_null_aware().left()?,
-//                     };
-//                     Some(())
-//                 });
-//                 //     .map(|(doubles, triples)| {
-//                 //         doubles
-//                 //             .zip(triples)
-//                 //             .map(|(doubles, triples)| {
-//                 //                 Ok(doubles.list()?.len() + triples.list()?.len() == 0)
-//                 //             })
-//                 //             .transpose()
-//                 //     })
-//                 //     .collect::<PolarsResult<_>>()?,
-//                 Series::new_empty("", &DataType::Boolean)
-//             }))
-//         },
-//         GetOutput::from_type(DataType::Boolean),
-//     )
-// }
-
-// fn type_composition(
-//     lazy_frame: LazyFrame,
-//     stereospecificity: Option<Stereospecificity>,
-// ) -> LazyFrame {
-//     // as_struct(vec![
-//     //     col("SN3").alias("SN1"),
-//     //     col("SN2"),
-//     //     col("SN1").alias("SN3"),
-//     // ]),
-//     // .r#struct()
-//     // .field_by_names(&["SN1", "SN2", "SN3"])
-//     // ternary_expr(
-//     //     r#struct("Key")
-//     //         .field_by_name("SN1")
-//     //         .lt_eq(r#struct("Key").field_by_name("SN3")),
-//     //     as_struct(vec![col("SN1"), col("SN2"), col("SN3")]),
-//     //     as_struct(vec![
-//     //         col("SN3").alias("SN1"),
-//     //         col("SN2"),
-//     //         col("SN1").alias("SN3"),
-//     //     ]),
-//     // )
-//     // .r#struct()
-//     // .field_by_names(&["SN1", "SN2", "SN3"])
-//     // // .field_by_names(names)
-// }
-
 impl Computer {
     fn gunstone(&mut self, key: Key) -> DataFrame {
         // let gunstone = Gunstone::new(s);
@@ -392,16 +253,10 @@ impl Computer {
     // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
     fn vander_wal(&mut self, key: Key) -> PolarsResult<DataFrame> {
         let mut lazy_frame = key.data_frame.clone().lazy();
-        lazy_frame = lazy_frame.cartesian_product().with_row_index("Index", None);
-        println!(
-            "after cartesian product data_frame: {}",
-            lazy_frame.clone().collect()?
-        );
+        lazy_frame = lazy_frame
+            .cartesian_product()?
+            .with_row_index("Index", None);
         lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
-        println!(
-            "after cartesian product before composition data_frame: {}",
-            lazy_frame.clone().collect()?
-        );
         // Group
         lazy_frame = lazy_frame.composition(key.settings)?;
         println!(
@@ -428,35 +283,6 @@ impl Computer {
         // lazy_frame = lazy_frame.filter(col("Value").gt_eq(other));
         // println!("data_frame: {}", lazy_frame.clone().collect()?);
         lazy_frame.collect()
-
-        // let Key { context } = key;
-        // let dags13 = &context
-        //     .state
-        //     .entry()
-        //     .data
-        //     .calculated
-        //     .dags13
-        //     .value(context.settings.calculation.from)
-        //     .normalized;
-        // let mags2 = &context
-        //     .state
-        //     .entry()
-        //     .data
-        //     .calculated
-        //     .mags2
-        //     .value()
-        //     .normalized;
-        // let ungrouped = repeat(0..context.state.entry().len())
-        //     .take(3)
-        //     .multi_cartesian_product()
-        //     .map(|indices| {
-        //         let tag = Tag([indices[0], indices[1], indices[2]])
-        //             .compose(context.settings.composition.tree.leafs.stereospecificity);
-        //         let value = dags13[indices[0]] * mags2[indices[1]] * dags13[indices[2]];
-        //         (tag, value.into())
-        //     })
-        //     .into_grouping_map()
-        //     .sum();
     }
 }
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use polars::{functions::concat_df_diagonal, prelude::*};
+use polars::prelude::*;
 use ron::{extensions::Extensions, ser::PrettyConfig};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -9,7 +9,7 @@ use std::{
     path::Path,
 };
 
-use crate::utils::ExprExt;
+use crate::utils::{ExprExt, VecExt};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub(in crate::app) struct Bundle {
@@ -84,8 +84,7 @@ impl Data {
         mut column: &str,
         value: LiteralValue,
     ) -> PolarsResult<()> {
-        println!("set: {row}, {column}, {value:?}");
-        let lazy_frame = self
+        self.fatty_acids = self
             .fatty_acids
             .clone()
             .lazy()
@@ -94,47 +93,27 @@ impl Data {
                 when(col("Index").eq(lit(row as i64)))
                     .then({
                         if let Some((prefix, suffix)) = column.split_once('.') {
-                            println!("split_once: {prefix}, {suffix}");
                             column = prefix;
-                            // println!("{}", self.fatty_acids);
-                            // let field = col(prefix).r#struct().field_by_name(suffix);
-                            // if let "Doubles" | "Triples" = suffix {
-                            //     field;
-                            // }
-                            // as_struct(vec![
-                            //     lit(value).alias(suffix),
-                            //     col(prefix),
-                            //     // col(prefix).r#struct().field_by_names(),
-                            // ]).alias("FACK")
+                            let field = if let LiteralValue::Binary(binary) = value {
+                                lit(Series::from_any_values(
+                                    "",
+                                    &[AnyValue::List(Series::from_iter(binary.r#as()))],
+                                    false,
+                                )?)
+                            } else {
+                                lit(value)
+                            };
                             col(prefix)
                                 .r#struct()
-                                .with_fields(vec![lit(value).alias(suffix)])?
+                                .with_fields(vec![field.alias(suffix)])?
                         } else {
                             lit(value).alias(column)
                         }
-                        // match column {
-                        //     "FA.Label" | "FA.Carbons" | "TAG" | "DAG1223" | "MAG2" => lit(value),
-                        //     "FA.Doubles" | "FA.Triples" => lit(Series::from_any_values(
-                        //         "",
-                        //         &[AnyValue::to_any_value(value)?],
-                        //         false,
-                        //     )?),
-                        //     _ => unreachable!(),
-                        // }
-
-                        // if let LiteralValue::Binary(binary) = value {
-                        //     lit(Series::from_any_values(
-                        //         "",
-                        //         &[AnyValue::List(Series::new("", binary))],
-                        //         false,
-                        //     )?)
-                        // }
                     })
                     .otherwise(col(column)),
-            );
-        println!("GGGG{}", lazy_frame.clone().collect()?);
-        self.fatty_acids = lazy_frame.drop(["Index"]).collect()?;
-        // println!("self.data_frame: {}", data);
+            )
+            .drop(["Index"])
+            .collect()?;
         Ok(())
     }
 
@@ -181,10 +160,17 @@ impl Default for Data {
 
 impl Hash for Data {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for column in self.fatty_acids.get_columns() {
-            for label in column.iter() {
-                label.hash(state);
-            }
+        for fatty_acid in self.fatty_acids["FA"].iter() {
+            fatty_acid.hash(state);
+        }
+        for tag in self.fatty_acids["TAG"].iter() {
+            tag.hash(state);
+        }
+        for dag1223 in self.fatty_acids["DAG1223"].iter() {
+            dag1223.hash(state);
+        }
+        for mag2 in self.fatty_acids["MAG2"].iter() {
+            mag2.hash(state);
         }
     }
 }

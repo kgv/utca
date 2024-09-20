@@ -98,7 +98,7 @@ impl Github {
                         for (key, group) in &chunks {
                             // let heading = key.unwrap_or("Root");
                             if let Some(key) = key {
-                                ui.collapsing(key, |ui| {
+                                ui.collapsing(RichText::new(key).heading(), |ui| {
                                     for (path, url) in group {
                                         ui.horizontal(|ui| {
                                             if ui
