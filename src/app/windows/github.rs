@@ -40,9 +40,8 @@ impl Default for Github {
 
 impl Github {
     pub fn new(url: impl ToString) -> Self {
-        let url = url.to_string();
         Self {
-            url,
+            url: url.to_string(),
             open: false,
             promise: Promise::from_ready(None),
         }
@@ -83,10 +82,6 @@ impl Github {
                 ui.visuals_mut().collapsing_header_frame = true;
                 ScrollArea::vertical().show(ui, |ui| {
                     if let Some(Some(tree)) = self.promise.ready() {
-                        // fn key(node: &Node) -> Option<&str> {
-                        //     node.path.split_once('/').map(|(prefix, _)| prefix)
-                        // }
-
                         let chunks = tree
                             .tree
                             .iter()
@@ -100,40 +95,22 @@ impl Github {
                             if let Some(key) = key {
                                 ui.collapsing(RichText::new(key).heading(), |ui| {
                                     for (path, url) in group {
+                                        let path =
+                                            path.strip_prefix(&format!("{key}/")).unwrap_or(path);
                                         ui.horizontal(|ui| {
                                             if ui
                                                 .button(CLOUD_ARROW_DOWN)
                                                 .on_hover_text(url)
                                                 .clicked()
                                             {
-                                                load_blob(ctx, url);
+                                                load_blob(ctx, path, url);
                                             }
-                                            let text = path
-                                                .strip_prefix(&format!("{key}/"))
-                                                .unwrap_or(path);
-                                            ui.label(text);
+                                            ui.label(path);
                                         });
                                     }
                                 });
                             }
                         }
-
-                        // for node in &tree.tree {
-                        //     if node.r#type == "blob" {
-                        //         if let Some(path) = node.path.strip_prefix("configs/") {
-                        //             ui.horizontal(|ui| {
-                        //                 if ui
-                        //                     .button(CLOUD_ARROW_DOWN)
-                        //                     .on_hover_text(&node.url)
-                        //                     .clicked()
-                        //                 {
-                        //                     load_blob(ctx, &node.url);
-                        //                 }
-                        //                 ui.label(path);
-                        //             });
-                        //         }
-                        //     }
-                        // }
                     } else {
                         ui.spinner();
                     }
@@ -252,14 +229,15 @@ fn load_tree(url: impl ToString) -> Promise<Option<Tree>> {
     // promise
 }
 
-fn load_blob(ctx: &Context, url: impl ToString) {
+fn load_blob(ctx: &Context, name: impl ToString, url: impl ToString) {
     let ctx = ctx.clone();
+    let name = name.to_string();
     let url = url.to_string();
     let _ = spawn(async move {
         match try_load_blob(url).await {
             Ok(blob) => ctx.data_mut(|data| {
-                if let Some(sender) = data.get_temp::<Sender<String>>(Id::new("Data")) {
-                    sender.send(blob).ok();
+                if let Some(sender) = data.get_temp::<Sender<(String, String)>>(Id::new("Data")) {
+                    sender.send((name, blob)).ok();
                 }
             }),
             Err(error) => error!(%error),
@@ -294,37 +272,7 @@ async fn try_load_blob(url: impl ToString) -> Result<String> {
     Ok(content)
 }
 
-#[derive(Debug)]
-struct Hierarchy {
-    name: String,
-    children: Vec<Hierarchy>,
-}
-
-// impl Hierarchy {
-//     fn new(tree: Tree) -> Self {
-//         tree.tree.chunk_by(|left, right| left.path.split_once('/').0 == right.path.split_once('/').0);
-//         // for p in paths.iter() {
-//         //     for part in p.parts.iter() {
-//         //         if !cwd.has_child(part) {
-//         //             // cwd.add_child(dir(part));
-//         //             // cwd = &cwd.children[cwd.children.len() - 1];
-//         //         }
-//         //     }
-//         // }
-//     }
-// }
-
-// let top = dir("root");
-// let mut cwd = &top;
-// for p in paths.iter() {
-//     for part in p.parts.iter() {
-//         if !cwd.has_child(part) {
-//             // cwd.add_child(dir(part));
-//             // cwd = &cwd.children[cwd.children.len() - 1];
-//         }
-//     }
-// }
-
+/// Tree
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 struct Tree {
     sha: String,

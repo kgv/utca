@@ -1,6 +1,6 @@
 use self::{
-    data::Data,
-    panes::{behavior::Behavior, files::Files, Pane, Settings},
+    data::{Data, Entry},
+    panes::{behavior::Behavior, Pane, Settings},
     windows::{About, Github},
 };
 use crate::{
@@ -70,16 +70,14 @@ pub struct App {
     // Panes
     tree: Tree<Pane>,
     // Data
-    data: Vec<Data>,
-    index: usize,
-    // Data channel
-    #[serde(skip)]
-    channel: (Sender<String>, Receiver<String>),
+    data: Data,
     // Settings
     settings: Settings,
 
+    // Data channel
     #[serde(skip)]
-    file_dialog: FileDialog,
+    channel: (Sender<(String, String)>, Receiver<(String, String)>),
+
     // Windows
     #[serde(skip)]
     about: About,
@@ -96,11 +94,9 @@ impl Default for App {
             left_panel: true,
             tree: Tree::empty("central_tree"),
             data: Default::default(),
-            index: 0,
             channel: channel(),
             settings: Default::default(),
             toasts: Default::default(),
-            file_dialog: Default::default(),
             about: Default::default(),
             github: Default::default(),
         }
@@ -131,89 +127,6 @@ impl App {
         // Data channel
         ctx.data_mut(|data| data.insert_temp(Id::new("Data"), self.channel.0.clone()));
     }
-
-    // pub fn load_configs(&mut self) {
-    //     if let Some(promise) = &self.promise {
-    //         if let Some(entries) = promise.ready() {
-    //             println!("entries: {entries:?}");
-    //         } else {
-    //             println!("loading");
-    //         }
-    //     } else {
-    //         let request = Request {
-    //             headers: Headers::new(&[
-    //                 ("Accept", "application/vnd.github+json"),
-    //                 (
-    //                     "Authorization",
-    //                     "Bearer ghp_",
-    //                 ),
-    //                 ("X-GitHub-Api-Version", "2022-11-28"),
-    //             ]),
-    //             ..Request::get(
-    //                 "https://api.github.com/repos/ippras/utca/contents/configs?recursive=true",
-    //             )
-    //         };
-    //         let (sender, promise) = Promise::new();
-    //         self.promise = Some(promise);
-    //         fetch(
-    //             request,
-    //             move |response: Result<Response, String>| match response {
-    //                 Ok(response) => {
-    //                     info!("Status code: {}", response.status);
-    //                     match response.json::<Vec<Entry>>() {
-    //                         Ok(entries) => {
-    //                             println!("entries: {entries:#?}");
-    //                             sender.send(Some(entries));
-    //                         }
-    //                         Err(error) => {
-    //                             error!(%error);
-    //                             sender.send(None);
-    //                         }
-    //                     }
-    //                 }
-    //                 Err(error) => error!(%error),
-    //             },
-    //         );
-    //     }
-    //     // // let toasts = self.toasts.clone();
-    //     // fetch(request, move |response: Result<Response, String>| {
-    //     //     match response {
-    //     //         Ok(response) => {
-    //     //             info!("Status code: {}", response.status);
-    //     //             match response.json::<Vec<Entry>>() {
-    //     //                 Ok(entries) => {
-    //     //                     println!("entries: {entries:#?}");
-    //     //                 }
-    //     //                 Err(error) => {
-    //     //                     error!(%error);
-    //     //                     return;
-    //     //                 }
-    //     //             }
-    //     //             // if let Ok(json) = response.json::<Vec<Entry>>() {
-    //     //             //     let parsed:  = match text.parse() {
-    //     //             //         Ok(file) => file,
-    //     //             //         Err(error) => {
-    //     //             //             error!(%error);
-    //     //             //             return;
-    //     //             //         }
-    //     //             //     };
-    //     //             //     println!("parsed: {parsed:?}");
-    //     //             // }
-    //     //         }
-    //     //         Err(error) => error!(%error),
-    //     //     }
-    //     //     // if let Err(error) = response {
-    //     //     //     error!(%error);
-    //     //     //     // toasts
-    //     //     //     //     .error(format!("Load configs: {error}"))
-    //     //     //     //     .set_closable(true)
-    //     //     //     //     .set_duration(Some(NOTIFICATIONS_DURATION));
-    //     //     // } else {
-    //     //     //     info!("Load configs: OK");
-    //     //     // }
-    //     //     // println!("Status code: {:?}", response.unwrap().status);
-    //     // });
-    // }
 }
 
 // Panels
@@ -241,9 +154,9 @@ impl App {
         CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
             .show(ctx, |ui| {
-                if let Some(data) = self.data.get_mut(self.index) {
+                for entry in self.data.entries.iter_mut().filter(|entry| entry.checked) {
                     let mut behavior = Behavior {
-                        data,
+                        fatty_acids: &mut entry.fatty_acids,
                         settings: &self.settings,
                         close: None,
                     };
@@ -263,7 +176,7 @@ impl App {
                 ScrollArea::vertical().show(ui, |ui| {
                     self.settings.ui(ui, &mut self.tree);
                     ui.separator();
-                    ui.add(Files::new(&mut self.data, &mut self.index));
+                    ui.add(&mut self.data);
                 });
             });
     }
@@ -274,7 +187,7 @@ impl App {
             bar(ui, |ui| {
                 // Left panel
                 ui.toggle_value(&mut self.left_panel, icon!(SIDEBAR_SIMPLE, x32))
-                    .on_hover_text(localize!("left_panel"));
+                    .on_hover_text(localize!("LeftPanel"));
                 ui.separator();
                 // Light/Dark
                 ui.light_dark_button(SIZE);
@@ -328,7 +241,7 @@ impl App {
                 ui.separator();
                 // Create
                 if ui.button(icon!(PLUS, x32)).clicked() {
-                    self.data.push(Default::default());
+                    self.data.entries.push(Default::default());
                 }
                 // Load
                 if ui.button(icon!(CLOUD_ARROW_DOWN, x32)).clicked() {
@@ -336,11 +249,12 @@ impl App {
                 }
                 // Save
                 if ui.button(icon!(FLOPPY_DISK, x32)).clicked() {
-                    if let Err(error) = self.data[self.index].save("df.utca.ron") {
+                    if let Err(error) = self.data.save() {
                         error!(%error);
                     }
                 }
                 ui.separator();
+
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     // About
                     if ui
@@ -623,33 +537,27 @@ impl App {
                     }
                 };
                 trace!(content);
-                self.channel.0.send(content).ok();
-                // let data_frame: DataFrame = match ron::de::from_str(&content) {
-                //     Ok(data_frame) => data_frame,
-                //     Err(error) => {
-                //         error!(%error);
-                //         self.toasts
-                //             .error(format!("{}: {error}", dropped.display()))
-                //             .set_closable(true)
-                //             .set_duration(Some(NOTIFICATIONS_DURATION));
-                //         continue;
-                //     }
-                // };
-                // trace!(?data_frame);
-                // self.data.fatty_acids = data_frame;
+                self.channel
+                    .0
+                    .send((dropped.name().to_owned(), content))
+                    .ok();
             }
         }
     }
 
     fn load(&mut self, ctx: &egui::Context) {
-        for content in self.channel.1.try_iter() {
-            trace!(content);
+        for (name, content) in self.channel.1.try_iter() {
+            trace!(name, content);
             match ron::de::from_str(&content) {
-                Ok(data_frame) => {
-                    trace!(?data_frame);
+                Ok(fatty_acids) => {
+                    trace!(?fatty_acids);
                     // println!("data_frame: {data_frame}");
                     // self.data.fatty_acids = data_frame;
-                    self.data.push(Data::new(data_frame));
+                    self.data.entries.push(Entry {
+                        name,
+                        fatty_acids,
+                        ..Default::default()
+                    });
                     ctx.request_repaint();
                 }
                 Err(error) => error!(%error),

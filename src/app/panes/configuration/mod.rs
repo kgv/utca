@@ -7,7 +7,7 @@ use self::{
 };
 use super::behavior::Behavior;
 use crate::{
-    app::data::Data,
+    app::data::{Data, FattyAcids},
     fatty_acid::{DisplayWithOptions, FattyAcid, COMMON},
     localization::localize,
     utils::{
@@ -35,17 +35,17 @@ impl Pane {
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
-        let total_rows = behavior.data.fatty_acids.height();
-        let fatty_acids = behavior.data.fatty_acids.destruct("FA");
+        let total_rows = behavior.fatty_acids.height();
+        let fatty_acids = behavior.fatty_acids.destruct("FA");
         // let triples = fatty_acids.explode(["Triples"])?;
         // let triples = triples["Triples"].i8()?;
         let labels = fatty_acids.str("Label");
         let carbons = fatty_acids.u8("Carbons");
         let doubles = fatty_acids.list("Doubles");
         let triples = fatty_acids.list("Triples");
-        let tags = behavior.data.fatty_acids.f64("TAG");
-        let dags1223 = behavior.data.fatty_acids.f64("DAG1223");
-        let mags2 = behavior.data.fatty_acids.f64("MAG2");
+        let tags = behavior.fatty_acids.f64("TAG");
+        let dags1223 = behavior.fatty_acids.f64("DAG1223");
+        let mags2 = behavior.fatty_acids.f64("MAG2");
         let mut event = None;
         let mut builder = TableBuilder::new(ui)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight));
@@ -277,7 +277,7 @@ impl Pane {
             });
         // Mutable
         if let Some(event) = event {
-            if let Err(error) = event.apply(&mut behavior.data) {
+            if let Err(error) = event.apply(&mut behavior.fatty_acids) {
                 error!(%error);
             }
         }
@@ -302,7 +302,7 @@ enum Event {
 }
 
 impl Event {
-    fn apply(self, data: &mut Data) -> PolarsResult<()> {
+    fn apply(self, data: &mut FattyAcids) -> PolarsResult<()> {
         match self {
             Self::Add => data.add(),
             Self::Delete { row } => data.delete(row),

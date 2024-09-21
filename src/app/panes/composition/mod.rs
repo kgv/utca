@@ -30,7 +30,7 @@ impl Pane {
                     .caches
                     .cache::<CompositionComputed>()
                     .get(CompositionKey {
-                        data_frame: &behavior.data.fatty_acids,
+                        data_frame: &behavior.fatty_acids,
                         settings: &self.settings,
                     })
             });

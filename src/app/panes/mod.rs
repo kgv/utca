@@ -132,4 +132,3 @@ pub(in crate::app) mod calculation;
 pub(in crate::app) mod comparison;
 pub(in crate::app) mod composition;
 pub(in crate::app) mod configuration;
-pub(in crate::app) mod files;

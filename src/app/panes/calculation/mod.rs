@@ -29,39 +29,39 @@ pub(in crate::app) struct Pane {
 impl Pane {
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
         if let Err(error) = || -> Result<()> {
-            behavior.data.fatty_acids = ui.memory_mut(|memory| {
+            behavior.fatty_acids.0 = ui.memory_mut(|memory| {
                 memory
                     .caches
                     .cache::<CalculationComputed>()
                     .get(CalculationKey {
-                        data_frame: &behavior.data.fatty_acids,
+                        data_frame: &behavior.fatty_acids,
                         settings: &self.settings,
                     })
             });
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
-            let total_rows = behavior.data.fatty_acids.height();
-            let fatty_acids = behavior.data.fatty_acids.destruct("FA");
+            let total_rows = behavior.fatty_acids.height();
+            let fatty_acids = behavior.fatty_acids.destruct("FA");
             let labels = fatty_acids.str("Label");
             let carbons = fatty_acids.u8("Carbons");
             let doubles = fatty_acids.list("Doubles");
             let triples = fatty_acids.list("Triples");
             let tags = (
-                behavior.data.fatty_acids.f64("TAG.Experimental"),
-                behavior.data.fatty_acids.f64("TAG.Theoretical"),
+                behavior.fatty_acids.f64("TAG.Experimental"),
+                behavior.fatty_acids.f64("TAG.Theoretical"),
             );
             let dags1223 = (
-                behavior.data.fatty_acids.f64("DAG1223.Experimental"),
-                behavior.data.fatty_acids.f64("DAG1223.Theoretical"),
+                behavior.fatty_acids.f64("DAG1223.Experimental"),
+                behavior.fatty_acids.f64("DAG1223.Theoretical"),
             );
             let mags2 = (
-                behavior.data.fatty_acids.f64("MAG2.Experimental"),
-                behavior.data.fatty_acids.f64("MAG2.Theoretical"),
+                behavior.fatty_acids.f64("MAG2.Experimental"),
+                behavior.fatty_acids.f64("MAG2.Theoretical"),
             );
             let dags13 = (
-                behavior.data.fatty_acids.f64("DAG13.Calculated"),
-                behavior.data.fatty_acids.f64("DAG13.DAG1223.Theoretical"),
-                behavior.data.fatty_acids.f64("DAG13.MAG2.Theoretical"),
+                behavior.fatty_acids.f64("DAG13.Calculated"),
+                behavior.fatty_acids.f64("DAG13.DAG1223.Theoretical"),
+                behavior.fatty_acids.f64("DAG13.MAG2.Theoretical"),
             );
             TableBuilder::new(ui)
                 .cell_layout(Layout::centered_and_justified(Direction::LeftToRight))
