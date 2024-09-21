@@ -76,7 +76,7 @@
                             "datatype": Int8,
                             "bit_settings": "",
                             "values": [
-                                0,
+                                9,
                             ],
                         },
                         {
@@ -84,8 +84,8 @@
                             "datatype": Int8,
                             "bit_settings": "",
                             "values": [
-                                0,
-                                0,
+                                5,
+                                9,
                             ],
                         },
                         {
@@ -93,8 +93,8 @@
                             "datatype": Int8,
                             "bit_settings": "",
                             "values": [
-                                0,
-                                0,
+                                9,
+                                12,
                             ],
                         },
                         {
@@ -102,9 +102,9 @@
                             "datatype": Int8,
                             "bit_settings": "",
                             "values": [
-                                0,
-                                0,
-                                0,
+                                5,
+                                9,
+                                12,
                             ],
                         },
                         {
@@ -112,9 +112,9 @@
                             "datatype": Int8,
                             "bit_settings": "",
                             "values": [
-                                0,
-                                0,
-                                0,
+                                9,
+                                12,
+                                15,
                             ],
                         },
                         {
@@ -128,8 +128,7 @@
                             "datatype": Int8,
                             "bit_settings": "",
                             "values": [
-                                0,
-                                0,
+                                11,
                             ],
                         },
                     ],
