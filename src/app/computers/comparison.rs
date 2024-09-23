@@ -30,7 +30,7 @@ impl ComputerMut<Key<'_>, Value> for Computer {
             .data_frames
             .iter()
             .map(|data_frame| data_frame.clone().lazy());
-        let builder = lazy_frames
+        let mut builder = lazy_frames
             .next()
             .ok_or_else(
                 || polars_err!(NoData: "Require at least one LazyFrame for horizontal join"),
@@ -38,19 +38,25 @@ impl ComputerMut<Key<'_>, Value> for Computer {
             .unwrap()
             .join_builder();
         for lazy_frame in lazy_frames {
-            builder = builder.with(lazy_frame).right_on(lazy_frame);
+            builder = builder
+                .with(lazy_frame)
+                .left_on([col("Label")])
+                .right_on([col("Label")])
+                .how(JoinType::Full)
+                .suffix("1");
         }
-        let data_frame = concat_lf_horizontal(
-            inputs,
-            UnionArgs {
-                rechunk: true,
-                diagonal: true,
-                ..Default::default()
-            },
-        )
-        .unwrap()
-        .collect()
-        .unwrap();
+        // let data_frame = concat_lf_horizontal(
+        //     inputs,
+        //     UnionArgs {
+        //         rechunk: true,
+        //         diagonal: true,
+        //         ..Default::default()
+        //     },
+        // )
+        // .unwrap()
+        // .collect()
+        // .unwrap();
+        let data_frame = builder.finish().collect().unwrap();
         println!("data_frame: {data_frame:?}");
         data_frame
         // let value = FattyAcids::default();

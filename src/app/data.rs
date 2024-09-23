@@ -3,8 +3,9 @@ use crate::{
     utils::{ExprExt, VecExt},
 };
 use anyhow::Result;
-use egui::{Label, Response, RichText, Sense, Ui, Widget};
-use egui_phosphor::regular::TRASH;
+use egui::{Id, Label, Response, RichText, Sense, Ui, Widget};
+use egui_dnd::dnd;
+use egui_phosphor::regular::{ARROWS_OUT_CARDINAL, TRASH};
 use polars::prelude::*;
 use ron::{de::SpannedError, extensions::Extensions, ser::PrettyConfig};
 use serde::{Deserialize, Serialize};
@@ -233,8 +234,11 @@ impl Widget for &mut Data {
             //         }
             //     });
             // });
-            for (index, entry) in self.entries.iter_mut().enumerate() {
+            dnd(ui, "entries").show_vec(&mut self.entries, |ui, entry, handle, state| {
                 ui.horizontal(|ui| {
+                    handle.ui(ui, |ui| {
+                        let _ = ui.label(ARROWS_OUT_CARDINAL);
+                    });
                     ui.checkbox(&mut entry.checked, "");
                     ui.add(Label::new(&entry.name).truncate())
                         .on_hover_text(format!("{:?}", entry.fatty_acids.shape()));
@@ -243,15 +247,26 @@ impl Widget for &mut Data {
                         - 2.0 * ui.spacing().button_padding.x;
                     ui.add_space(amount);
                     if ui.button(TRASH).clicked() {
-                        remove = Some(index);
+                        remove = Some(state.index);
                     }
                 });
-            }
+            });
+            // for (index, entry) in self.entries.iter_mut().enumerate() {
+            //     ui.horizontal(|ui| {
+            //         ui.checkbox(&mut entry.checked, "");
+            //         ui.add(Label::new(&entry.name).truncate())
+            //             .on_hover_text(format!("{:?}", entry.fatty_acids.shape()));
+            //         let amount = ui.available_width()
+            //             - ui.spacing().interact_size.y
+            //             - 2.0 * ui.spacing().button_padding.x;
+            //         ui.add_space(amount);
+            //         if ui.button(TRASH).clicked() {
+            //             remove = Some(index);
+            //         }
+            //     });
+            // }
             if let Some(index) = remove {
                 self.entries.remove(index);
-                // if index <= *self.index {
-                //     *self.index = self.index.saturating_sub(1);
-                // }
                 ui.ctx().request_repaint();
             }
         });
@@ -284,7 +299,7 @@ impl Widget for &mut Data {
 }
 
 /// Entry
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Hash, Serialize)]
 pub(in crate::app) struct Entry {
     pub(in crate::app) checked: bool,
     pub(in crate::app) name: String,

@@ -29,7 +29,7 @@ use app::App;
 async fn main() -> eframe::Result<()> {
     // std::env::set_var("POLARS_FMT_MAX_COLS", "256");
     // std::env::set_var("POLARS_FMT_MAX_ROWS", "32");
-    // std::env::set_var("POLARS_FMT_TABLE_CELL_LIST_LEN", "256");
+    std::env::set_var("POLARS_FMT_TABLE_CELL_LIST_LEN", "256");
     // std::env::set_var("POLARS_FMT_STR_LEN", "256");
 
     // Log to stdout (if you run with `RUST_LOG=debug`).

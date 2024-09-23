@@ -47,88 +47,87 @@ impl LazyFrameExt for LazyFrame {
     }
 
     fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
-        // self = self.with_column(col("Species").alias("Label"));
-        for (index, composition) in settings.compositions.iter().enumerate() {
-            // Sort
+        if let Some(composition) = settings.compositions.get(0) {
+            // Key
             let sort = match composition.scope {
                 Scope::Ecn => sort_by_ecn(),
                 Scope::Mass => sort_by_mass(),
                 Scope::Type => sort_by_type(),
                 Scope::Species => sort_by_species(),
             };
+            // Sort
             self = match composition.stereospecificity {
                 None => self.reorder(["SN1", "SN2", "SN3"], sort)?,
                 Some(Stereospecificity::Positional) => self.reorder(["SN1", "SN3"], sort)?,
                 Some(Stereospecificity::Stereo) => self,
             };
             // Label
-            let label = match composition.scope {
-                Scope::Ecn => match composition.stereospecificity {
-                    None => (col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn())
+            Ok(self.with_column(
+                match composition.scope {
+                    Scope::Ecn => match composition.stereospecificity {
+                        None => (col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn())
+                            .cast(DataType::String),
+                        _ => concat_str(
+                            [
+                                lit("["),
+                                col("SN1").ecn(),
+                                lit("|"),
+                                col("SN2").ecn(),
+                                lit("|"),
+                                col("SN3").ecn(),
+                                lit("]"),
+                            ],
+                            "",
+                            false,
+                        ),
+                    },
+                    Scope::Mass => match composition.stereospecificity {
+                        None => (col("SN1").mass()
+                            + col("SN2").mass()
+                            + col("SN3").mass()
+                            + lit(*settings.adduct))
+                        .round(0)
+                        .cast(DataType::UInt64)
                         .cast(DataType::String),
-                    _ => concat_str(
+                        _ => concat_str(
+                            [
+                                lit("["),
+                                col("SN1").mass().round(0).cast(DataType::UInt64),
+                                lit("|"),
+                                col("SN2").mass().round(0).cast(DataType::UInt64),
+                                lit("|"),
+                                col("SN3").mass().round(0).cast(DataType::UInt64),
+                                lit("]"),
+                                lit(*settings.adduct).round(settings.precision as _),
+                            ],
+                            "",
+                            false,
+                        ),
+                    },
+                    Scope::Type => concat_str(
                         [
-                            lit("["),
-                            col("SN1").ecn(),
-                            lit("|"),
-                            col("SN2").ecn(),
-                            lit("|"),
-                            col("SN3").ecn(),
-                            lit("]"),
+                            col("SN1").r#type(),
+                            col("SN2").r#type(),
+                            col("SN3").r#type(),
                         ],
                         "",
                         false,
                     ),
-                },
-                Scope::Mass => match composition.stereospecificity {
-                    None => (col("SN1").mass()
-                        + col("SN2").mass()
-                        + col("SN3").mass()
-                        + lit(*settings.adduct))
-                    .round(0)
-                    .cast(DataType::UInt64)
-                    .cast(DataType::String),
-                    _ => concat_str(
+                    Scope::Species => concat_str(
                         [
-                            lit("["),
-                            col("SN1").mass().round(0).cast(DataType::UInt64),
-                            lit("|"),
-                            col("SN2").mass().round(0).cast(DataType::UInt64),
-                            lit("|"),
-                            col("SN3").mass().round(0).cast(DataType::UInt64),
-                            lit("]"),
-                            lit(*settings.adduct).round(settings.precision as _),
+                            col("SN1").species(),
+                            col("SN2").species(),
+                            col("SN3").species(),
                         ],
                         "",
                         false,
                     ),
-                },
-                Scope::Type => concat_str(
-                    [
-                        col("SN1").r#type(),
-                        col("SN2").r#type(),
-                        col("SN3").r#type(),
-                    ],
-                    "",
-                    false,
-                ),
-                Scope::Species => concat_str(
-                    [
-                        col("SN1").species(),
-                        col("SN2").species(),
-                        col("SN3").species(),
-                    ],
-                    "",
-                    false,
-                ),
-            };
-            self = self.with_column(label.alias(&format!("Label{index}")));
+                }
+                .alias("Label"),
+            ))
+        } else {
+            Ok(self.with_column(col("Species").alias("Label")))
         }
-        Ok(self)
-        // if let Some(composition) = settings.compositions.get(0) {
-        // } else {
-        //     Ok(self.with_column(col("Species").alias("Label")))
-        // }
     }
 
     fn reorder<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self> {
@@ -261,49 +260,20 @@ impl Computer {
         println!("before group data_frame: {}", lazy_frame.clone().collect()?);
         // Group
         lazy_frame = lazy_frame.composition(key.settings)?;
-        println!(
-            "after composition data_frame: {}",
-            lazy_frame.clone().collect()?
-        );
-        let len = key.settings.compositions.len();
-        for index in 0..len {
-            let mut by = Vec::new();
-            for index in 0..len - index {
-                by.push(col(&format!("Label{index}")));
-            }
-            let mut aggs = Vec::new();
-            for index in len - index..len {
-                aggs.push(col(&format!("Label{index}")));
-            }
-            aggs.push(col("Species"));
-            aggs.push(col("Value"));
-            lazy_frame = lazy_frame.group_by(by).agg(aggs);
-        }
-        // lazy_frame = lazy_frame
-        //     .group_by([col("Label0"), col("Label1"), col("Label2")])
-        //     .agg([col("Species"), col("Value")])
-        //     .group_by([col("Label0"), col("Label1")])
-        //     .agg([col("Label2"), col("Species"), col("Value")])
-        //     .group_by([col("Label0")])
-        //     .agg([col("Label1"), col("Label2"), col("Species"), col("Value")])
-        //     .with_row_index("Index", None);
+        lazy_frame = lazy_frame
+            .group_by([col("Label")])
+            .agg([col("Species"), col("Value").sum()])
+            .with_row_index("Index", None);
         println!("after group data_frame: {}", lazy_frame.clone().collect()?);
-        // lazy_frame = lazy_frame.explode([all().exclude(["Label0"])]);
-        // lazy_frame = lazy_frame.explode([all().exclude(["Label0", "Label1"])]);
-        // lazy_frame = lazy_frame.explode([all().exclude(["Label0", "Label1", "Label2"])]);
-        // println!("??? data_frame: {}", lazy_frame.clone().collect()?);
         // Sort
         let mut sort_options = SortMultipleOptions::default();
         if let Order::Descending = key.settings.order {
             sort_options = sort_options.with_order_descending(true);
         }
         lazy_frame = match key.settings.sort {
-            Sort::Key => lazy_frame.sort_by_exprs(&[col("Label0")], sort_options),
-            Sort::Value => {
-                lazy_frame.sort_by_exprs(&[col("Value").list().sum(), col("Label0")], sort_options)
-            }
+            Sort::Key => lazy_frame.sort_by_exprs(&[col("Label")], sort_options),
+            Sort::Value => lazy_frame.sort_by_exprs(&[col("Value"), col("Label")], sort_options),
         };
-        println!("after sort data_frame: {}", lazy_frame.clone().collect()?);
         // lazy_frame = lazy_frame.filter(col("Value").gt_eq(other));
         // println!("data_frame: {}", lazy_frame.clone().collect()?);
         lazy_frame.collect()
