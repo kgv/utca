@@ -259,18 +259,18 @@ impl Computer {
         lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
         // Group
         lazy_frame = lazy_frame.composition(key.settings)?;
-        println!(
-            "after composition before group data_frame: {}",
-            lazy_frame.clone().collect()?
-        );
+        // println!(
+        //     "after composition before group data_frame: {}",
+        //     lazy_frame.clone().collect()?
+        // );
         lazy_frame = lazy_frame
             .group_by([col("Label")])
             .agg([col("Species"), col("Value").sum()])
             .with_row_index("Index", None);
-        println!(
-            "after group before sort data_frame: {}",
-            lazy_frame.clone().collect()?
-        );
+        // println!(
+        //     "after group before sort data_frame: {}",
+        //     lazy_frame.clone().collect()?
+        // );
         // Sort
         let mut sort_options = SortMultipleOptions::default();
         if let Order::Descending = key.settings.order {

@@ -19,6 +19,7 @@ use egui::{Direction, Layout, RichText, Ui};
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
 use egui_phosphor::regular::{ARROW_FAT_LINE_UP, PLUS, X};
+use egui_tiles::{Tiles, Tree};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
@@ -33,19 +34,27 @@ pub(in crate::app) struct Pane {
 
 impl Pane {
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
+        // let mut tiles = Tiles::default();
+        // let children = vec![tiles.insert_pane(Pane {}), tiles.insert_pane(Pane {})];
+        // let root = tiles.insert_tab_tile(children);
+        // let tree = Tree::new("my_tree", root, tiles);
+        // tree.ui(behavior, ui);
+        let Some(entry) = behavior.data.entries.iter_mut().find(|entry| entry.checked) else {
+            return;
+        };
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
-        let total_rows = behavior.fatty_acids.height();
-        let fatty_acids = behavior.fatty_acids.destruct("FA");
+        let total_rows = entry.fatty_acids.height();
+        let fatty_acids = entry.fatty_acids.destruct("FA");
         // let triples = fatty_acids.explode(["Triples"])?;
         // let triples = triples["Triples"].i8()?;
         let labels = fatty_acids.str("Label");
         let carbons = fatty_acids.u8("Carbons");
         let doubles = fatty_acids.list("Doubles");
         let triples = fatty_acids.list("Triples");
-        let tags = behavior.fatty_acids.f64("TAG");
-        let dags1223 = behavior.fatty_acids.f64("DAG1223");
-        let mags2 = behavior.fatty_acids.f64("MAG2");
+        let tags = entry.fatty_acids.f64("TAG");
+        let dags1223 = entry.fatty_acids.f64("DAG1223");
+        let mags2 = entry.fatty_acids.f64("MAG2");
         let mut event = None;
         let mut builder = TableBuilder::new(ui)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight));
@@ -277,7 +286,7 @@ impl Pane {
             });
         // Mutable
         if let Some(event) = event {
-            if let Err(error) = event.apply(&mut behavior.fatty_acids) {
+            if let Err(error) = event.apply(&mut entry.fatty_acids) {
                 error!(%error);
             }
         }

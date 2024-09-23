@@ -154,16 +154,14 @@ impl App {
         CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
             .show(ctx, |ui| {
-                for entry in self.data.entries.iter_mut().filter(|entry| entry.checked) {
-                    let mut behavior = Behavior {
-                        fatty_acids: &mut entry.fatty_acids,
-                        settings: &self.settings,
-                        close: None,
-                    };
-                    self.tree.ui(&mut behavior, ui);
-                    if let Some(id) = behavior.close {
-                        self.tree.tiles.remove(id);
-                    }
+                let mut behavior = Behavior {
+                    data: &mut self.data,
+                    settings: &self.settings,
+                    close: None,
+                };
+                self.tree.ui(&mut behavior, ui);
+                if let Some(id) = behavior.close {
+                    self.tree.tiles.remove(id);
                 }
             });
     }

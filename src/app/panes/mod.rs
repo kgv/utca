@@ -1,11 +1,10 @@
-// use crate::localization::{CALCULATION, COMPOSITION, CONFIGURATION, EDIT, RESIZE};
 use self::behavior::Behavior;
 use crate::localization::localize;
-use egui::{menu::bar, RichText, Ui, WidgetText};
+use egui::{menu::bar, RichText, Ui};
 use egui_phosphor::regular::{
     ARROWS_HORIZONTAL, CALCULATOR, INTERSECT_THREE, NOTE_PENCIL, PENCIL, TABLE,
 };
-use egui_tiles::{Tile, TileId, Tree, UiResponse};
+use egui_tiles::{Tile, Tree, UiResponse};
 use serde::{Deserialize, Serialize};
 
 const SIZE: f32 = 16.0;

@@ -2,12 +2,12 @@ use super::{Pane, Settings};
 use crate::app::data::{Data, FattyAcids};
 use egui::{Button, CursorIcon, RichText, Ui, WidgetText};
 use egui_phosphor::regular::X;
-use egui_tiles::{TileId, UiResponse};
+use egui_tiles::{TileId, Tiles, Tree, UiResponse};
 
 /// Behavior
 #[derive(Debug)]
 pub(in crate::app) struct Behavior<'a> {
-    pub(in crate::app) fatty_acids: &'a mut FattyAcids,
+    pub(in crate::app) data: &'a mut Data,
     pub(in crate::app) settings: &'a Settings,
     pub(in crate::app) close: Option<TileId>,
 }

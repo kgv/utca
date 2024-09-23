@@ -24,13 +24,16 @@ pub(in crate::app) struct Pane {
 
 impl Pane {
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
+        let Some(entry) = behavior.data.entries.iter_mut().find(|entry| entry.checked) else {
+            return;
+        };
         if let Err(error) = || -> Result<()> {
             let data_frame = ui.memory_mut(|memory| {
                 memory
                     .caches
                     .cache::<CompositionComputed>()
                     .get(CompositionKey {
-                        data_frame: &behavior.fatty_acids,
+                        data_frame: &entry.fatty_acids,
                         settings: &self.settings,
                     })
             });
