@@ -283,6 +283,20 @@ impl Computer {
         //     aggs.push(col("Value"));
         //     lazy_frame = lazy_frame.group_by(by).agg(aggs);
         // }
+        let len = key.settings.compositions.len();
+        for index in 0..len {
+            let mut by = Vec::new();
+            for index in 0..len - index {
+                by.push(col(&format!("Composition{index}")));
+            }
+            let mut aggs = Vec::new();
+            for index in len - index..len {
+                aggs.push(col(&format!("Composition{index}")));
+            }
+            aggs.push(col("Value").sum().alias(&format!("Value{index}")));
+            // lazy_frame = lazy_frame.group_by(by).agg(aggs);
+            lazy_frame = lazy_frame.group_by(by).agg(aggs);
+        }
 
         // lazy_frame = lazy_frame
         //     .group_by([col("Label0"), col("Label1"), col("Label2")])
