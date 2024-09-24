@@ -125,7 +125,7 @@ impl LazyFrameExt for LazyFrame {
                     false,
                 ),
             };
-            self = self.with_column(label.alias(&format!("Label{index}")));
+            self = self.with_column(label.alias(&format!("Composition{index}")));
         }
         Ok(self)
         // if let Some(composition) = settings.compositions.get(0) {
@@ -257,9 +257,7 @@ impl Computer {
     // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
     fn vander_wal(&mut self, key: Key) -> PolarsResult<DataFrame> {
         let mut lazy_frame = key.data_frame.clone().lazy();
-        lazy_frame = lazy_frame
-            .cartesian_product()?
-            .with_row_index("Index", None);
+        lazy_frame = lazy_frame.cartesian_product()?;
         lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
         println!(
             "before group data_frame: {}",
@@ -306,7 +304,7 @@ impl Computer {
         // Sort
         let mut by_exprs = Vec::new();
         for index in 0..key.settings.compositions.len() {
-            by_exprs.push(col(&format!("Label{index}")));
+            by_exprs.push(col(&format!("Composition{index}")));
         }
         let mut sort_options = SortMultipleOptions::default();
         if let Order::Descending = key.settings.order {
@@ -331,9 +329,16 @@ impl Computer {
         //         lazy_frame.sort_by_exprs(&[col("Value").list().sum(), col("Label0")], sort_options)
         //     }
         // };
+
+        // Index
+        lazy_frame = lazy_frame.with_row_index("Index", None);
         println!(
             "after sort data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
+            lazy_frame
+                .clone()
+                .drop([col("SN1"), col("SN2"), col("SN3")])
+                .collect()
+                .unwrap()
         );
 
         // lazy_frame = lazy_frame.filter(col("Value").gt_eq(other));
