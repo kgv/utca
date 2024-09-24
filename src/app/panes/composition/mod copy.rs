@@ -40,26 +40,16 @@ impl Pane {
             let height = ui.spacing().interact_size.y;
             let width = ui.spacing().interact_size.x;
             let total_rows = data_frame.height();
-            let mut compositions = Vec::new();
-            for index in 0..self.settings.compositions.len() {
-                compositions.push(data_frame.str(&format!("Composition{index}")));
-            }
-            let species = data_frame.str("Species");
+            // let labels = data_frame.str("Label");
+            let species = data_frame.list("Species");
             let values = data_frame.f64("Value");
             TableBuilder::new(ui)
                 .column(Column::auto_with_initial_suggestion(width))
-                .columns(Column::auto(), compositions.len())
-                .column(Column::auto())
+                .column(Column::remainder())
                 .auto_shrink(false)
                 .resizable(behavior.settings.resizable)
                 .striped(true)
                 .header(height, |mut row| {
-                    for composition in &self.settings.compositions {
-                        row.col(|ui| {
-                            ui.heading(composition.text())
-                                .on_hover_text(composition.hover_text());
-                        });
-                    }
                     // TAG
                     row.col(|ui| {
                         ui.heading(localize!("triacylglycerol.abbreviation"))
@@ -75,22 +65,26 @@ impl Pane {
                     body.rows(height, total_rows + 1, |mut row| {
                         let index = row.index();
                         if index < total_rows {
-                            for composition in &compositions {
-                                row.col(|ui| {
-                                    ui.label(composition.get(index).unwrap());
-                                });
-                            }
                             // TAG
                             row.left_align_col(|ui| {
-                                ui.label(species.get(index).unwrap());
+                                let response = ui.label(labels.get(index).unwrap());
+                                response.on_hover_ui(|ui| {
+                                    if let Some(list) = species.get_as_series(index) {
+                                        ui.label(format!(
+                                            "{}: {}",
+                                            localize!("species"),
+                                            list.str().unwrap().into_iter().flatten().format(","),
+                                        ));
+                                    }
+                                });
                             });
                             // Value
                             row.col(|ui| {
                                 let mut value = values.get(index).unwrap_or(NAN);
                                 if self.settings.percent {
-                                    value *= 100.0;
+                                    value *= 100.;
                                 }
-                                ui.label(precision(value)).on_hover_text(value.to_string());
+                                ui.label(precision(value));
                                 // ui.add(Cell {
                                 //     experimental: tags.0.get(index),
                                 //     theoretical: tags.1.get(index),
@@ -99,11 +93,6 @@ impl Pane {
                                 // });
                             });
                         } else {
-                            for composition in &compositions {
-                                row.col(|ui| {
-                                    // ui.label(composition.get(index).unwrap());
-                                });
-                            }
                             // TAG
                             row.col(|ui| {
                                 ui.heading("Sum");

@@ -1,6 +1,5 @@
 use crate::{app::MAX_PRECISION, localization::localize};
-use egui::{ComboBox, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
-use egui_tiles::UiResponse;
+use egui::{ComboBox, Grid, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
 use serde::{Deserialize, Serialize};
 
 /// Calculation settings
@@ -26,22 +25,24 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub(in crate::app) fn ui(&mut self, ui: &mut Ui) -> UiResponse {
+    pub(in crate::app) fn ui(&mut self, ui: &mut Ui) {
         ui.visuals_mut().collapsing_header_frame = true;
         ui.collapsing(RichText::new(localize!("calculation")).heading(), |ui| {
-            ui.separator();
-            ui.horizontal(|ui| {
+            Grid::new("calculation").show(ui, |ui| {
                 ui.label(localize!("precision"));
                 ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
-            });
-            ui.horizontal(|ui| {
+                ui.end_row();
+
                 ui.label(localize!("percent"));
                 ui.checkbox(&mut self.percent, "");
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                let fraction = &mut self.fraction;
+                ui.end_row();
+
+                ui.separator();
+                ui.separator();
+                ui.end_row();
+
                 ui.label(localize!("fraction"));
+                let fraction = &mut self.fraction;
                 ComboBox::from_id_source("fraction")
                     .selected_text(fraction.text())
                     .show_ui(ui, |ui| {
@@ -60,8 +61,8 @@ impl Settings {
                     })
                     .response
                     .on_hover_text(fraction.hover_text());
-            });
-            ui.horizontal(|ui| {
+                ui.end_row();
+
                 ui.label(localize!("sign"));
                 ComboBox::from_id_source("sign")
                     .selected_text(self.signedness.text())
@@ -81,8 +82,10 @@ impl Settings {
                     })
                     .response
                     .on_hover_text(self.signedness.hover_text());
-            });
-            ui.horizontal(|ui| {
+                ui.end_row();
+
+                ui.label(localize!("from"))
+                    .on_hover_text(localize!("from.description"));
                 if ui.input_mut(|input| {
                     input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::Num1))
                 }) {
@@ -93,8 +96,6 @@ impl Settings {
                 }) {
                     self.from = From::Mag2;
                 }
-                ui.label(localize!("from"))
-                    .on_hover_text(localize!("from.description"));
                 ComboBox::from_id_source("1,3")
                     .selected_text(self.from.text())
                     .show_ui(ui, |ui| {
@@ -105,9 +106,9 @@ impl Settings {
                     })
                     .response
                     .on_hover_text(self.from.hover_text());
+                ui.end_row();
             });
         });
-        UiResponse::None
     }
 }
 

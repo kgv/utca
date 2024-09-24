@@ -4,9 +4,8 @@ use crate::{
     localization::localize,
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
 };
-use egui::{ComboBox, DragValue, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
+use egui::{ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
 use egui_phosphor::regular::{MINUS, PLUS};
-use egui_tiles::UiResponse;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
@@ -87,46 +86,54 @@ impl Settings {
 }
 
 impl Settings {
-    pub(in crate::app) fn ui(&mut self, ui: &mut Ui) -> UiResponse {
+    pub(in crate::app) fn ui(&mut self, ui: &mut Ui) {
         ui.visuals_mut().collapsing_header_frame = true;
         ui.collapsing(RichText::new(localize!("composition")).heading(), |ui| {
-            ui.separator();
-            ui.horizontal(|ui| {
+            Grid::new("composition").show(ui, |ui| {
                 ui.label(localize!("precision"));
                 ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
-            });
-            ui.horizontal(|ui| {
+                ui.end_row();
+
                 ui.label(localize!("percent"));
                 ui.checkbox(&mut self.percent, "");
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                let adduct = &mut self.adduct;
+                ui.end_row();
+
+                ui.separator();
+                ui.separator();
+                ui.end_row();
+
                 ui.label(localize!("adduct"));
-                ui.add(
-                    DragValue::new(&mut adduct.0)
-                        .range(0.0..=f64::MAX)
-                        .speed(1.0 / 10f64.powi(self.precision as _)),
-                )
-                .on_hover_text(format!("{adduct}"));
-                ComboBox::from_id_source("")
-                    .selected_text(match adduct.0 {
-                        adduct if adduct == H => "H",
-                        adduct if adduct == NH4 => "NH4",
-                        adduct if adduct == NA => "Na",
-                        adduct if adduct == LI => "Li",
-                        _ => "",
-                    })
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut adduct.0, H, "H");
-                        ui.selectable_value(&mut adduct.0, NH4, "NH4");
-                        ui.selectable_value(&mut adduct.0, NA, "Na");
-                        ui.selectable_value(&mut adduct.0, LI, "Li");
-                    });
-            });
-            ui.separator();
-            // Method
-            ui.horizontal(|ui| {
+                ui.horizontal(|ui| {
+                    let adduct = &mut self.adduct;
+                    ui.add(
+                        DragValue::new(&mut adduct.0)
+                            .range(0.0..=f64::MAX)
+                            .speed(1.0 / 10f64.powi(self.precision as _)),
+                    )
+                    .on_hover_text(format!("{adduct}"));
+                    ComboBox::from_id_source("")
+                        .selected_text(match adduct.0 {
+                            adduct if adduct == H => "H",
+                            adduct if adduct == NH4 => "NH4",
+                            adduct if adduct == NA => "Na",
+                            adduct if adduct == LI => "Li",
+                            _ => "",
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut adduct.0, H, "H");
+                            ui.selectable_value(&mut adduct.0, NH4, "NH4");
+                            ui.selectable_value(&mut adduct.0, NA, "Na");
+                            ui.selectable_value(&mut adduct.0, LI, "Li");
+                        });
+                });
+                ui.end_row();
+
+                ui.separator();
+                ui.separator();
+                ui.end_row();
+
+                // Method
+                ui.label(localize!("method"));
                 if ui.input_mut(|input| {
                     input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::G))
                 }) {
@@ -137,7 +144,6 @@ impl Settings {
                 }) {
                     self.method = Method::VanderWal;
                 }
-                ui.label(localize!("method"));
                 ComboBox::from_id_source("method")
                     .selected_text(self.method.text())
                     .show_ui(ui, |ui| {
@@ -156,89 +162,53 @@ impl Settings {
                     })
                     .response
                     .on_hover_text(self.method.hover_text());
-            });
-            // Group
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    ui.label(localize!("group"));
-                    if ui.button(PLUS).clicked() {
-                        self.compositions.push(Composition::new());
-                    }
-                });
+                ui.end_row();
+
+                // Compose
+                // ui.label(localize!("composition"));
+                ui.label(localize!("compose"));
+                if ui.button(PLUS).clicked() {
+                    self.compositions.push(Composition::new());
+                }
+                ui.end_row();
                 self.compositions.retain_mut(|composition| {
-                    ui.horizontal(|ui| {
-                        ComboBox::from_id_source(ui.next_auto_id())
-                            .selected_text(composition.text())
-                            .show_ui(ui, |ui| {
-                                ui.selectable_value(composition, NC, NC.text())
-                                    .on_hover_text(NC.hover_text());
-                                ui.selectable_value(composition, PNC, PNC.text())
-                                    .on_hover_text(PNC.hover_text());
-                                ui.selectable_value(composition, SNC, SNC.text())
-                                    .on_hover_text(SNC.hover_text());
-                                ui.selectable_value(composition, MC, MC.text())
-                                    .on_hover_text(MC.hover_text());
-                                ui.selectable_value(composition, PMC, PMC.text())
-                                    .on_hover_text(PMC.hover_text());
-                                ui.selectable_value(composition, SMC, SMC.text())
-                                    .on_hover_text(SMC.hover_text());
-                                ui.selectable_value(composition, TC, TC.text())
-                                    .on_hover_text(TC.hover_text());
-                                ui.selectable_value(composition, PTC, PTC.text())
-                                    .on_hover_text(PTC.hover_text());
-                                ui.selectable_value(composition, STC, STC.text())
-                                    .on_hover_text(STC.hover_text());
-                                ui.selectable_value(composition, SC, SC.text())
-                                    .on_hover_text(SC.hover_text());
-                                ui.selectable_value(composition, PSC, PSC.text())
-                                    .on_hover_text(PSC.hover_text());
-                                ui.selectable_value(composition, SSC, SSC.text())
-                                    .on_hover_text(SSC.hover_text());
-                            })
-                            .response
-                            .on_hover_text(composition.hover_text());
-                        !ui.button(MINUS).clicked()
-                    })
-                    .inner
+                    // ui.add_space(ui);
+                    ComboBox::from_id_source(ui.next_auto_id())
+                        .selected_text(composition.text())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(composition, NC, NC.text())
+                                .on_hover_text(NC.hover_text());
+                            ui.selectable_value(composition, PNC, PNC.text())
+                                .on_hover_text(PNC.hover_text());
+                            ui.selectable_value(composition, SNC, SNC.text())
+                                .on_hover_text(SNC.hover_text());
+                            ui.selectable_value(composition, MC, MC.text())
+                                .on_hover_text(MC.hover_text());
+                            ui.selectable_value(composition, PMC, PMC.text())
+                                .on_hover_text(PMC.hover_text());
+                            ui.selectable_value(composition, SMC, SMC.text())
+                                .on_hover_text(SMC.hover_text());
+                            ui.selectable_value(composition, TC, TC.text())
+                                .on_hover_text(TC.hover_text());
+                            ui.selectable_value(composition, PTC, PTC.text())
+                                .on_hover_text(PTC.hover_text());
+                            ui.selectable_value(composition, STC, STC.text())
+                                .on_hover_text(STC.hover_text());
+                            ui.selectable_value(composition, SC, SC.text())
+                                .on_hover_text(SC.hover_text());
+                            ui.selectable_value(composition, PSC, PSC.text())
+                                .on_hover_text(PSC.hover_text());
+                            ui.selectable_value(composition, SSC, SSC.text())
+                                .on_hover_text(SSC.hover_text());
+                        })
+                        .response
+                        .on_hover_text(composition.hover_text());
+                    let keep = !ui.button(MINUS).clicked();
+                    ui.end_row();
+                    keep
                 });
-                // for (index, composition) in self.compositions.iter_mut().enumerate() {
-                //     ComboBox::from_id_source(index)
-                //         .selected_text(composition.text())
-                //         .show_ui(ui, |ui| {
-                //             ui.selectable_value(composition, NC, NC.text())
-                //                 .on_hover_text(NC.hover_text());
-                //             ui.selectable_value(composition, PNC, PNC.text())
-                //                 .on_hover_text(PNC.hover_text());
-                //             ui.selectable_value(composition, SNC, SNC.text())
-                //                 .on_hover_text(SNC.hover_text());
-                //             ui.selectable_value(composition, MC, MC.text())
-                //                 .on_hover_text(MC.hover_text());
-                //             ui.selectable_value(composition, PMC, PMC.text())
-                //                 .on_hover_text(PMC.hover_text());
-                //             ui.selectable_value(composition, SMC, SMC.text())
-                //                 .on_hover_text(SMC.hover_text());
-                //             ui.selectable_value(composition, SC, SC.text())
-                //                 .on_hover_text(SC.hover_text());
-                //             ui.selectable_value(composition, PSC, PSC.text())
-                //                 .on_hover_text(PSC.hover_text());
-                //             ui.selectable_value(composition, SSC, SSC.text())
-                //                 .on_hover_text(SSC.hover_text());
-                //             ui.selectable_value(composition, TC, TC.text())
-                //                 .on_hover_text(TC.hover_text());
-                //             ui.selectable_value(composition, PTC, PTC.text())
-                //                 .on_hover_text(PTC.hover_text());
-                //             ui.selectable_value(composition, STC, STC.text())
-                //                 .on_hover_text(STC.hover_text());
-                //         })
-                //         .response
-                //         .on_hover_text(composition.hover_text());
-                //     if ui.button(MINUS).clicked() {
-                //         self.compositions.push(Composition::new());
-                //     }
-                // }
-            });
-            // Sort
-            ui.horizontal(|ui| {
+
+                // Sort
                 ui.label(localize!("sort"));
                 ComboBox::from_id_source("sort")
                     .selected_text(self.sort.text())
@@ -250,8 +220,8 @@ impl Settings {
                     })
                     .response
                     .on_hover_text(self.sort.hover_text());
-            });
-            ui.horizontal(|ui| {
+                ui.end_row();
+
                 ui.label(localize!("order"));
                 ComboBox::from_id_source("order")
                     .selected_text(self.order.text())
@@ -271,9 +241,190 @@ impl Settings {
                     })
                     .response
                     .on_hover_text(self.order.hover_text());
+                ui.end_row();
             });
+            // ui.horizontal(|ui| {
+            //     ui.label(localize!("precision"));
+            //     ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
+            // });
+            // ui.horizontal(|ui| {
+            //     ui.label(localize!("percent"));
+            //     ui.checkbox(&mut self.percent, "");
+            // });
+            // ui.separator();
+            // ui.horizontal(|ui| {
+            //     ui.label(localize!("adduct"));
+            //     let adduct = &mut self.adduct;
+            //     ui.add(
+            //         DragValue::new(&mut adduct.0)
+            //             .range(0.0..=f64::MAX)
+            //             .speed(1.0 / 10f64.powi(self.precision as _)),
+            //     )
+            //     .on_hover_text(format!("{adduct}"));
+            //     ComboBox::from_id_source("")
+            //         .selected_text(match adduct.0 {
+            //             adduct if adduct == H => "H",
+            //             adduct if adduct == NH4 => "NH4",
+            //             adduct if adduct == NA => "Na",
+            //             adduct if adduct == LI => "Li",
+            //             _ => "",
+            //         })
+            //         .show_ui(ui, |ui| {
+            //             ui.selectable_value(&mut adduct.0, H, "H");
+            //             ui.selectable_value(&mut adduct.0, NH4, "NH4");
+            //             ui.selectable_value(&mut adduct.0, NA, "Na");
+            //             ui.selectable_value(&mut adduct.0, LI, "Li");
+            //         });
+            // });
+            // ui.separator();
+            // // Method
+            // ui.horizontal(|ui| {
+            //     if ui.input_mut(|input| {
+            //         input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::G))
+            //     }) {
+            //         self.method = Method::Gunstone;
+            //     }
+            //     if ui.input_mut(|input| {
+            //         input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::W))
+            //     }) {
+            //         self.method = Method::VanderWal;
+            //     }
+            //     ui.label(localize!("method"));
+            //     ComboBox::from_id_source("method")
+            //         .selected_text(self.method.text())
+            //         .show_ui(ui, |ui| {
+            //             ui.selectable_value(
+            //                 &mut self.method,
+            //                 Method::Gunstone,
+            //                 Method::Gunstone.text(),
+            //             )
+            //             .on_hover_text(Method::Gunstone.hover_text());
+            //             ui.selectable_value(
+            //                 &mut self.method,
+            //                 Method::VanderWal,
+            //                 Method::VanderWal.text(),
+            //             )
+            //             .on_hover_text(Method::VanderWal.hover_text());
+            //         })
+            //         .response
+            //         .on_hover_text(self.method.hover_text());
+            // });
+            // // Group
+            // ui.vertical(|ui| {
+            //     ui.horizontal(|ui| {
+            //         ui.label(localize!("group"));
+            //         if ui.button(PLUS).clicked() {
+            //             self.compositions.push(Composition::new());
+            //         }
+            //     });
+            //     self.compositions.retain_mut(|composition| {
+            //         ui.horizontal(|ui| {
+            //             ComboBox::from_id_source(ui.next_auto_id())
+            //                 .selected_text(composition.text())
+            //                 .show_ui(ui, |ui| {
+            //                     ui.selectable_value(composition, NC, NC.text())
+            //                         .on_hover_text(NC.hover_text());
+            //                     ui.selectable_value(composition, PNC, PNC.text())
+            //                         .on_hover_text(PNC.hover_text());
+            //                     ui.selectable_value(composition, SNC, SNC.text())
+            //                         .on_hover_text(SNC.hover_text());
+            //                     ui.selectable_value(composition, MC, MC.text())
+            //                         .on_hover_text(MC.hover_text());
+            //                     ui.selectable_value(composition, PMC, PMC.text())
+            //                         .on_hover_text(PMC.hover_text());
+            //                     ui.selectable_value(composition, SMC, SMC.text())
+            //                         .on_hover_text(SMC.hover_text());
+            //                     ui.selectable_value(composition, TC, TC.text())
+            //                         .on_hover_text(TC.hover_text());
+            //                     ui.selectable_value(composition, PTC, PTC.text())
+            //                         .on_hover_text(PTC.hover_text());
+            //                     ui.selectable_value(composition, STC, STC.text())
+            //                         .on_hover_text(STC.hover_text());
+            //                     ui.selectable_value(composition, SC, SC.text())
+            //                         .on_hover_text(SC.hover_text());
+            //                     ui.selectable_value(composition, PSC, PSC.text())
+            //                         .on_hover_text(PSC.hover_text());
+            //                     ui.selectable_value(composition, SSC, SSC.text())
+            //                         .on_hover_text(SSC.hover_text());
+            //                 })
+            //                 .response
+            //                 .on_hover_text(composition.hover_text());
+            //             !ui.button(MINUS).clicked()
+            //         })
+            //         .inner
+            //     });
+            //     // for (index, composition) in self.compositions.iter_mut().enumerate() {
+            //     //     ComboBox::from_id_source(index)
+            //     //         .selected_text(composition.text())
+            //     //         .show_ui(ui, |ui| {
+            //     //             ui.selectable_value(composition, NC, NC.text())
+            //     //                 .on_hover_text(NC.hover_text());
+            //     //             ui.selectable_value(composition, PNC, PNC.text())
+            //     //                 .on_hover_text(PNC.hover_text());
+            //     //             ui.selectable_value(composition, SNC, SNC.text())
+            //     //                 .on_hover_text(SNC.hover_text());
+            //     //             ui.selectable_value(composition, MC, MC.text())
+            //     //                 .on_hover_text(MC.hover_text());
+            //     //             ui.selectable_value(composition, PMC, PMC.text())
+            //     //                 .on_hover_text(PMC.hover_text());
+            //     //             ui.selectable_value(composition, SMC, SMC.text())
+            //     //                 .on_hover_text(SMC.hover_text());
+            //     //             ui.selectable_value(composition, SC, SC.text())
+            //     //                 .on_hover_text(SC.hover_text());
+            //     //             ui.selectable_value(composition, PSC, PSC.text())
+            //     //                 .on_hover_text(PSC.hover_text());
+            //     //             ui.selectable_value(composition, SSC, SSC.text())
+            //     //                 .on_hover_text(SSC.hover_text());
+            //     //             ui.selectable_value(composition, TC, TC.text())
+            //     //                 .on_hover_text(TC.hover_text());
+            //     //             ui.selectable_value(composition, PTC, PTC.text())
+            //     //                 .on_hover_text(PTC.hover_text());
+            //     //             ui.selectable_value(composition, STC, STC.text())
+            //     //                 .on_hover_text(STC.hover_text());
+            //     //         })
+            //     //         .response
+            //     //         .on_hover_text(composition.hover_text());
+            //     //     if ui.button(MINUS).clicked() {
+            //     //         self.compositions.push(Composition::new());
+            //     //     }
+            //     // }
+            // });
+            // // Sort
+            // ui.horizontal(|ui| {
+            //     ui.label(localize!("sort"));
+            //     ComboBox::from_id_source("sort")
+            //         .selected_text(self.sort.text())
+            //         .show_ui(ui, |ui| {
+            //             ui.selectable_value(&mut self.sort, Sort::Key, Sort::Key.text())
+            //                 .on_hover_text(Sort::Key.hover_text());
+            //             ui.selectable_value(&mut self.sort, Sort::Value, Sort::Value.text())
+            //                 .on_hover_text(Sort::Value.hover_text());
+            //         })
+            //         .response
+            //         .on_hover_text(self.sort.hover_text());
+            // });
+            // ui.horizontal(|ui| {
+            //     ui.label(localize!("order"));
+            //     ComboBox::from_id_source("order")
+            //         .selected_text(self.order.text())
+            //         .show_ui(ui, |ui| {
+            //             ui.selectable_value(
+            //                 &mut self.order,
+            //                 Order::Ascending,
+            //                 Order::Ascending.text(),
+            //             )
+            //             .on_hover_text(Order::Ascending.hover_text());
+            //             ui.selectable_value(
+            //                 &mut self.order,
+            //                 Order::Descending,
+            //                 Order::Descending.text(),
+            //             )
+            //             .on_hover_text(Order::Descending.hover_text());
+            //         })
+            //         .response
+            //         .on_hover_text(self.order.hover_text());
+            // });
         });
-        UiResponse::None
     }
 }
 

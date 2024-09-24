@@ -21,13 +21,13 @@ trait LazyFrameExt: Sized {
 
     fn composition(self, settings: &Settings) -> PolarsResult<Self>;
 
-    fn reorder<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self>;
+    fn permutation<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self>;
 }
 
 impl LazyFrameExt for LazyFrame {
     fn cartesian_product(self) -> PolarsResult<Self> {
         let lazy_frame = self.with_row_index("Index", None);
-        let mut data_frame = lazy_frame
+        let data_frame = lazy_frame
             .clone()
             .select([fatty_acid("DAG13.Calculated")?.alias("SN1")])
             .cross_join(
@@ -40,19 +40,26 @@ impl LazyFrameExt for LazyFrame {
                 lazy_frame.select([fatty_acid("DAG13.Calculated")?.alias("SN3")]),
                 None,
             )
+            .select([as_struct(vec![col("SN1"), col("SN2"), col("SN3")]).alias("TAG")])
             .collect()?;
         // TODO https://github.com/pola-rs/polars/issues/18587
-        data_frame.as_single_chunk_par();
+        // data_frame.as_single_chunk_par();
         Ok(data_frame.lazy())
     }
 
     fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
-        // self = self.with_column(col("Species").alias("Label"));
+        self = self.with_columns([species().alias("Species"), value().alias("Value")]);
         if settings.compositions.is_empty() {
-            return Ok(self.with_column(col("Species").alias("Label0")));
+            return Ok(self);
         }
         for (index, composition) in settings.compositions.iter().enumerate() {
-            // Sort
+            // Temp stereospecific numbers
+            self = self.with_columns([
+                col("TAG").r#struct().field_by_name("SN1"),
+                col("TAG").r#struct().field_by_name("SN2"),
+                col("TAG").r#struct().field_by_name("SN3"),
+            ]);
+            // Stereospecificity permutation
             let sort = match composition.scope {
                 Scope::Ecn => sort_by_ecn(),
                 Scope::Mass => sort_by_mass(),
@@ -60,82 +67,90 @@ impl LazyFrameExt for LazyFrame {
                 Scope::Species => sort_by_species(),
             };
             self = match composition.stereospecificity {
-                None => self.reorder(["SN1", "SN2", "SN3"], sort)?,
-                Some(Stereospecificity::Positional) => self.reorder(["SN1", "SN3"], sort)?,
+                None => self.permutation(["SN1", "SN2", "SN3"], sort)?,
+                Some(Stereospecificity::Positional) => self.permutation(["SN1", "SN3"], sort)?,
                 Some(Stereospecificity::Stereo) => self,
             };
-            // Label
-            let label = match composition.scope {
-                Scope::Ecn => match composition.stereospecificity {
-                    None => (col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn())
+            // Composition
+            self = self.with_column(
+                match composition.scope {
+                    Scope::Ecn => match composition.stereospecificity {
+                        None => (col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn())
+                            .cast(DataType::String),
+                        _ => concat_str(
+                            [
+                                lit("["),
+                                col("SN1").ecn(),
+                                lit("|"),
+                                col("SN2").ecn(),
+                                lit("|"),
+                                col("SN3").ecn(),
+                                lit("]"),
+                            ],
+                            "",
+                            false,
+                        ),
+                    },
+                    Scope::Mass => match composition.stereospecificity {
+                        None => (col("SN1").mass()
+                            + col("SN2").mass()
+                            + col("SN3").mass()
+                            + lit(*settings.adduct))
+                        .round(0)
+                        .cast(DataType::UInt64)
                         .cast(DataType::String),
-                    _ => concat_str(
+                        _ => concat_str(
+                            [
+                                lit("["),
+                                col("SN1").mass().round(0).cast(DataType::UInt64),
+                                lit("|"),
+                                col("SN2").mass().round(0).cast(DataType::UInt64),
+                                lit("|"),
+                                col("SN3").mass().round(0).cast(DataType::UInt64),
+                                lit("]"),
+                                lit(*settings.adduct).round(settings.precision as _),
+                            ],
+                            "",
+                            false,
+                        ),
+                    },
+                    Scope::Type => concat_str(
                         [
-                            lit("["),
-                            col("SN1").ecn(),
-                            lit("|"),
-                            col("SN2").ecn(),
-                            lit("|"),
-                            col("SN3").ecn(),
-                            lit("]"),
+                            col("SN1").r#type(),
+                            col("SN2").r#type(),
+                            col("SN3").r#type(),
                         ],
                         "",
                         false,
                     ),
-                },
-                Scope::Mass => match composition.stereospecificity {
-                    None => (col("SN1").mass()
-                        + col("SN2").mass()
-                        + col("SN3").mass()
-                        + lit(*settings.adduct))
-                    .round(0)
-                    .cast(DataType::UInt64)
-                    .cast(DataType::String),
-                    _ => concat_str(
+                    Scope::Species => concat_str(
                         [
-                            lit("["),
-                            col("SN1").mass().round(0).cast(DataType::UInt64),
-                            lit("|"),
-                            col("SN2").mass().round(0).cast(DataType::UInt64),
-                            lit("|"),
-                            col("SN3").mass().round(0).cast(DataType::UInt64),
-                            lit("]"),
-                            lit(*settings.adduct).round(settings.precision as _),
+                            col("SN1").species(),
+                            col("SN2").species(),
+                            col("SN3").species(),
                         ],
                         "",
                         false,
                     ),
-                },
-                Scope::Type => concat_str(
-                    [
-                        col("SN1").r#type(),
-                        col("SN2").r#type(),
-                        col("SN3").r#type(),
-                    ],
-                    "",
-                    false,
-                ),
-                Scope::Species => concat_str(
-                    [
-                        col("SN1").species(),
-                        col("SN2").species(),
-                        col("SN3").species(),
-                    ],
-                    "",
-                    false,
-                ),
-            };
-            self = self.with_column(label.alias(&format!("Composition{index}")));
+                }
+                .alias(&format!("Composition{index}")),
+            );
+            let mut columns = Vec::new();
+            for index in 0..=index {
+                columns.push(format!("Composition{index}"));
+            }
+            let value = format!("Value{index}");
+            self = self
+                .group_by([cols(&columns)])
+                .agg([all().exclude(&columns), col("Value").sum().alias(&value)])
+                .explode([all().exclude(&columns).exclude([&value])]);
         }
+        self = self.drop([col("SN1"), col("SN2"), col("SN3")]);
         Ok(self)
-        // if let Some(composition) = settings.compositions.get(0) {
-        // } else {
-        //     Ok(self.with_column(col("Species").alias("Label")))
-        // }
     }
 
-    fn reorder<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self> {
-        const NAME: &str = "TAG";
+    fn permutation<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self> {
+        const NAME: &str = "KEY";
 
         let mut lazy_frame = self.with_column(
             concat_list(names.map(col))?
@@ -217,9 +232,9 @@ fn sort_by_species() -> Expr {
 fn species() -> Expr {
     concat_str(
         [
-            col("SN1").species(),
-            col("SN2").species(),
-            col("SN3").species(),
+            col("TAG").r#struct().field_by_name("SN1").species(),
+            col("TAG").r#struct().field_by_name("SN2").species(),
+            col("TAG").r#struct().field_by_name("SN3").species(),
         ],
         "",
         true,
@@ -228,7 +243,9 @@ fn species() -> Expr {
 
 // Triacylglycerol value
 fn value() -> Expr {
-    col("SN1").value() * col("SN2").value() * col("SN3").value()
+    col("TAG").r#struct().field_by_name("SN1").value()
+        * col("TAG").r#struct().field_by_name("SN2").value()
+        * col("TAG").r#struct().field_by_name("SN3").value()
 }
 
 impl Computer {
@@ -257,106 +274,49 @@ impl Computer {
     // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
     fn vander_wal(&mut self, key: Key) -> PolarsResult<DataFrame> {
         let mut lazy_frame = key.data_frame.clone().lazy();
+        // Cartesian product (TAG from FA)
         lazy_frame = lazy_frame.cartesian_product()?;
-        lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
-        println!(
-            "before group data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
-        // Group
+        // Compose
         lazy_frame = lazy_frame.composition(key.settings)?;
         println!(
             "after composition data_frame: {}",
             lazy_frame.clone().collect().unwrap()
         );
-        // let len = key.settings.compositions.len();
-        // for index in 0..len {
-        //     let mut by = Vec::new();
-        //     for index in 0..len - index {
-        //         by.push(col(&format!("Label{index}")));
-        //     }
-        //     let mut aggs = Vec::new();
-        //     for index in len - index..len {
-        //         aggs.push(col(&format!("Label{index}")));
-        //     }
-        //     aggs.push(col("Species"));
-        //     aggs.push(col("Value"));
-        //     lazy_frame = lazy_frame.group_by(by).agg(aggs);
-        // }
-        let len = key.settings.compositions.len();
-        for index in 0..len {
-            let mut by = Vec::new();
-            for index in 0..len - index {
-                by.push(col(&format!("Composition{index}")));
-            }
-            let mut aggs = Vec::new();
-            for index in len - index..len {
-                aggs.push(col(&format!("Composition{index}")));
-            }
-            aggs.push(col("Value").sum().alias(&format!("Value{index}")));
-            // lazy_frame = lazy_frame.group_by(by).agg(aggs);
-            lazy_frame = lazy_frame.group_by(by).agg(aggs);
-        }
-
-        // lazy_frame = lazy_frame
-        //     .group_by([col("Label0"), col("Label1"), col("Label2")])
-        //     .agg([col("Species"), col("Value")])
-        //     .group_by([col("Label0"), col("Label1")])
-        //     .agg([col("Label2"), col("Species"), col("Value")])
-        //     .group_by([col("Label0")])
-        //     .agg([col("Label1"), col("Label2"), col("Species"), col("Value")])
-        //     .with_row_index("Index", None);
-        println!(
-            "after group data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
-        // lazy_frame = lazy_frame.explode([all().exclude(["Label0"])]);
-        // lazy_frame = lazy_frame.explode([all().exclude(["Label0", "Label1"])]);
-        // lazy_frame = lazy_frame.explode([all().exclude(["Label0", "Label1", "Label2"])]);
-        // println!("??? data_frame: {}", lazy_frame.clone().collect()?);
-
         // Sort
-        let mut by_exprs = Vec::new();
-        for index in 0..key.settings.compositions.len() {
-            by_exprs.push(col(&format!("Composition{index}")));
-        }
         let mut sort_options = SortMultipleOptions::default();
         if let Order::Descending = key.settings.order {
             sort_options = sort_options.with_order_descending(true);
         }
         lazy_frame = match key.settings.sort {
-            Sort::Key => lazy_frame.sort_by_exprs(&by_exprs, sort_options),
-            Sort::Value => {
+            Sort::Key => {
+                let mut by_exprs = Vec::new();
+                for index in 0..key.settings.compositions.len() {
+                    by_exprs.push(col(&format!("Composition{index}")));
+                }
+                by_exprs.push(col("Species"));
                 lazy_frame.sort_by_exprs(&by_exprs, sort_options)
-                // lazy_frame.sort_by_exprs(&[col(r#"^Label\d$"#)], sort_options)
-                // lazy_frame.sort_by_exprs(&[col("Value").list().sum(), col("Label0")], sort_options)
+            }
+            Sort::Value => {
+                let mut by_exprs = Vec::new();
+                for index in 0..key.settings.compositions.len() {
+                    by_exprs.push(col(&format!("Value{index}")));
+                }
+                by_exprs.push(col("Value"));
+                lazy_frame.sort_by_exprs(&by_exprs, sort_options)
             }
         };
-        // // Sort
-        // let mut sort_options = SortMultipleOptions::default();
-        // if let Order::Descending = key.settings.order {
-        //     sort_options = sort_options.with_order_descending(true);
-        // }
-        // lazy_frame = match key.settings.sort {
-        //     Sort::Key => lazy_frame.sort_by_exprs(&[col("Label0")], sort_options),
-        //     Sort::Value => {
-        //         lazy_frame.sort_by_exprs(&[col("Value").list().sum(), col("Label0")], sort_options)
-        //     }
-        // };
-
         // Index
         lazy_frame = lazy_frame.with_row_index("Index", None);
-        println!(
-            "after sort data_frame: {}",
-            lazy_frame
-                .clone()
-                .drop([col("SN1"), col("SN2"), col("SN3")])
-                .collect()
-                .unwrap()
-        );
-
-        // lazy_frame = lazy_frame.filter(col("Value").gt_eq(other));
-        // println!("data_frame: {}", lazy_frame.clone().collect()?);
+        // println!(
+        //     "after sort data_frame: {}",
+        //     lazy_frame
+        //         .clone()
+        //         .drop([col("SN1"), col("SN2"), col("SN3")])
+        //         .collect()
+        //         .unwrap()
+        // );
+        // Filter
+        lazy_frame = lazy_frame.filter(col("Value").gt_eq(lit(0.001)));
         lazy_frame.collect()
     }
 }

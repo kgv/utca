@@ -27,7 +27,7 @@ impl Settings {
 }
 
 impl Settings {
-    pub(in crate::app) fn ui(&mut self, ui: &mut Ui) -> UiResponse {
+    pub(in crate::app) fn ui(&mut self, ui: &mut Ui) {
         ui.visuals_mut().collapsing_header_frame = true;
         ui.collapsing(RichText::new(localize!("comparison")).heading(), |ui| {
             ui.separator();
@@ -41,7 +41,6 @@ impl Settings {
             });
             ui.separator();
         });
-        UiResponse::None
     }
 }
 

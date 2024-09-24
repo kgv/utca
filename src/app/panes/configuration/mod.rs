@@ -18,7 +18,7 @@ use crate::{
 use egui::{Direction, Layout, RichText, Ui};
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
-use egui_phosphor::regular::{ARROW_FAT_LINE_UP, PLUS, X};
+use egui_phosphor::regular::{ARROW_FAT_LINE_UP, MINUS, PLUS};
 use egui_tiles::{Tiles, Tree};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -248,7 +248,7 @@ impl Pane {
                         // Delete row
                         if behavior.settings.editable {
                             row.col(|ui| {
-                                if ui.button(RichText::new(X)).clicked() {
+                                if ui.button(RichText::new(MINUS)).clicked() {
                                     event = Some(Event::Delete { row: index });
                                 }
                             });

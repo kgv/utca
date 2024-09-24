@@ -46,7 +46,7 @@ impl Pane {
         }
     }
 
-    fn settings(&mut self, ui: &mut Ui) -> UiResponse {
+    fn settings(&mut self, ui: &mut Ui) {
         match self {
             Self::Configuration(pane) => pane.settings.ui(ui),
             Self::Calculation(pane) => pane.settings.ui(ui),
