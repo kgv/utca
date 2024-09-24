@@ -48,6 +48,9 @@ impl LazyFrameExt for LazyFrame {
 
     fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
         // self = self.with_column(col("Species").alias("Label"));
+        if settings.compositions.is_empty() {
+            return Ok(self.with_column(col("Species").alias("Label0")));
+        }
         for (index, composition) in settings.compositions.iter().enumerate() {
             // Sort
             let sort = match composition.scope {
@@ -258,27 +261,31 @@ impl Computer {
             .cartesian_product()?
             .with_row_index("Index", None);
         lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
-        println!("before group data_frame: {}", lazy_frame.clone().collect()?);
+        println!(
+            "before group data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
         // Group
         lazy_frame = lazy_frame.composition(key.settings)?;
         println!(
             "after composition data_frame: {}",
-            lazy_frame.clone().collect()?
+            lazy_frame.clone().collect().unwrap()
         );
-        let len = key.settings.compositions.len();
-        for index in 0..len {
-            let mut by = Vec::new();
-            for index in 0..len - index {
-                by.push(col(&format!("Label{index}")));
-            }
-            let mut aggs = Vec::new();
-            for index in len - index..len {
-                aggs.push(col(&format!("Label{index}")));
-            }
-            aggs.push(col("Species"));
-            aggs.push(col("Value"));
-            lazy_frame = lazy_frame.group_by(by).agg(aggs);
-        }
+        // let len = key.settings.compositions.len();
+        // for index in 0..len {
+        //     let mut by = Vec::new();
+        //     for index in 0..len - index {
+        //         by.push(col(&format!("Label{index}")));
+        //     }
+        //     let mut aggs = Vec::new();
+        //     for index in len - index..len {
+        //         aggs.push(col(&format!("Label{index}")));
+        //     }
+        //     aggs.push(col("Species"));
+        //     aggs.push(col("Value"));
+        //     lazy_frame = lazy_frame.group_by(by).agg(aggs);
+        // }
+
         // lazy_frame = lazy_frame
         //     .group_by([col("Label0"), col("Label1"), col("Label2")])
         //     .agg([col("Species"), col("Value")])
@@ -287,23 +294,48 @@ impl Computer {
         //     .group_by([col("Label0")])
         //     .agg([col("Label1"), col("Label2"), col("Species"), col("Value")])
         //     .with_row_index("Index", None);
-        println!("after group data_frame: {}", lazy_frame.clone().collect()?);
+        println!(
+            "after group data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
         // lazy_frame = lazy_frame.explode([all().exclude(["Label0"])]);
         // lazy_frame = lazy_frame.explode([all().exclude(["Label0", "Label1"])]);
         // lazy_frame = lazy_frame.explode([all().exclude(["Label0", "Label1", "Label2"])]);
         // println!("??? data_frame: {}", lazy_frame.clone().collect()?);
+
         // Sort
+        let mut by_exprs = Vec::new();
+        for index in 0..key.settings.compositions.len() {
+            by_exprs.push(col(&format!("Label{index}")));
+        }
         let mut sort_options = SortMultipleOptions::default();
         if let Order::Descending = key.settings.order {
             sort_options = sort_options.with_order_descending(true);
         }
         lazy_frame = match key.settings.sort {
-            Sort::Key => lazy_frame.sort_by_exprs(&[col("Label0")], sort_options),
+            Sort::Key => lazy_frame.sort_by_exprs(&by_exprs, sort_options),
             Sort::Value => {
-                lazy_frame.sort_by_exprs(&[col("Value").list().sum(), col("Label0")], sort_options)
+                lazy_frame.sort_by_exprs(&by_exprs, sort_options)
+                // lazy_frame.sort_by_exprs(&[col(r#"^Label\d$"#)], sort_options)
+                // lazy_frame.sort_by_exprs(&[col("Value").list().sum(), col("Label0")], sort_options)
             }
         };
-        println!("after sort data_frame: {}", lazy_frame.clone().collect()?);
+        // // Sort
+        // let mut sort_options = SortMultipleOptions::default();
+        // if let Order::Descending = key.settings.order {
+        //     sort_options = sort_options.with_order_descending(true);
+        // }
+        // lazy_frame = match key.settings.sort {
+        //     Sort::Key => lazy_frame.sort_by_exprs(&[col("Label0")], sort_options),
+        //     Sort::Value => {
+        //         lazy_frame.sort_by_exprs(&[col("Value").list().sum(), col("Label0")], sort_options)
+        //     }
+        // };
+        println!(
+            "after sort data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
+
         // lazy_frame = lazy_frame.filter(col("Value").gt_eq(other));
         // println!("data_frame: {}", lazy_frame.clone().collect()?);
         lazy_frame.collect()
