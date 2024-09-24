@@ -146,6 +146,17 @@ impl LazyFrameExt for LazyFrame {
                 .explode([all().exclude(&columns).exclude([&value])]);
         }
         self = self.drop([col("SN1"), col("SN2"), col("SN3")]);
+        println!("self0 data_frame: {}", self.clone().collect().unwrap());
+        for index in 0..settings.compositions.len() {
+            let key = format!("Composition{index}");
+            let value = format!("Value{index}");
+            self = self
+                .with_columns([
+                    as_struct(vec![col(&key).alias("Key"), col(&value).alias("Value")]).alias(&key),
+                ])
+                .drop([value]);
+        }
+        println!("self1 data_frame: {}", self.clone().collect().unwrap());
         Ok(self)
     }
 
