@@ -26,9 +26,37 @@ diacylglycerol = diacylglycerol
 monoacylglycerol = monoacylglycerol
     .abbreviation = MAG
 
-configuration = configuration
+equivalent_carbon_number_composition = equivalent carbon number composition
+    .abbreviation = NC
+positional_equivalent_carbon_number_composition = positional equivalent carbon number composition
+    .abbreviation = PNC
+stereo_equivalent_carbon_number_composition = stereo equivalent carbon number composition
+    .abbreviation = SNC
+mass_composition = mass composition
+    .abbreviation = MC
+positional_mass_composition = positional mass composition
+    .abbreviation = PMC
+stereo_mass_composition = stereo mass composition
+    .abbreviation = SMC
+type_composition = type composition
+    .abbreviation = TC
+positional_type_composition = positional type composition
+    .abbreviation = PTC
+stereo_type_composition = stereo type composition
+    .abbreviation = STC
+species_composition = species composition
+    .abbreviation = SC
+positional_species_composition = positional species composition
+    .abbreviation = PSC
+stereo_species_composition = stereo species composition
+    .abbreviation = SSC
+
+calculate = calculate
 calculation = calculation
+compose = compose
 composition = composition
+configuration = configuration
+configure = configure
 
 # Central panel
 

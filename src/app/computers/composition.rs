@@ -75,8 +75,8 @@ impl LazyFrameExt for LazyFrame {
             self = self.with_column(
                 match composition.scope {
                     Scope::Ecn => match composition.stereospecificity {
-                        None => (col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn())
-                            .cast(DataType::String),
+                        None => col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn(),
+                        // _ => concat_list([col("SN1").ecn(), col("SN2").ecn(), col("SN3").ecn()])?,
                         _ => concat_str(
                             [
                                 lit("["),
@@ -91,29 +91,38 @@ impl LazyFrameExt for LazyFrame {
                             false,
                         ),
                     },
-                    Scope::Mass => match composition.stereospecificity {
-                        None => (col("SN1").mass()
-                            + col("SN2").mass()
-                            + col("SN3").mass()
-                            + lit(*settings.adduct))
-                        .round(0)
-                        .cast(DataType::UInt64)
-                        .cast(DataType::String),
-                        _ => concat_str(
-                            [
-                                lit("["),
-                                col("SN1").mass().round(0).cast(DataType::UInt64),
-                                lit("|"),
-                                col("SN2").mass().round(0).cast(DataType::UInt64),
-                                lit("|"),
-                                col("SN3").mass().round(0).cast(DataType::UInt64),
-                                lit("]"),
-                                lit(*settings.adduct).round(settings.precision as _),
-                            ],
-                            "",
-                            false,
-                        ),
-                    },
+                    Scope::Mass => {
+                        fn rounded(expr: Expr) -> Expr {
+                            expr.round(0).cast(DataType::UInt64)
+                        }
+                        match composition.stereospecificity {
+                            None => rounded(
+                                col("SN1").mass()
+                                    + col("SN2").mass()
+                                    + col("SN3").mass()
+                                    + lit(*settings.adduct),
+                            ),
+                            // _ => concat_list([
+                            //     rounded(col("SN1").mass()),
+                            //     rounded(col("SN2").mass()),
+                            //     rounded(col("SN3").mass()),
+                            // ])?,
+                            _ => concat_str(
+                                [
+                                    lit("["),
+                                    rounded(col("SN1").mass()),
+                                    lit("|"),
+                                    rounded(col("SN2").mass()),
+                                    lit("|"),
+                                    rounded(col("SN3").mass()),
+                                    lit("]"),
+                                    lit(*settings.adduct).round(settings.precision as _),
+                                ],
+                                "",
+                                false,
+                            ),
+                        }
+                    }
                     Scope::Type => concat_str(
                         [
                             col("SN1").r#type(),

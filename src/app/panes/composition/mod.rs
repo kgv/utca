@@ -9,8 +9,10 @@ use anyhow::Result;
 use egui::Ui;
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
+use peroxide::fuga::DTypeValue;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
+use settings::SSC;
 use std::f64::NAN;
 use tracing::error;
 
@@ -37,7 +39,7 @@ impl Pane {
                     })
             });
             let height = ui.spacing().interact_size.y;
-            let width = ui.spacing().interact_size.x;
+            // let width = ui.spacing().interact_size.x;
             let total_rows = data_frame.height();
             let mut compositions = Vec::new();
             for index in 0..self.settings.compositions.len() {
@@ -46,23 +48,21 @@ impl Pane {
             let species = data_frame.str("Species");
             let values = data_frame.f64("Value");
             TableBuilder::new(ui)
-                .column(Column::auto_with_initial_suggestion(width))
-                .columns(Column::auto(), compositions.len())
-                .column(Column::auto())
+                .columns(Column::auto(), compositions.len() + 2)
                 .auto_shrink(false)
                 .resizable(behavior.settings.resizable)
                 .striped(true)
                 .header(height, |mut row| {
+                    // Compositions
                     for composition in &self.settings.compositions {
                         row.col(|ui| {
                             ui.heading(composition.text())
                                 .on_hover_text(composition.hover_text());
                         });
                     }
-                    // TAG
+                    // SSC
                     row.col(|ui| {
-                        ui.heading(localize!("triacylglycerol.abbreviation"))
-                            .on_hover_text(localize!("triacylglycerol"));
+                        ui.heading(SSC.text()).on_hover_text(SSC.hover_text());
                     });
                     // Value
                     row.col(|ui| {
@@ -74,18 +74,19 @@ impl Pane {
                     body.rows(height, total_rows + 1, |mut row| {
                         let index = row.index();
                         if index < total_rows {
+                            // Compositions
                             for composition in &compositions {
                                 row.col(|ui| {
                                     let mut value = composition.f64("Value").get(index).unwrap();
                                     if self.settings.percent {
                                         value *= 100.0;
                                     }
-                                    ui.label(composition.str("Key").get(index).unwrap())
+                                    ui.label(composition["Key"].str_value(index).unwrap())
                                         .on_hover_text(value.to_string());
                                 });
                             }
-                            // TAG
-                            row.left_align_col(|ui| {
+                            // SSC
+                            row.col(|ui| {
                                 ui.label(species.get(index).unwrap());
                             });
                             // Value
@@ -95,23 +96,12 @@ impl Pane {
                                     value *= 100.0;
                                 }
                                 ui.label(precision(value)).on_hover_text(value.to_string());
-                                // ui.add(Cell {
-                                //     experimental: tags.0.get(index),
-                                //     theoretical: tags.1.get(index),
-                                //     enabled: true,
-                                //     precision: self.settings.precision,
-                                // });
                             });
                         } else {
-                            for composition in &compositions {
-                                row.col(|ui| {
-                                    // ui.label(composition.get(index).unwrap());
-                                });
+                            // Compositions
+                            for _ in 0..compositions.len() + 1 {
+                                row.col(|_| {});
                             }
-                            // TAG
-                            row.col(|ui| {
-                                ui.heading("Sum");
-                            });
                             // Value
                             row.col(|ui| {
                                 let mut sum = values.sum().unwrap_or(NAN);
