@@ -90,11 +90,7 @@ impl LazyFrameExt for LazyFrame {
         if settings.compositions.is_empty() {
             return Ok(self);
         }
-        let mut keys = Vec::new();
         for (index, (composition, selected)) in settings.compositions.iter().enumerate() {
-            if !selected {
-                continue;
-            }
             // Temp stereospecific numbers
             self = self.with_columns([
                 col("TAG").r#struct().field_by_name("SN1"),
@@ -186,16 +182,19 @@ impl LazyFrameExt for LazyFrame {
                 }
                 .alias(&format!("Key{index}")),
             );
-            keys.push(format!("Key{index}"));
+            // Composition value
+            let mut key = Vec::new();
+            for index in 0..=index {
+                key.push(format!("Key{index}"));
+            }
+            let value = format!("Value{index}");
+            self = self
+                .group_by([cols(&key)])
+                .agg([all().exclude(&key), col("Value").sum().alias(&value)])
+                .explode([all().exclude(&key).exclude([&value])]);
         }
         // Drop stereospecific numbers
         self = self.drop([col("SN1"), col("SN2"), col("SN3")]);
-        // Composition value
-        let value = format!("Value{index}");
-        self = self
-            .group_by([cols(&key)])
-            .agg([all().exclude(&key), col("Value").sum().alias(&value)])
-            .explode([all().exclude(&key).exclude([&value])]);
         // Composition
         for index in 0..settings.compositions.len() {
             let key = format!("Key{index}");

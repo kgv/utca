@@ -7,9 +7,7 @@ use crate::{
 };
 use anyhow::Result;
 use egui::Ui;
-use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
-use peroxide::fuga::DTypeValue;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use settings::SSC;
@@ -29,6 +27,9 @@ impl Pane {
             return;
         };
         if let Err(error) = || -> Result<()> {
+            if self.settings.compositions.is_empty() {
+                return Ok(());
+            }
             let data_frame = ui.memory_mut(|memory| {
                 memory
                     .caches
@@ -42,28 +43,29 @@ impl Pane {
             // let width = ui.spacing().interact_size.x;
             let total_rows = data_frame.height();
             let mut compositions = Vec::new();
-            for index in 0..self.settings.compositions.len() {
-                compositions.push(data_frame.destruct(&format!("Composition{index}")));
+            for (index, &(composition, selected)) in self.settings.compositions.iter().enumerate() {
+                if selected {
+                    compositions.push((
+                        composition,
+                        data_frame.destruct(&format!("Composition{index}")),
+                    ));
+                }
             }
-            let species = data_frame.str("Species");
-            let values = data_frame.f64("Value");
+            // let species = data_frame.str("Species");
+            // let values = data_frame.f64("Value");
             TableBuilder::new(ui)
-                .columns(Column::auto(), compositions.len() + 2)
+                .columns(Column::auto(), compositions.len() + 1)
                 .auto_shrink(false)
                 .resizable(behavior.settings.resizable)
                 .striped(true)
                 .header(height, |mut row| {
                     // Compositions
-                    for composition in &self.settings.compositions {
+                    for (composition, _) in &compositions {
                         row.col(|ui| {
                             ui.heading(composition.text())
                                 .on_hover_text(composition.hover_text());
                         });
                     }
-                    // SSC
-                    row.col(|ui| {
-                        ui.heading(SSC.text()).on_hover_text(SSC.hover_text());
-                    });
                     // Value
                     row.col(|ui| {
                         ui.heading(localize!("value"));
@@ -75,7 +77,7 @@ impl Pane {
                         let index = row.index();
                         if index < total_rows {
                             // Compositions
-                            for composition in &compositions {
+                            for (_, composition) in &compositions {
                                 row.col(|ui| {
                                     let mut value = composition.f64("Value").get(index).unwrap();
                                     if self.settings.percent {
@@ -85,34 +87,36 @@ impl Pane {
                                         .on_hover_text(value.to_string());
                                 });
                             }
-                            // SSC
-                            row.col(|ui| {
-                                ui.label(species.get(index).unwrap());
-                            });
                             // Value
-                            row.col(|ui| {
-                                let mut value = values.get(index).unwrap_or(NAN);
-                                if self.settings.percent {
-                                    value *= 100.0;
-                                }
-                                ui.label(precision(value)).on_hover_text(value.to_string());
-                            });
+                            if let Some((_, composition)) = compositions.last() {
+                                row.col(|ui| {
+                                    let mut value =
+                                        composition.f64("Value").get(index).unwrap_or(NAN);
+                                    if self.settings.percent {
+                                        value *= 100.0;
+                                    }
+                                    ui.label(precision(value)).on_hover_text(value.to_string());
+                                });
+                            }
                         } else {
                             // Compositions
-                            for _ in 0..compositions.len() + 1 {
+                            for _ in 0..compositions.len() {
                                 row.col(|_| {});
                             }
                             // Value
-                            row.col(|ui| {
-                                let mut sum = values.sum().unwrap_or(NAN);
-                                if self.settings.percent {
-                                    sum *= 100.;
-                                }
-                                ui.heading(precision(sum)).on_hover_ui(|ui| {
-                                    ui.heading(localize!("properties"));
-                                    ui.label(format!("Count: {}", values.len()));
+                            if let Some((_, composition)) = compositions.last() {
+                                row.col(|ui| {
+                                    let values = composition.f64("Value");
+                                    let mut sum = values.sum().unwrap_or(NAN);
+                                    if self.settings.percent {
+                                        sum *= 100.;
+                                    }
+                                    ui.heading(precision(sum)).on_hover_ui(|ui| {
+                                        ui.heading(localize!("properties"));
+                                        ui.label(format!("Count: {}", values.len()));
+                                    });
                                 });
-                            });
+                            }
                         }
                     });
                 });

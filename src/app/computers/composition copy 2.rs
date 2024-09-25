@@ -17,8 +17,6 @@ pub(in crate::app) struct Computer;
 
 /// Extension methods for [`LazyFrame`]
 trait LazyFrameExt: Sized {
-    fn arrange(self, settings: &Settings) -> PolarsResult<Self>;
-
     fn cartesian_product(self) -> PolarsResult<Self>;
 
     fn composition(self, settings: &Settings) -> PolarsResult<Self>;
@@ -27,43 +25,6 @@ trait LazyFrameExt: Sized {
 }
 
 impl LazyFrameExt for LazyFrame {
-    fn arrange(mut self, settings: &Settings) -> PolarsResult<Self> {
-        if settings.compositions.is_empty() {
-            return Ok(self);
-        }
-        let mut sort_options = SortMultipleOptions::default();
-        if let Order::Descending = settings.order {
-            sort_options = sort_options.with_order_descending(true);
-        }
-        self = match settings.sort {
-            Sort::Key => {
-                let mut by_exprs = Vec::new();
-                for index in 0..settings.compositions.len() {
-                    by_exprs.push(
-                        col(&format!("Composition{index}"))
-                            .r#struct()
-                            .field_by_name("Key"),
-                    );
-                }
-                by_exprs.push(col("Species"));
-                self.sort_by_exprs(&by_exprs, sort_options)
-            }
-            Sort::Value => {
-                let mut by_exprs = Vec::new();
-                for index in 0..settings.compositions.len() {
-                    by_exprs.push(
-                        col(&format!("Composition{index}"))
-                            .r#struct()
-                            .field_by_name("Value"),
-                    );
-                }
-                by_exprs.push(col("Value"));
-                self.sort_by_exprs(&by_exprs, sort_options)
-            }
-        };
-        Ok(self)
-    }
-
     fn cartesian_product(self) -> PolarsResult<Self> {
         let lazy_frame = self.with_row_index("Index", None);
         let data_frame = lazy_frame
@@ -87,14 +48,11 @@ impl LazyFrameExt for LazyFrame {
     }
 
     fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
+        self = self.with_columns([species().alias("Species"), value().alias("Value")]);
         if settings.compositions.is_empty() {
             return Ok(self);
         }
-        let mut keys = Vec::new();
-        for (index, (composition, selected)) in settings.compositions.iter().enumerate() {
-            if !selected {
-                continue;
-            }
+        for (index, (composition, _)) in settings.compositions.iter().enumerate() {
             // Temp stereospecific numbers
             self = self.with_columns([
                 col("TAG").r#struct().field_by_name("SN1"),
@@ -113,7 +71,7 @@ impl LazyFrameExt for LazyFrame {
                 Some(Stereospecificity::Positional) => self.permutation(["SN1", "SN3"], sort)?,
                 Some(Stereospecificity::Stereo) => self,
             };
-            // Composition key
+            // Composition
             self = self.with_column(
                 match composition.scope {
                     Scope::Ecn => match composition.stereospecificity {
@@ -186,17 +144,17 @@ impl LazyFrameExt for LazyFrame {
                 }
                 .alias(&format!("Key{index}")),
             );
-            keys.push(format!("Key{index}"));
+            let mut key = Vec::new();
+            for index in 0..=index {
+                key.push(format!("Key{index}"));
+            }
+            let value = format!("Value{index}");
+            self = self
+                .group_by([cols(&key)])
+                .agg([all().exclude(&key), col("Value").sum().alias(&value)])
+                .explode([all().exclude(&key).exclude([&value])]);
         }
-        // Drop stereospecific numbers
         self = self.drop([col("SN1"), col("SN2"), col("SN3")]);
-        // Composition value
-        let value = format!("Value{index}");
-        self = self
-            .group_by([cols(&key)])
-            .agg([all().exclude(&key), col("Value").sum().alias(&value)])
-            .explode([all().exclude(&key).exclude([&value])]);
-        // Composition
         for index in 0..settings.compositions.len() {
             let key = format!("Key{index}");
             let value = format!("Value{index}");
@@ -205,7 +163,7 @@ impl LazyFrameExt for LazyFrame {
                     as_struct(vec![col(&key).alias("Key"), col(&value).alias("Value")])
                         .alias(&format!("Composition{index}")),
                 ])
-                .drop([key, value]);
+                .drop([value]);
         }
         Ok(self)
     }
@@ -272,6 +230,23 @@ fn sort_by_species() -> Expr {
     )
 }
 
+// // Triacylglycerol label
+// fn label(f: impl Fn(&str) -> Expr) -> Expr {
+//     concat_str(
+//         [
+//             lit("["),
+//             f("SN1"),
+//             lit("|"),
+//             f("SN2"),
+//             lit("|"),
+//             f("SN3"),
+//             lit("]"),
+//         ],
+//         "",
+//         false,
+//     )
+// }
+
 // Triacylglycerol species
 fn species() -> Expr {
     concat_str(
@@ -320,24 +295,53 @@ impl Computer {
         let mut lazy_frame = key.data_frame.clone().lazy();
         // Cartesian product (TAG from FA)
         lazy_frame = lazy_frame.cartesian_product()?;
-        println!(
-            "before composition data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
-        // Temp Species and Value
-        lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
         // Compose
         lazy_frame = lazy_frame.composition(key.settings)?;
-        println!(
-            "after composition data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
-        // Arrange
-        lazy_frame = lazy_frame.arrange(key.settings)?;
-        // Drop Species and Value
-        lazy_frame = lazy_frame.drop(["Species", "Value"]);
+        // println!(
+        //     "after composition data_frame: {}",
+        //     lazy_frame.clone().collect().unwrap()
+        // );
+        // Sort
+        let mut sort_options = SortMultipleOptions::default();
+        if let Order::Descending = key.settings.order {
+            sort_options = sort_options.with_order_descending(true);
+        }
+        lazy_frame = match key.settings.sort {
+            Sort::Key => {
+                let mut by_exprs = Vec::new();
+                for index in 0..key.settings.compositions.len() {
+                    by_exprs.push(
+                        col(&format!("Composition{index}"))
+                            .r#struct()
+                            .field_by_name("Key"),
+                    );
+                }
+                by_exprs.push(col("Species"));
+                lazy_frame.sort_by_exprs(&by_exprs, sort_options)
+            }
+            Sort::Value => {
+                let mut by_exprs = Vec::new();
+                for index in 0..key.settings.compositions.len() {
+                    by_exprs.push(
+                        col(&format!("Composition{index}"))
+                            .r#struct()
+                            .field_by_name("Value"),
+                    );
+                }
+                by_exprs.push(col("Value"));
+                lazy_frame.sort_by_exprs(&by_exprs, sort_options)
+            }
+        };
         // Index
         lazy_frame = lazy_frame.with_row_index("Index", None);
+        // println!(
+        //     "after sort data_frame: {}",
+        //     lazy_frame
+        //         .clone()
+        //         .drop([col("SN1"), col("SN2"), col("SN3")])
+        //         .collect()
+        //         .unwrap()
+        // );
         // Filter
         // lazy_frame = lazy_frame.filter(col("Value").gt_eq(lit(0.001)));
         lazy_frame.collect()
