@@ -4,18 +4,14 @@ use crate::{
         data::{Entry, FattyAcids},
         panes::comparison::settings::Settings,
     },
-    utils::DataFrameExt,
+    utils::{DataFrameExt, ExprExt},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use indexmap::IndexMap;
 use itertools::Either::{Left, Right};
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
-use std::{
-    cmp::Reverse,
-    hash::{Hash, Hasher},
-    sync::Arc,
-};
+use std::hash::{Hash, Hasher};
 
 /// Comparison computed
 pub(in crate::app) type Computed = FrameCache<Value, Computer>;
@@ -29,21 +25,30 @@ impl ComputerMut<Key<'_>, Value> for Computer {
         let mut lazy_frames = key
             .data_frames
             .iter()
-            .map(|data_frame| data_frame.clone().lazy());
-        let mut builder = lazy_frames
+            .map(|data_frame| data_frame.clone().lazy())
+            .enumerate();
+        let mut lazy_frame = lazy_frames
             .next()
             .ok_or_else(
                 || polars_err!(NoData: "Require at least one LazyFrame for horizontal join"),
             )
             .unwrap()
-            .join_builder();
-        for lazy_frame in lazy_frames {
-            builder = builder
-                .with(lazy_frame)
-                .left_on([col("Label")])
-                .right_on([col("Label")])
-                .how(JoinType::Full)
-                .suffix("1");
+            .1;
+        for (index, other) in lazy_frames {
+            lazy_frame = lazy_frame.join(
+                other,
+                [col("Species")],
+                [col("Species")],
+                JoinArgs::new(JoinType::Full)
+                    .with_coalesce(JoinCoalesce::CoalesceColumns)
+                    .with_suffix(Some(index.to_string())),
+            );
+            // builder = builder
+            //     .with(lazy_frame)
+            //     .left_on([col("Species")])
+            //     .right_on([col("Species")])
+            //     .how(JoinType::Full)
+            //     .suffix(index.to_string());
         }
         // let data_frame = concat_lf_horizontal(
         //     inputs,
@@ -56,16 +61,16 @@ impl ComputerMut<Key<'_>, Value> for Computer {
         // .unwrap()
         // .collect()
         // .unwrap();
-        let data_frame = builder.finish().collect().unwrap();
+        let data_frame = lazy_frame
+            .with_columns([
+                col("Index").suffix("0"),
+                col("TAG").suffix("0"),
+                col("Value").suffix("0"),
+            ])
+            .collect()
+            .unwrap();
         println!("data_frame: {data_frame:?}");
         data_frame
-        // let value = FattyAcids::default();
-        // for entry in key.entries {
-        //     value.0.concat entry.fatty_acids;
-        // }
-        // // let value
-        // // key.entries.clone()э
-        // value.0
     }
 }
 
@@ -78,8 +83,8 @@ pub(in crate::app) struct Key<'a> {
 
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // for entry in self.data_frames {
-        //     entry.fatty_acids.hash(state);
+        // for data_frame in self.data_frames {
+        //     data_frame.hash(state);
         // }
         self.settings.hash(state);
     }

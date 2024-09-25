@@ -9,7 +9,6 @@ use anyhow::Result;
 use egui::Ui;
 use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
-use itertools::Itertools;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
@@ -42,7 +41,7 @@ impl Pane {
             let total_rows = data_frame.height();
             let mut compositions = Vec::new();
             for index in 0..self.settings.compositions.len() {
-                compositions.push(data_frame.str(&format!("Composition{index}")));
+                compositions.push(data_frame.destruct(&format!("Composition{index}")));
             }
             let species = data_frame.str("Species");
             let values = data_frame.f64("Value");
@@ -77,7 +76,12 @@ impl Pane {
                         if index < total_rows {
                             for composition in &compositions {
                                 row.col(|ui| {
-                                    ui.label(composition.get(index).unwrap());
+                                    let mut value = composition.f64("Value").get(index).unwrap();
+                                    if self.settings.percent {
+                                        value *= 100.0;
+                                    }
+                                    ui.label(composition.str("Key").get(index).unwrap())
+                                        .on_hover_text(value.to_string());
                                 });
                             }
                             // TAG

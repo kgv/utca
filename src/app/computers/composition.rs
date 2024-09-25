@@ -133,30 +133,29 @@ impl LazyFrameExt for LazyFrame {
                         false,
                     ),
                 }
-                .alias(&format!("Composition{index}")),
+                .alias(&format!("Key{index}")),
             );
-            let mut columns = Vec::new();
+            let mut key = Vec::new();
             for index in 0..=index {
-                columns.push(format!("Composition{index}"));
+                key.push(format!("Key{index}"));
             }
             let value = format!("Value{index}");
             self = self
-                .group_by([cols(&columns)])
-                .agg([all().exclude(&columns), col("Value").sum().alias(&value)])
-                .explode([all().exclude(&columns).exclude([&value])]);
+                .group_by([cols(&key)])
+                .agg([all().exclude(&key), col("Value").sum().alias(&value)])
+                .explode([all().exclude(&key).exclude([&value])]);
         }
         self = self.drop([col("SN1"), col("SN2"), col("SN3")]);
-        println!("self0 data_frame: {}", self.clone().collect().unwrap());
         for index in 0..settings.compositions.len() {
-            let key = format!("Composition{index}");
+            let key = format!("Key{index}");
             let value = format!("Value{index}");
             self = self
                 .with_columns([
-                    as_struct(vec![col(&key).alias("Key"), col(&value).alias("Value")]).alias(&key),
+                    as_struct(vec![col(&key).alias("Key"), col(&value).alias("Value")])
+                        .alias(&format!("Composition{index}")),
                 ])
                 .drop([value]);
         }
-        println!("self1 data_frame: {}", self.clone().collect().unwrap());
         Ok(self)
     }
 
@@ -289,10 +288,10 @@ impl Computer {
         lazy_frame = lazy_frame.cartesian_product()?;
         // Compose
         lazy_frame = lazy_frame.composition(key.settings)?;
-        println!(
-            "after composition data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
+        // println!(
+        //     "after composition data_frame: {}",
+        //     lazy_frame.clone().collect().unwrap()
+        // );
         // Sort
         let mut sort_options = SortMultipleOptions::default();
         if let Order::Descending = key.settings.order {
@@ -302,7 +301,11 @@ impl Computer {
             Sort::Key => {
                 let mut by_exprs = Vec::new();
                 for index in 0..key.settings.compositions.len() {
-                    by_exprs.push(col(&format!("Composition{index}")));
+                    by_exprs.push(
+                        col(&format!("Composition{index}"))
+                            .r#struct()
+                            .field_by_name("Key"),
+                    );
                 }
                 by_exprs.push(col("Species"));
                 lazy_frame.sort_by_exprs(&by_exprs, sort_options)
@@ -310,7 +313,11 @@ impl Computer {
             Sort::Value => {
                 let mut by_exprs = Vec::new();
                 for index in 0..key.settings.compositions.len() {
-                    by_exprs.push(col(&format!("Value{index}")));
+                    by_exprs.push(
+                        col(&format!("Composition{index}"))
+                            .r#struct()
+                            .field_by_name("Value"),
+                    );
                 }
                 by_exprs.push(col("Value"));
                 lazy_frame.sort_by_exprs(&by_exprs, sort_options)

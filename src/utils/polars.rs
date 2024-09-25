@@ -35,7 +35,7 @@ impl DataFrameExt for DataFrame {
     }
 
     fn destruct(&self, name: &str) -> DataFrame {
-        self.unnest([name]).unwrap()
+        self.select([&name]).unwrap().unnest([name]).unwrap()
     }
 }
 
