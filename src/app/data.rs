@@ -218,13 +218,15 @@ impl Widget for &mut Data {
         ui.visuals_mut().collapsing_header_frame = true;
         ui.collapsing(RichText::new(localize!("entries")).heading(), |ui| {
             let mut remove = None;
-            // dnd(ui, Id::new("files")).show_vec(self.data, |ui, item, handle, state| {
+
+            // dnd(ui, "entries").show_vec(&mut self.entries, |ui, entry, handle, state| {
             //     ui.horizontal(|ui| {
             //         handle.ui(ui, |ui| {
             //             let _ = ui.label(ARROWS_OUT_CARDINAL);
             //         });
-            //         ui.radio_value(self.index, state.index, "");
-            //         ui.add(Label::new(format!("{:?}", item.fatty_acids.shape())).truncate());
+            //         ui.checkbox(&mut entry.checked, "");
+            //         ui.add(Label::new(&entry.name).truncate())
+            //             .on_hover_text(format!("{:?}", entry.fatty_acids.shape()));
             //         let amount = ui.available_width()
             //             - ui.spacing().interact_size.y
             //             - 2.0 * ui.spacing().button_padding.x;
@@ -234,11 +236,8 @@ impl Widget for &mut Data {
             //         }
             //     });
             // });
-            dnd(ui, "entries").show_vec(&mut self.entries, |ui, entry, handle, state| {
+            for (index, entry) in self.entries.iter_mut().enumerate() {
                 ui.horizontal(|ui| {
-                    handle.ui(ui, |ui| {
-                        let _ = ui.label(ARROWS_OUT_CARDINAL);
-                    });
                     ui.checkbox(&mut entry.checked, "");
                     ui.add(Label::new(&entry.name).truncate())
                         .on_hover_text(format!("{:?}", entry.fatty_acids.shape()));
@@ -247,24 +246,11 @@ impl Widget for &mut Data {
                         - 2.0 * ui.spacing().button_padding.x;
                     ui.add_space(amount);
                     if ui.button(TRASH).clicked() {
-                        remove = Some(state.index);
+                        remove = Some(index);
                     }
                 });
-            });
-            // for (index, entry) in self.entries.iter_mut().enumerate() {
-            //     ui.horizontal(|ui| {
-            //         ui.checkbox(&mut entry.checked, "");
-            //         ui.add(Label::new(&entry.name).truncate())
-            //             .on_hover_text(format!("{:?}", entry.fatty_acids.shape()));
-            //         let amount = ui.available_width()
-            //             - ui.spacing().interact_size.y
-            //             - 2.0 * ui.spacing().button_padding.x;
-            //         ui.add_space(amount);
-            //         if ui.button(TRASH).clicked() {
-            //             remove = Some(index);
-            //         }
-            //     });
-            // }
+            }
+
             if let Some(index) = remove {
                 self.entries.remove(index);
                 ui.ctx().request_repaint();

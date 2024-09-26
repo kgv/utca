@@ -100,7 +100,7 @@ impl Pane {
                     body.rows(height, total_rows, |mut row| {
                         let row_index = row.index();
                         // TAG
-                        row.left_align_col(|ui| {
+                        row.col(|ui| {
                             ui.label(species.get(row_index).unwrap_or("-"));
                         });
                         for column_index in 0..data_frames.len() {

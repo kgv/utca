@@ -109,7 +109,7 @@ impl Pane {
                             });
                         }
                         // FA
-                        row.left_align_col(|ui| {
+                        row.col(|ui| {
                             let label = labels.get(index).unwrap();
                             let carbons = carbons.get(index).unwrap();
                             let doubles = doubles.get_as_series(index).unwrap();

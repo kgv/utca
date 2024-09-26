@@ -10,11 +10,9 @@ use egui::{
     collapsing_header::paint_default_icon, Align, Align2, Color32, Grid, Id, Layout, Pos2,
     RichText, ScrollArea, Sense, TextWrapMode, Ui, Vec2,
 };
-use egui_extras::TableBuilder;
+use egui_extras::{Column, TableBuilder};
 use egui_phosphor::regular::LIST;
-use egui_table::{
-    AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, PrefetchInfo, Table, TableDelegate,
-};
+use egui_table::{PrefetchInfo, Table, TableDelegate};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, f64::NAN, iter::zip};
@@ -32,7 +30,6 @@ impl Pane {
         let Some(entry) = behavior.data.entries.iter_mut().find(|entry| entry.checked) else {
             return;
         };
-        TableDemo::default().ui(ui, behavior, &self.settings);
         // if let Err(error) = || -> Result<()> {
         //     if self.settings.compositions.is_empty() {
         //         return Ok(());
@@ -203,6 +200,39 @@ impl Pane {
         // }() {
         //     error!(%error);
         // }
+        let id_salt = Id::new("CompositionTable");
+        let data_frame = ui.memory_mut(|memory| {
+            memory
+                .caches
+                .cache::<CompositionComputed>()
+                .get(CompositionKey {
+                    data_frame: &entry.fatty_acids,
+                    settings: &self.settings,
+                })
+        });
+        let num_rows = data_frame.height();
+        let mut table = Table::new()
+            .id_salt(id_salt)
+            .num_rows(num_rows as _)
+            .columns(vec![self.default_column; self.num_columns])
+            .num_sticky_cols(self.num_sticky_cols)
+            .headers([
+                egui_table::HeaderRow {
+                    height: self.top_row_height,
+                    groups: vec![0..1, 1..4, 4..8, 8..12],
+                },
+                egui_table::HeaderRow::new(self.top_row_height),
+            ])
+            .auto_size_mode(self.auto_size_mode);
+
+        if let Some(scroll_to_column) = scroll_to_column {
+            table = table.scroll_to_column(scroll_to_column, None);
+        }
+        if let Some(scroll_to_row) = scroll_to_row {
+            table = table.scroll_to_row(scroll_to_row, None);
+        }
+
+        table.show(ui, self);
     }
 }
 
@@ -214,47 +244,12 @@ struct TableDemo {
     prefetched: Vec<PrefetchInfo>,
 }
 
-impl TableDemo {
-    fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior, settings: &Settings) {
-        let Some(entry) = behavior.data.entries.iter_mut().find(|entry| entry.checked) else {
-            return;
-        };
-        let id_salt = Id::new("CompositionTable");
-        let height = ui.spacing().interact_size.y;
-        let width = ui.spacing().interact_size.x;
-        let data_frame = ui.memory_mut(|memory| {
-            memory
-                .caches
-                .cache::<CompositionComputed>()
-                .get(CompositionKey {
-                    data_frame: &entry.fatty_acids,
-                    settings,
-                })
-        });
-        let num_rows = data_frame.height();
-        Table::new()
-            .id_salt(id_salt)
-            .num_rows(num_rows as _)
-            .columns(vec![Column::default(); 8])
-            .num_sticky_cols(1)
-            .headers([
-                HeaderRow {
-                    height: height,
-                    groups: vec![0..1, 1..4, 4..8],
-                },
-                HeaderRow::new(height),
-            ])
-            .auto_size_mode(AutoSizeMode::OnParentResize)
-            .show(ui, self);
-    }
-}
-
 impl TableDelegate for TableDemo {
-    fn header_cell_ui(&mut self, ui: &mut Ui, cell: &HeaderCellInfo) {
-        ui.heading(format!("Column {}", cell.group_index));
+    fn header_cell_ui(&mut self, ui: &mut Ui, cell: &egui_table::HeaderCellInfo) {
+        todo!()
     }
 
-    fn cell_ui(&mut self, ui: &mut Ui, cell: &CellInfo) {
-        ui.label(format!("Column {}", cell.row_nr));
+    fn cell_ui(&mut self, ui: &mut Ui, cell: &egui_table::CellInfo) {
+        todo!()
     }
 }

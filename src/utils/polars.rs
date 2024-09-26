@@ -75,11 +75,23 @@ impl ExprExt for Expr {
 
 /// Extension methods for [`Series`]
 pub trait SeriesExt {
-    fn r#struct(&self) -> PolarsResult<&ChunkedArray<StructType>>;
+    fn r#struct(&self) -> &StructChunked;
+
+    fn try_struct(&self) -> PolarsResult<&StructChunked>;
+
+    fn field_by_name(&self, name: &str) -> Series;
 }
 
 impl SeriesExt for Series {
-    fn r#struct(&self) -> PolarsResult<&ChunkedArray<StructType>> {
+    fn r#struct(&self) -> &StructChunked {
+        self.try_struct().unwrap()
+    }
+
+    fn try_struct(&self) -> PolarsResult<&StructChunked> {
         self.struct_()
+    }
+
+    fn field_by_name(&self, name: &str) -> Series {
+        self.try_struct().unwrap().field_by_name(name).unwrap()
     }
 }

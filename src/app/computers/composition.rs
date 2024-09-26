@@ -88,6 +88,8 @@ impl LazyFrameExt for LazyFrame {
         if settings.compositions.is_empty() {
             return Ok(self);
         }
+        // Temp Species and Value
+        self = self.with_columns([species().alias("Species"), value().alias("Value")]);
         for (index, composition) in settings.compositions.iter().enumerate() {
             // Temp stereospecific numbers
             self = self.with_columns([
@@ -207,7 +209,15 @@ impl LazyFrameExt for LazyFrame {
                 .drop([key, value]);
             compositions.push(composition);
         }
-        self = self.group_by([cols(&compositions)]).agg([all()]);
+        self = self
+            .with_column(
+                as_struct(vec![col("Species").alias("Label"), col("Value")]).alias("Species"),
+            )
+            .drop(["Value"])
+            .group_by([cols(&compositions)])
+            .agg([all()]);
+        // Drop Species and Value
+        // self = self.drop(["Species", "Value"]);
         Ok(self)
     }
 
@@ -325,8 +335,6 @@ impl Computer {
             "before composition data_frame: {}",
             lazy_frame.clone().collect().unwrap()
         );
-        // Temp Species and Value
-        lazy_frame = lazy_frame.with_columns([species().alias("Species"), value().alias("Value")]);
         // Compose
         lazy_frame = lazy_frame.composition(key.settings)?;
         println!(
@@ -335,8 +343,6 @@ impl Computer {
         );
         // Arrange
         lazy_frame = lazy_frame.arrange(key.settings)?;
-        // Drop Species and Value
-        lazy_frame = lazy_frame.drop(["Species", "Value"]);
         // Index
         lazy_frame = lazy_frame.with_row_index("Index", None);
         // Filter
@@ -618,7 +624,7 @@ mod test {
                 .with_row_index("Index", None)
                 .with_column(col("3").map(
                     |series| {
-                        let r#struct = series.r#struct()?;
+                        let r#struct = series.try_struct()?;
                         let data_frame = df! {
                             "u32" => r#struct.field_by_name("u32")?.u32()?.to_vec(),
                             "str" => r#struct.field_by_name("str")?,
