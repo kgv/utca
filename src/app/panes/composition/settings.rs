@@ -70,7 +70,7 @@ pub(in crate::app) struct Settings {
 
     pub(in crate::app) adduct: OrderedFloat<f64>,
     pub(in crate::app) method: Method,
-    pub(in crate::app) compositions: Vec<(Composition, bool)>,
+    pub(in crate::app) compositions: Vec<Composition>,
     pub(in crate::app) sort: Sort,
     pub(in crate::app) order: Order,
 }
@@ -172,11 +172,10 @@ impl Settings {
                 // ui.label(localize!("composition"));
                 ui.label(localize!("compose"));
                 if ui.button(PLUS).clicked() {
-                    self.compositions.push((Composition::new(), true));
+                    self.compositions.push(Composition::new());
                 }
                 ui.end_row();
-                self.compositions.retain_mut(|(composition, selected)| {
-                    let mut keep = true;
+                self.compositions.retain_mut(|composition| {
                     ComboBox::from_id_source(ui.next_auto_id())
                         .selected_text(composition.text())
                         .show_ui(ui, |ui| {
@@ -207,11 +206,7 @@ impl Settings {
                         })
                         .response
                         .on_hover_text(composition.hover_text());
-                    ui.horizontal(|ui| {
-                        keep = !ui.button(MINUS).clicked();
-                        let text = if *selected { EYE } else { EYE_SLASH };
-                        ui.toggle_value(selected, text);
-                    });
+                    let keep = !ui.button(MINUS).clicked();
                     ui.end_row();
                     keep
                 });

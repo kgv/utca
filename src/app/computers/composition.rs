@@ -45,7 +45,6 @@ impl LazyFrameExt for LazyFrame {
                             .field_by_name("Key"),
                     );
                 }
-                by_exprs.push(col("Species"));
                 self.sort_by_exprs(&by_exprs, sort_options)
             }
             Sort::Value => {
@@ -57,7 +56,6 @@ impl LazyFrameExt for LazyFrame {
                             .field_by_name("Value"),
                     );
                 }
-                by_exprs.push(col("Value"));
                 self.sort_by_exprs(&by_exprs, sort_options)
             }
         };
@@ -90,11 +88,7 @@ impl LazyFrameExt for LazyFrame {
         if settings.compositions.is_empty() {
             return Ok(self);
         }
-        let mut keys = Vec::new();
-        for (index, (composition, selected)) in settings.compositions.iter().enumerate() {
-            if !selected {
-                continue;
-            }
+        for (index, composition) in settings.compositions.iter().enumerate() {
             // Temp stereospecific numbers
             self = self.with_columns([
                 col("TAG").r#struct().field_by_name("SN1"),
@@ -186,27 +180,34 @@ impl LazyFrameExt for LazyFrame {
                 }
                 .alias(&format!("Key{index}")),
             );
-            keys.push(format!("Key{index}"));
+            // Composition value
+            let mut key = Vec::new();
+            for index in 0..=index {
+                key.push(format!("Key{index}"));
+            }
+            let value = format!("Value{index}");
+            self = self
+                .group_by([cols(&key)])
+                .agg([all(), col("Value").sum().alias(&value)])
+                .explode([all().exclude(&key).exclude([&value])]);
         }
         // Drop stereospecific numbers
         self = self.drop([col("SN1"), col("SN2"), col("SN3")]);
-        // Composition value
-        let value = format!("Value{index}");
-        self = self
-            .group_by([cols(&key)])
-            .agg([all().exclude(&key), col("Value").sum().alias(&value)])
-            .explode([all().exclude(&key).exclude([&value])]);
         // Composition
+        let mut compositions = Vec::new();
         for index in 0..settings.compositions.len() {
             let key = format!("Key{index}");
             let value = format!("Value{index}");
+            let composition = format!("Composition{index}");
             self = self
                 .with_columns([
                     as_struct(vec![col(&key).alias("Key"), col(&value).alias("Value")])
-                        .alias(&format!("Composition{index}")),
+                        .alias(&composition),
                 ])
                 .drop([key, value]);
+            compositions.push(composition);
         }
+        self = self.group_by([cols(&compositions)]).agg([all()]);
         Ok(self)
     }
 
@@ -371,7 +372,11 @@ impl Hash for Key<'_> {
         for dag13 in self.data_frame["DAG13.Calculated"].iter() {
             dag13.hash(state);
         }
-        self.settings.hash(state);
+        self.settings.adduct.hash(state);
+        self.settings.compositions.hash(state);
+        self.settings.method.hash(state);
+        self.settings.order.hash(state);
+        self.settings.sort.hash(state);
     }
 }
 

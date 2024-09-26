@@ -96,9 +96,9 @@ by_value = value
     .description = sort by value
 order = order
 ascending = ascending
-    .description = reverse order (from max to min)
-descending = descending
     .description = direct order (from min to max)
+descending = descending
+    .description = reverse order (from max to min)
 
 key = key
 value = value

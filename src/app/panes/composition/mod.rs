@@ -43,13 +43,11 @@ impl Pane {
             // let width = ui.spacing().interact_size.x;
             let total_rows = data_frame.height();
             let mut compositions = Vec::new();
-            for (index, &(composition, selected)) in self.settings.compositions.iter().enumerate() {
-                if selected {
-                    compositions.push((
-                        composition,
-                        data_frame.destruct(&format!("Composition{index}")),
-                    ));
-                }
+            for (index, composition) in self.settings.compositions.iter().enumerate() {
+                compositions.push((
+                    composition,
+                    data_frame.destruct(&format!("Composition{index}")),
+                ));
             }
             // let species = data_frame.str("Species");
             // let values = data_frame.f64("Value");
