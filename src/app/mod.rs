@@ -8,11 +8,11 @@ use crate::{
     utils::TreeExt,
     widgets::FileDialog,
 };
-use eframe::{get_value, set_value, CreationContext, Storage, APP_KEY};
+use eframe::{get_value, set_value, CreationContext, Storage};
 use egui::{
-    menu::bar, warn_if_debug_build, Align, Align2, Button, CentralPanel, Color32, FontDefinitions,
-    Id, LayerId, Layout, Order, RichText, ScrollArea, SidePanel, TextStyle, TopBottomPanel, Ui,
-    Visuals,
+    menu::bar, warn_if_debug_build, Align, Align2, Button, CentralPanel, Color32, Context,
+    FontDefinitions, Id, LayerId, Layout, Order, RichText, ScrollArea, SidePanel, TextStyle,
+    TopBottomPanel, Ui, Visuals,
 };
 use egui_ext::{DroppedFileExt, HoveredFileExt, LightDarkButton};
 use egui_notify::Toasts;
@@ -35,6 +35,8 @@ use std::{
 };
 use tracing::{error, info, trace};
 
+const APP_KEY: &str = "TEMP";
+
 /// IEEE 754-2008
 const MAX_PRECISION: usize = 16;
 
@@ -51,7 +53,7 @@ pub(crate) macro icon {
     ($icon:expr, x64) => { RichText::new($icon).size(64.0) }
 }
 
-fn custom_style(ctx: &egui::Context) {
+fn custom_style(ctx: &Context) {
     let mut style = (*ctx.style()).clone();
     style.visuals = custom_visuals(style.visuals);
     ctx.set_style(style);
@@ -68,8 +70,10 @@ pub struct App {
     // Panels
     left_panel: bool,
     // Panes
+    // #[serde(skip)]
     tree: Tree<Pane>,
     // Data
+    #[serde(skip)]
     data: Data,
     // Settings
     settings: Settings,
@@ -115,15 +119,21 @@ impl App {
         // return Default::default();
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
-        let app: Self = cc
-            .storage
-            .and_then(|storage| get_value(storage, APP_KEY))
-            .unwrap_or_default();
+        let app = Self::load(cc).unwrap_or_default();
+        println!("app.settings: {:?}", app.settings);
+        println!("app.tree: {:?}", app.tree);
         app.context(&cc.egui_ctx);
         app
     }
 
-    fn context(&self, ctx: &egui::Context) {
+    fn load(cc: &CreationContext) -> Option<Self> {
+        let storage = cc.storage?;
+        let value = get_value(storage, APP_KEY)?;
+        println!("value: OK");
+        Some(value)
+    }
+
+    fn context(&self, ctx: &Context) {
         // Data channel
         ctx.data_mut(|data| data.insert_temp(Id::new("Data"), self.channel.0.clone()));
     }
@@ -131,7 +141,7 @@ impl App {
 
 // Panels
 impl App {
-    fn panels(&mut self, ctx: &egui::Context) {
+    fn panels(&mut self, ctx: &Context) {
         self.top_panel(ctx);
         self.bottom_panel(ctx);
         self.left_panel(ctx);
@@ -139,7 +149,7 @@ impl App {
     }
 
     // Bottom panel
-    fn bottom_panel(&mut self, ctx: &egui::Context) {
+    fn bottom_panel(&mut self, ctx: &Context) {
         TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 warn_if_debug_build(ui);
@@ -150,7 +160,7 @@ impl App {
     }
 
     // Central panel
-    fn central_panel(&mut self, ctx: &egui::Context) {
+    fn central_panel(&mut self, ctx: &Context) {
         CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
             .show(ctx, |ui| {
@@ -167,7 +177,7 @@ impl App {
     }
 
     // Left panel
-    fn left_panel(&mut self, ctx: &egui::Context) {
+    fn left_panel(&mut self, ctx: &Context) {
         SidePanel::left("left_panel")
             .resizable(true)
             .show_animated(ctx, self.left_panel, |ui| {
@@ -180,7 +190,7 @@ impl App {
     }
 
     // Top panel
-    fn top_panel(&mut self, ctx: &egui::Context) {
+    fn top_panel(&mut self, ctx: &Context) {
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             bar(ui, |ui| {
                 // Left panel
@@ -478,7 +488,7 @@ impl App {
 
 // Windows
 impl App {
-    fn windows(&mut self, ctx: &egui::Context) {
+    fn windows(&mut self, ctx: &Context) {
         self.about.window(ctx);
         self.github.window(ctx);
     }
@@ -486,14 +496,14 @@ impl App {
 
 // Notifications
 impl App {
-    fn notifications(&mut self, ctx: &egui::Context) {
+    fn notifications(&mut self, ctx: &Context) {
         self.toasts.show(ctx);
     }
 }
 
 // Copy/Paste, Drag&Drop
 impl App {
-    fn drag_and_drop(&mut self, ctx: &egui::Context) {
+    fn drag_and_drop(&mut self, ctx: &Context) {
         // Preview hovering files
         if let Some(text) = ctx.input(|input| {
             (!input.raw.hovered_files.is_empty()).then(|| {
@@ -543,7 +553,7 @@ impl App {
         }
     }
 
-    fn load(&mut self, ctx: &egui::Context) {
+    fn parse(&mut self, ctx: &Context) {
         for (name, content) in self.channel.1.try_iter() {
             trace!(name, content);
             match ron::de::from_str(&content) {
@@ -563,7 +573,7 @@ impl App {
         }
     }
 
-    // fn paste(&mut self, ctx: &egui::Context) {
+    // fn paste(&mut self, ctx: &Context) {
     //     if !ctx.memory(|memory| memory.focused().is_some()) {
     //         ctx.input(|input| {
     //             for event in &input.raw.events {
@@ -646,18 +656,19 @@ impl eframe::App for App {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn Storage) {
         set_value(storage, APP_KEY, self);
+        // set_value(storage, APP_KEY, &Self::default());
     }
 
     /// Called each time the UI needs repainting, which may be many times per
     /// second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         // Pre update
         self.panels(ctx);
         self.windows(ctx);
         self.notifications(ctx);
         // Post update
         self.drag_and_drop(ctx);
-        self.load(ctx);
+        self.parse(ctx);
     }
 }
 

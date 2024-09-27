@@ -7,8 +7,8 @@ use crate::{
 };
 use anyhow::Result;
 use egui::{
-    collapsing_header::paint_default_icon, Align, Align2, Color32, Grid, Id, Layout, Pos2,
-    RichText, ScrollArea, Sense, TextWrapMode, Ui, Vec2,
+    collapsing_header::paint_default_icon, Align, Align2, Color32, Frame, Grid, Id, Layout, Margin,
+    Pos2, RichText, ScrollArea, Sense, Sides, TextWrapMode, Ui, Vec2,
 };
 use egui_extras::TableBuilder;
 use egui_phosphor::regular::LIST;
@@ -17,7 +17,11 @@ use egui_table::{
 };
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, f64::NAN, iter::zip};
+use std::{
+    collections::BTreeMap,
+    f64::NAN,
+    iter::{once, zip},
+};
 use tracing::error;
 
 /// Central composition pane
@@ -32,7 +36,7 @@ impl Pane {
         let Some(entry) = behavior.data.entries.iter_mut().find(|entry| entry.checked) else {
             return;
         };
-        TableDemo::default().ui(ui, behavior, &self.settings);
+        TableDemo::new(behavior, &self.settings).ui(ui);
         // if let Err(error) = || -> Result<()> {
         //     if self.settings.compositions.is_empty() {
         //         return Ok(());
@@ -206,17 +210,26 @@ impl Pane {
     }
 }
 
-pub(in crate::app) mod settings;
-
-#[derive(Default, Deserialize, Serialize)]
-struct TableDemo {
-    is_row_expanded: BTreeMap<u64, bool>,
-    prefetched: Vec<PrefetchInfo>,
+struct TableDemo<'a, 'b> {
+    behavior: &'a mut Behavior<'b>,
+    settings: &'a Settings,
+    // is_row_expanded: BTreeMap<u64, bool>,
+    // prefetched: Vec<PrefetchInfo>,
 }
 
-impl TableDemo {
-    fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior, settings: &Settings) {
-        let Some(entry) = behavior.data.entries.iter_mut().find(|entry| entry.checked) else {
+impl<'a, 'b> TableDemo<'a, 'b> {
+    fn new(behavior: &'a mut Behavior<'b>, settings: &'a Settings) -> Self {
+        Self { behavior, settings }
+    }
+
+    fn ui(&mut self, ui: &mut Ui) {
+        let Some(entry) = self
+            .behavior
+            .data
+            .entries
+            .iter_mut()
+            .find(|entry| entry.checked)
+        else {
             return;
         };
         let id_salt = Id::new("CompositionTable");
@@ -228,19 +241,29 @@ impl TableDemo {
                 .cache::<CompositionComputed>()
                 .get(CompositionKey {
                     data_frame: &entry.fatty_acids,
-                    settings,
+                    settings: &self.settings,
                 })
         });
-        let num_rows = data_frame.height();
+        const RANGE: usize = 3;
+        let num_rows = data_frame.height() as _;
+        let num_columns = 1 + self.behavior.data.entries.len() * RANGE;
         Table::new()
             .id_salt(id_salt)
-            .num_rows(num_rows as _)
-            .columns(vec![Column::default(); 8])
+            .num_rows(num_rows)
+            .columns(vec![Column::default(); num_columns])
             .num_sticky_cols(1)
             .headers([
                 HeaderRow {
                     height: height,
-                    groups: vec![0..1, 1..4, 4..8],
+                    groups: once(0..1)
+                        .chain((0..self.behavior.data.entries.len()).map(|index| {
+                            let start = index * RANGE + 1;
+                            start..start + RANGE
+                        }))
+                        .collect(),
+                    // groups: vec![0..1, 1..4, 4..7, 7..10],
+                    // groups: vec![0..3, 3..6, 6..9],
+                    // groups: vec![0..1, 1..4, 4..8],
                 },
                 HeaderRow::new(height),
             ])
@@ -249,12 +272,34 @@ impl TableDemo {
     }
 }
 
-impl TableDelegate for TableDemo {
+impl TableDelegate for TableDemo<'_, '_> {
     fn header_cell_ui(&mut self, ui: &mut Ui, cell: &HeaderCellInfo) {
-        ui.heading(format!("Column {}", cell.group_index));
+        match (cell.row_nr, cell.group_index, &cell.col_range) {
+            (0, 0, _) => {}
+            (0, column, _) => {
+                let entry = &self.behavior.data.entries[column - 1];
+                ui.heading(&entry.name);
+            }
+            (1, 0, _) => {
+                Sides::new().height(ui.available_height()).show(
+                    ui,
+                    |ui| {
+                        ui.heading("Row");
+                    },
+                    |ui| {
+                        ui.label("⬇");
+                    },
+                );
+            }
+            (row, column, range) => {
+                ui.heading(format!("Cell {row}, {column}, {range:?}"));
+            }
+        }
     }
 
     fn cell_ui(&mut self, ui: &mut Ui, cell: &CellInfo) {
         ui.label(format!("Column {}", cell.row_nr));
     }
 }
+
+pub(in crate::app) mod settings;

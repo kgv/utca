@@ -1,8 +1,10 @@
 use super::{Pane, Settings};
 use crate::app::data::{Data, FattyAcids};
-use egui::{Button, CursorIcon, RichText, Ui, WidgetText};
+use egui::{vec2, Button, CursorIcon, Frame, Margin, RichText, Sides, Ui, Vec2, WidgetText};
 use egui_phosphor::regular::X;
 use egui_tiles::{TileId, Tiles, Tree, UiResponse};
+
+const MARGIN: Vec2 = vec2(4.0, 0.0);
 
 /// Behavior
 #[derive(Debug)]
@@ -18,26 +20,28 @@ impl egui_tiles::Behavior<Pane> for Behavior<'_> {
     }
 
     fn pane_ui(&mut self, ui: &mut Ui, tile_id: TileId, pane: &mut Pane) -> UiResponse {
-        let response = ui
-            .horizontal(|ui| {
-                let response = ui.heading(pane.title()).on_hover_cursor(CursorIcon::Grab);
-                ui.add_space(
-                    ui.available_width()
-                        - 2.0 * ui.spacing().button_padding.x
-                        - ui.spacing().interact_size.y,
-                );
-                ui.visuals_mut().button_frame = false;
-                if ui.button(RichText::new(X)).clicked() {
-                    self.close = Some(tile_id);
+        Frame::none()
+            .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
+            .show(ui, |ui| {
+                let response = Sides::new()
+                    .show(
+                        ui,
+                        |ui| ui.heading(pane.title()).on_hover_cursor(CursorIcon::Grab),
+                        |ui| {
+                            ui.visuals_mut().button_frame = false;
+                            if ui.button(RichText::new(X)).clicked() {
+                                self.close = Some(tile_id);
+                            }
+                        },
+                    )
+                    .0;
+                pane.ui(ui, self);
+                if response.dragged() {
+                    UiResponse::DragStarted
+                } else {
+                    UiResponse::None
                 }
-                response
             })
-            .inner;
-        pane.ui(ui, self);
-        if response.dragged() {
-            UiResponse::DragStarted
-        } else {
-            UiResponse::None
-        }
+            .inner
     }
 }

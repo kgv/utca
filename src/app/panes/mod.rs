@@ -4,7 +4,7 @@ use egui::{menu::bar, RichText, Ui};
 use egui_phosphor::regular::{
     ARROWS_HORIZONTAL, CALCULATOR, INTERSECT_THREE, NOTE_PENCIL, PENCIL, TABLE,
 };
-use egui_tiles::{Tile, Tree, UiResponse};
+use egui_tiles::{Tile, Tree};
 use serde::{Deserialize, Serialize};
 
 const SIZE: f32 = 16.0;

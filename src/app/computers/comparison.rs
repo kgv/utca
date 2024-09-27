@@ -41,7 +41,7 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                 [col("Species")],
                 JoinArgs::new(JoinType::Full)
                     .with_coalesce(JoinCoalesce::CoalesceColumns)
-                    .with_suffix(Some(index.to_string())),
+                    .with_suffix(Some(index.to_string().into())),
             );
             // builder = builder
             //     .with(lazy_frame)

@@ -35,7 +35,10 @@ impl DataFrameExt for DataFrame {
     }
 
     fn destruct(&self, name: &str) -> DataFrame {
-        self.select([&name]).unwrap().unnest([name]).unwrap()
+        self.select([PlSmallStr::from_str(name)])
+            .unwrap()
+            .unnest([name])
+            .unwrap()
     }
 }
 

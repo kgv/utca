@@ -136,7 +136,7 @@ impl Pane {
                                     {
                                         let (column, value) = match change {
                                             Change::Label => {
-                                                ("FA.Label", LiteralValue::String(label))
+                                                ("FA.Label", LiteralValue::String(label.into()))
                                             }
                                             Change::Carbons => (
                                                 "FA.Carbons",

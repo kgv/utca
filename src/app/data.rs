@@ -3,7 +3,7 @@ use crate::{
     utils::{ExprExt, VecExt},
 };
 use anyhow::Result;
-use egui::{Id, Label, Response, RichText, Sense, Ui, Widget};
+use egui::{Id, Label, Response, RichText, Sense, Sides, Ui, Widget};
 use egui_dnd::dnd;
 use egui_phosphor::regular::{ARROWS_OUT_CARDINAL, TRASH};
 use polars::prelude::*;
@@ -237,17 +237,20 @@ impl Widget for &mut Data {
             //     });
             // });
             for (index, entry) in self.entries.iter_mut().enumerate() {
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut entry.checked, "");
-                    ui.add(Label::new(&entry.name).truncate())
-                        .on_hover_text(format!("{:?}", entry.fatty_acids.shape()));
-                    let amount = ui.available_width()
-                        - ui.spacing().interact_size.y
-                        - 2.0 * ui.spacing().button_padding.x;
-                    ui.add_space(amount);
-                    if ui.button(TRASH).clicked() {
-                        remove = Some(index);
-                    }
+                ui.vertical(|ui| {
+                    Sides::new().show(
+                        ui,
+                        |ui| {
+                            ui.checkbox(&mut entry.checked, "");
+                            ui.add(Label::new(&entry.name).truncate())
+                                .on_hover_text(format!("{:?}", entry.fatty_acids.shape()));
+                        },
+                        |ui| {
+                            if ui.button(TRASH).clicked() {
+                                remove = Some(index);
+                            }
+                        },
+                    );
                 });
             }
 
@@ -312,7 +315,7 @@ impl FattyAcids {
         let value = self.0.select(["FA", "TAG", "DAG1223", "MAG2"]);
         let contents = ron::ser::to_string_pretty(
             &value?,
-            PrettyConfig::new().extensions(Extensions::IMPLICIT_SOME),
+            PrettyConfig::new().extensions(Extensions::IMPLICIT_SOME | Extensions::UNWRAP_NEWTYPES),
         )?;
         write(path, contents)?;
         Ok(())
@@ -328,9 +331,9 @@ impl FattyAcids {
                         "Carbons" => &[0u8],
                         // "Doubles" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
                         // "Triples" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
-                        "Doubles" => &[Series::new_empty("", &DataType::Int8)],
-                        "Triples" => &[Series::new_empty("", &DataType::Int8)],
-                    }?.into_struct(""),
+                        "Doubles" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
+                        "Triples" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
+                    }?.into_struct(PlSmallStr::EMPTY),
                     "TAG" => &[0.0],
                     "DAG1223" => &[0.0],
                     "MAG2" => &[0.0],
@@ -376,7 +379,7 @@ impl FattyAcids {
                             column = prefix;
                             let field = if let LiteralValue::Binary(binary) = value {
                                 lit(Series::from_any_values(
-                                    "",
+                                    PlSmallStr::EMPTY,
                                     &[AnyValue::List(Series::from_iter(binary.r#as()))],
                                     false,
                                 )?)
