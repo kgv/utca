@@ -12,7 +12,7 @@ eframe = { version = "0.29.0", default-features = false, features = [
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
     "persistence",
 ] }
-egui = "0.29.0"
+egui = { version = "0.29.0", features = ["persistence"] }
 # egui-notify = "0.15.0"
 egui-notify = { git = "https://github.com/ItsEthra/egui-notify" }
 # egui-phosphor = "0.6.0"
