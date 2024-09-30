@@ -43,7 +43,7 @@ impl Settings {
 
                 ui.label(localize!("fraction"));
                 let fraction = &mut self.fraction;
-                ComboBox::from_id_source("fraction")
+                ComboBox::from_id_salt("fraction")
                     .selected_text(fraction.text())
                     .show_ui(ui, |ui| {
                         ui.selectable_value(fraction, Fraction::AsIs, Fraction::AsIs.text())
@@ -64,7 +64,7 @@ impl Settings {
                 ui.end_row();
 
                 ui.label(localize!("sign"));
-                ComboBox::from_id_source("sign")
+                ComboBox::from_id_salt("sign")
                     .selected_text(self.signedness.text())
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
@@ -96,7 +96,7 @@ impl Settings {
                 }) {
                     self.from = From::Mag2;
                 }
-                ComboBox::from_id_source("1,3")
+                ComboBox::from_id_salt("1,3")
                     .selected_text(self.from.text())
                     .show_ui(ui, |ui| {
                         ui.selectable_value(&mut self.from, From::Dag1223, From::Dag1223.text())

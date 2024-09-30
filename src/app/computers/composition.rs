@@ -1,7 +1,10 @@
 use super::fatty_acid::ExprExt as _;
 use crate::{
     acylglycerol::Stereospecificity,
-    app::panes::composition::settings::{Method, Order, Scope, Settings, Sort},
+    app::{
+        data::FattyAcids,
+        panes::composition::settings::{Method, Order, Scope, Settings, Sort},
+    },
     utils::{r#struct, ExprExt as _, SeriesExt},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
@@ -64,7 +67,8 @@ impl LazyFrameExt for LazyFrame {
 
     fn cartesian_product(self) -> PolarsResult<Self> {
         let lazy_frame = self.with_row_index("Index", None);
-        let data_frame = lazy_frame
+        // TODO https://github.com/pola-rs/polars/issues/18587
+        Ok(lazy_frame
             .clone()
             .select([fatty_acid("DAG13.Calculated")?.alias("SN1")])
             .cross_join(
@@ -77,11 +81,7 @@ impl LazyFrameExt for LazyFrame {
                 lazy_frame.select([fatty_acid("DAG13.Calculated")?.alias("SN3")]),
                 None,
             )
-            .select([as_struct(vec![col("SN1"), col("SN2"), col("SN3")]).alias("TAG")])
-            .collect()?;
-        // TODO https://github.com/pola-rs/polars/issues/18587
-        // data_frame.as_single_chunk_par();
-        Ok(data_frame.lazy())
+            .select([as_struct(vec![col("SN1"), col("SN2"), col("SN3")]).alias("TAG")]))
     }
 
     fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
@@ -213,7 +213,7 @@ impl LazyFrameExt for LazyFrame {
             .with_column(
                 as_struct(vec![col("Species").alias("Label"), col("Value")]).alias("Species"),
             )
-            .drop(["Value"])
+            .drop(["Value", "TAG"])
             .group_by([cols(&compositions)])
             .agg([all()]);
         // Drop Species and Value
@@ -242,16 +242,7 @@ impl LazyFrameExt for LazyFrame {
     }
 }
 
-// fn stereospecific_number_struct(value: &str) -> Expr {
-//     as_struct(vec![
-//         col("Index"),
-//         col("Label"),
-//         col("Carbons"),
-//         col("Doubles"),
-//         col("Triples"),
-//         col(value).alias("Value"),
-//     ])
-// }
+// Fatty acid with stereospecific number value
 fn fatty_acid(value: &str) -> PolarsResult<Expr> {
     col("FA")
         .r#struct()
@@ -306,7 +297,7 @@ fn value() -> Expr {
 impl Computer {
     fn gunstone(&mut self, key: Key) -> DataFrame {
         // let gunstone = Gunstone::new(s);
-        let lazy_frame = key.data_frame.clone().lazy();
+        let lazy_frame = key.fatty_acids.0.clone().lazy();
         // lazy_frame = lazy_frame.select([
         //     col("Label"),
         //     col("Formula"),
@@ -328,7 +319,7 @@ impl Computer {
     // [abc] = [a13]*[b2]*[c13]
     // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
     fn vander_wal(&mut self, key: Key) -> PolarsResult<DataFrame> {
-        let mut lazy_frame = key.data_frame.clone().lazy();
+        let mut lazy_frame = key.fatty_acids.0.clone().lazy();
         // Cartesian product (TAG from FA)
         lazy_frame = lazy_frame.cartesian_product()?;
         println!(
@@ -347,6 +338,10 @@ impl Computer {
         lazy_frame = lazy_frame.with_row_index("Index", None);
         // Filter
         // lazy_frame = lazy_frame.filter(col("Value").gt_eq(lit(0.001)));
+        println!(
+            "composition data_frame: {}",
+            lazy_frame.clone().collect().unwrap()
+        );
         lazy_frame.collect()
     }
 }
@@ -363,26 +358,26 @@ impl ComputerMut<Key<'_>, Value> for Computer {
 /// Composition key
 #[derive(Clone, Copy, Debug)]
 pub(in crate::app) struct Key<'a> {
-    pub(in crate::app) data_frame: &'a DataFrame,
+    pub(in crate::app) fatty_acids: &'a FattyAcids,
     pub(in crate::app) settings: &'a Settings,
 }
 
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for fatty_acid in self.data_frame["FA"].iter() {
-            fatty_acid.hash(state);
-        }
-        for mag2 in self.data_frame["MAG2.Calculated"].iter() {
-            mag2.hash(state);
-        }
-        for dag13 in self.data_frame["DAG13.Calculated"].iter() {
-            dag13.hash(state);
-        }
         self.settings.adduct.hash(state);
         self.settings.compositions.hash(state);
         self.settings.method.hash(state);
         self.settings.order.hash(state);
         self.settings.sort.hash(state);
+        for fatty_acid in self.fatty_acids["FA"].iter() {
+            fatty_acid.hash(state);
+        }
+        for mag2 in self.fatty_acids["MAG2.Calculated"].iter() {
+            mag2.hash(state);
+        }
+        for dag13 in self.fatty_acids["DAG13.Calculated"].iter() {
+            dag13.hash(state);
+        }
     }
 }
 

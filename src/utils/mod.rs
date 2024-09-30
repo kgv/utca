@@ -1,6 +1,6 @@
 pub use self::{
     egui_tiles::{ContainerExt, TilesExt, TreeExt},
-    polars::{r#struct, DataFrameExt, ExprExt, SeriesExt},
+    polars::{r#struct, DataFrameExt, ExprExt, SeriesExt, StructChunkedExt},
     spawn::spawn,
     vec::VecExt,
 };

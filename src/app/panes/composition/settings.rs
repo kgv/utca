@@ -115,7 +115,7 @@ impl Settings {
                             .speed(1.0 / 10f64.powi(self.precision as _)),
                     )
                     .on_hover_text(format!("{adduct}"));
-                    ComboBox::from_id_source("")
+                    ComboBox::from_id_salt("")
                         .selected_text(match adduct.0 {
                             adduct if adduct == H => "H",
                             adduct if adduct == NH4 => "NH4",
@@ -148,7 +148,7 @@ impl Settings {
                 }) {
                     self.method = Method::VanderWal;
                 }
-                ComboBox::from_id_source("method")
+                ComboBox::from_id_salt("method")
                     .selected_text(self.method.text())
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
@@ -176,7 +176,7 @@ impl Settings {
                 }
                 ui.end_row();
                 self.compositions.retain_mut(|composition| {
-                    ComboBox::from_id_source(ui.next_auto_id())
+                    ComboBox::from_id_salt(ui.next_auto_id())
                         .selected_text(composition.text())
                         .show_ui(ui, |ui| {
                             ui.selectable_value(composition, NC, NC.text())
@@ -213,7 +213,7 @@ impl Settings {
 
                 // Sort
                 ui.label(localize!("sort"));
-                ComboBox::from_id_source("sort")
+                ComboBox::from_id_salt("sort")
                     .selected_text(self.sort.text())
                     .show_ui(ui, |ui| {
                         ui.selectable_value(&mut self.sort, Sort::Key, Sort::Key.text())
@@ -226,7 +226,7 @@ impl Settings {
                 ui.end_row();
 
                 ui.label(localize!("order"));
-                ComboBox::from_id_source("order")
+                ComboBox::from_id_salt("order")
                     .selected_text(self.order.text())
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
@@ -264,7 +264,7 @@ impl Settings {
             //             .speed(1.0 / 10f64.powi(self.precision as _)),
             //     )
             //     .on_hover_text(format!("{adduct}"));
-            //     ComboBox::from_id_source("")
+            //     ComboBox::from_id_salt("")
             //         .selected_text(match adduct.0 {
             //             adduct if adduct == H => "H",
             //             adduct if adduct == NH4 => "NH4",
@@ -293,7 +293,7 @@ impl Settings {
             //         self.method = Method::VanderWal;
             //     }
             //     ui.label(localize!("method"));
-            //     ComboBox::from_id_source("method")
+            //     ComboBox::from_id_salt("method")
             //         .selected_text(self.method.text())
             //         .show_ui(ui, |ui| {
             //             ui.selectable_value(
@@ -322,7 +322,7 @@ impl Settings {
             //     });
             //     self.compositions.retain_mut(|composition| {
             //         ui.horizontal(|ui| {
-            //             ComboBox::from_id_source(ui.next_auto_id())
+            //             ComboBox::from_id_salt(ui.next_auto_id())
             //                 .selected_text(composition.text())
             //                 .show_ui(ui, |ui| {
             //                     ui.selectable_value(composition, NC, NC.text())
@@ -357,7 +357,7 @@ impl Settings {
             //         .inner
             //     });
             //     // for (index, composition) in self.compositions.iter_mut().enumerate() {
-            //     //     ComboBox::from_id_source(index)
+            //     //     ComboBox::from_id_salt(index)
             //     //         .selected_text(composition.text())
             //     //         .show_ui(ui, |ui| {
             //     //             ui.selectable_value(composition, NC, NC.text())
@@ -395,7 +395,7 @@ impl Settings {
             // // Sort
             // ui.horizontal(|ui| {
             //     ui.label(localize!("sort"));
-            //     ComboBox::from_id_source("sort")
+            //     ComboBox::from_id_salt("sort")
             //         .selected_text(self.sort.text())
             //         .show_ui(ui, |ui| {
             //             ui.selectable_value(&mut self.sort, Sort::Key, Sort::Key.text())
@@ -408,7 +408,7 @@ impl Settings {
             // });
             // ui.horizontal(|ui| {
             //     ui.label(localize!("order"));
-            //     ComboBox::from_id_source("order")
+            //     ComboBox::from_id_salt("order")
             //         .selected_text(self.order.text())
             //         .show_ui(ui, |ui| {
             //             ui.selectable_value(

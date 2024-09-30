@@ -1,14 +1,18 @@
 use self::settings::Settings;
 use super::Behavior;
 use crate::{
-    app::computers::{CompositionComputed, CompositionKey},
+    app::{
+        computers::{CompositionComputed, CompositionKey},
+        data::Data,
+        MARGIN,
+    },
     localization::localize,
-    utils::{DataFrameExt, SeriesExt},
+    utils::{DataFrameExt, SeriesExt, StructChunkedExt},
 };
 use anyhow::Result;
 use egui::{
     collapsing_header::paint_default_icon, Align, Align2, Color32, Frame, Grid, Id, Layout, Margin,
-    Pos2, RichText, ScrollArea, Sense, Sides, TextWrapMode, Ui, Vec2,
+    Pos2, RichText, ScrollArea, Sense, Sides, TextStyle, TextWrapMode, Ui, Vec2,
 };
 use egui_extras::TableBuilder;
 use egui_phosphor::regular::LIST;
@@ -41,11 +45,11 @@ impl Pane {
                 .caches
                 .cache::<CompositionComputed>()
                 .get(CompositionKey {
-                    data_frame: &entry.fatty_acids,
+                    fatty_acids: &entry.fatty_acids,
                     settings: &self.settings,
                 })
         });
-        TableDemo::new(behavior, &self.settings, data_frame).ui(ui);
+        TableDemo::new(behavior.data, data_frame, &self.settings).ui(ui);
         // if let Err(error) = || -> Result<()> {
         //     if self.settings.compositions.is_empty() {
         //         return Ok(());
@@ -219,18 +223,18 @@ impl Pane {
     }
 }
 
-struct TableDemo<'a, 'b> {
-    behavior: &'a mut Behavior<'b>,
+struct TableDemo<'a> {
+    data: &'a mut Data,
     settings: &'a Settings,
     data_frame: DataFrame,
     // is_row_expanded: BTreeMap<u64, bool>,
     // prefetched: Vec<PrefetchInfo>,
 }
 
-impl<'a, 'b> TableDemo<'a, 'b> {
-    fn new(behavior: &'a mut Behavior<'b>, settings: &'a Settings, data_frame: DataFrame) -> Self {
+impl<'a> TableDemo<'a> {
+    fn new(data: &'a mut Data, data_frame: DataFrame, settings: &'a Settings) -> Self {
         Self {
-            behavior,
+            data,
             settings,
             data_frame,
         }
@@ -238,11 +242,10 @@ impl<'a, 'b> TableDemo<'a, 'b> {
 
     fn ui(&mut self, ui: &mut Ui) {
         let id_salt = Id::new("CompositionTable");
-        let height = ui.spacing().interact_size.y;
-        let width = ui.spacing().interact_size.x;
+        let height = ui.text_style_height(&TextStyle::Heading);
         let range = self.settings.compositions.len();
         let num_rows = self.data_frame.height() as _;
-        let num_columns = 1 + self.behavior.data.entries.len() * range;
+        let num_columns = self.settings.compositions.len() + self.data.entries.len() * range;
         // let mut compositions = Vec::new();
         // for (index, composition) in self.settings.compositions.iter().enumerate() {
         //     compositions.push((
@@ -262,19 +265,16 @@ impl<'a, 'b> TableDemo<'a, 'b> {
             .id_salt(id_salt)
             .num_rows(num_rows)
             .columns(vec![Column::default(); num_columns])
-            .num_sticky_cols(1)
+            .num_sticky_cols(self.settings.compositions.len())
             .headers([
                 HeaderRow {
-                    height: height,
-                    groups: once(0..1)
-                        .chain((0..self.behavior.data.entries.len()).map(|index| {
-                            let start = index * range + 1;
+                    height,
+                    groups: once(0..self.settings.compositions.len())
+                        .chain((0..self.data.entries.len()).map(|index| {
+                            let start = index * range + self.settings.compositions.len();
                             start..start + range
                         }))
                         .collect(),
-                    // groups: vec![0..1, 1..4, 4..7, 7..10],
-                    // groups: vec![0..3, 3..6, 6..9],
-                    // groups: vec![0..1, 1..4, 4..8],
                 },
                 HeaderRow::new(height),
             ])
@@ -283,26 +283,21 @@ impl<'a, 'b> TableDemo<'a, 'b> {
     }
 }
 
-impl TableDelegate for TableDemo<'_, '_> {
+impl TableDelegate for TableDemo<'_> {
     fn header_cell_ui(&mut self, ui: &mut Ui, cell: &HeaderCellInfo) {
         Frame::none()
-            .inner_margin(Margin::symmetric(4.0, 0.0))
+            .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
             .show(ui, |ui| match (cell.row_nr, cell.group_index) {
-                (0, 0) => {}
                 (0, column) => {
-                    let entry = &self.behavior.data.entries[column - 1];
-                    ui.heading(&entry.name);
+                    if column > 0 {
+                        let entry = &self.data.entries[column - 1];
+                        ui.heading(&entry.name);
+                    }
                 }
-                (1, 0) => {
-                    Sides::new().height(ui.available_height()).show(
-                        ui,
-                        |ui| {
-                            ui.heading("Row");
-                        },
-                        |ui| {
-                            ui.label("⬇");
-                        },
-                    );
+                (1, column) => {
+                    let index = column % self.settings.compositions.len();
+                    let text = self.settings.compositions[index].text();
+                    ui.heading(text);
                 }
                 (row, column) => {
                     ui.heading(format!("Cell {row}, {column}"));
@@ -311,9 +306,32 @@ impl TableDelegate for TableDemo<'_, '_> {
     }
 
     fn cell_ui(&mut self, ui: &mut Ui, cell: &CellInfo) {
+        let precision = |value| format!("{value:.*}", self.settings.precision);
         Frame::none()
-            .inner_margin(Margin::symmetric(4.0, 0.0))
+            .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
             .show(ui, |ui| {
+                let column = cell.col_nr % self.settings.compositions.len();
+                let composition = &self.data_frame.destruct(&format!("Composition{column}"));
+                match (cell.row_nr, cell.col_nr) {
+                    (row, column) if column < self.settings.compositions.len() => {
+                        let composition =
+                            &self.data_frame.destruct(&format!("Composition{column}"));
+                        let key = composition.string("Key", row as _);
+                        ui.heading(key);
+                    }
+                    (row, column) => {
+                        let value = composition.f64("Value").get(row as _).unwrap();
+                        ui.label(precision(value));
+                    } // (row, column) => {
+                      //     let index = column % self.settings.compositions.len();
+                      //     let text = self.settings.compositions[index].text();
+                      //     ui.heading(text);
+                      // }
+                      // (row, column) => {
+                      //     ui.heading(format!("Cell {row}, {column}"));
+                      // }
+                }
+
                 //     let mut compositions = Vec::new();
                 //     for (index, composition) in self.settings.compositions.iter().enumerate() {
                 //         compositions.push((
@@ -321,7 +339,25 @@ impl TableDelegate for TableDemo<'_, '_> {
                 //             data_frame.destruct(&format!("Composition{index}")),
                 //         ));
                 //     }
-                ui.label(format!("Column {}", cell.row_nr));
+
+                // for (index, composition) in self.settings.compositions.iter().enumerate() {
+                //     let composition = self.data_frame.destruct(&format!("Composition{index}"));
+                //     match (cell.row_nr, cell.col_nr) {
+                //         (row, 0) => {
+                //             let keys = composition.str("Key");
+                //             let key = keys.get(row as _).unwrap();
+                //             ui.label(key);
+                //         }
+                //         (row, column) => {
+                //             let i = column / self.settings.compositions.len();
+                //             let j = column % self.settings.compositions.len();
+                //             let composition = self.data_frame.destruct(&format!("Composition{j}"));
+                //             let values = composition.f64("Value");
+                //             let value = values.get(i).unwrap();
+                //             ui.label(precision(value)).on_hover_text(value.to_string());
+                //         }
+                //     }
+                // }
             });
     }
 }

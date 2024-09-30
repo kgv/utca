@@ -4,7 +4,6 @@ use crate::{
 };
 use anyhow::Result;
 use egui::{Id, Label, Response, RichText, Sense, Sides, Ui, Widget};
-use egui_dnd::dnd;
 use egui_phosphor::regular::{ARROWS_OUT_CARDINAL, TRASH};
 use polars::prelude::*;
 use ron::{de::SpannedError, extensions::Extensions, ser::PrettyConfig};

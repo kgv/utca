@@ -49,7 +49,7 @@ impl Pane {
                                 .caches
                                 .cache::<CompositionComputed>()
                                 .get(CompositionKey {
-                                    data_frame: &mut entry.fatty_acids,
+                                    fatty_acids: &mut entry.fatty_acids,
                                     settings: &Default::default(), // settings: &self.settings,
                                 })
                         });

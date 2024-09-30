@@ -6,13 +6,12 @@ use self::{
 use crate::{
     localization::{localize, UiExt},
     utils::TreeExt,
-    widgets::FileDialog,
 };
 use eframe::{get_value, set_value, CreationContext, Storage};
 use egui::{
-    menu::bar, warn_if_debug_build, Align, Align2, Button, CentralPanel, Color32, Context,
-    FontDefinitions, Id, LayerId, Layout, Order, RichText, ScrollArea, SidePanel, TextStyle,
-    TopBottomPanel, Ui, Visuals,
+    menu::bar, vec2, warn_if_debug_build, Align, Align2, Button, CentralPanel, Color32, Context,
+    FontDefinitions, Id, LayerId, Layout, Order, RichText, ScrollArea, SidePanel, Sides, TextStyle,
+    TopBottomPanel, Ui, Vec2, Visuals,
 };
 use egui_ext::{DroppedFileExt, HoveredFileExt, LightDarkButton};
 use egui_notify::Toasts;
@@ -40,6 +39,7 @@ const APP_KEY: &str = "TEMP";
 /// IEEE 754-2008
 const MAX_PRECISION: usize = 16;
 
+const MARGIN: Vec2 = vec2(4.0, 0.0);
 const NOTIFICATIONS_DURATION: Duration = Duration::from_secs(15);
 
 // const DESCRIPTION: &str = "Positional-species and positional-type composition of TAG from mature fruit arils of the Euonymus section species, mol % of total TAG";
@@ -152,9 +152,15 @@ impl App {
     fn bottom_panel(&mut self, ctx: &Context) {
         TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                warn_if_debug_build(ui);
-                ui.label(RichText::new(env!("CARGO_PKG_VERSION")).small());
-                ui.separator();
+                Sides::new().show(
+                    ui,
+                    |_| {},
+                    |ui| {
+                        warn_if_debug_build(ui);
+                        ui.label(RichText::new(env!("CARGO_PKG_VERSION")).small());
+                        ui.separator();
+                    },
+                );
             });
         });
     }
@@ -363,7 +369,7 @@ impl App {
                 //         }
                 //     }
                 //     let mut format = Format::Toml;
-                //     ComboBox::from_id_source("export")
+                //     ComboBox::from_id_salt("export")
                 //         .selected_text(format!("{format:?}"))
                 //         .show_ui(ui, |ui| {
                 //             ui.selectable_value(&mut format, Format::Toml, "Toml");

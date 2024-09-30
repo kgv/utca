@@ -200,7 +200,7 @@ impl Pane {
         // }() {
         //     error!(%error);
         // }
-        let id_salt = Id::new("CompositionTable");
+        let from_id_salt = Id::new("CompositionTable");
         let data_frame = ui.memory_mut(|memory| {
             memory
                 .caches
@@ -212,7 +212,7 @@ impl Pane {
         });
         let num_rows = data_frame.height();
         let mut table = Table::new()
-            .id_salt(id_salt)
+            .from_id_salt(from_id_salt)
             .num_rows(num_rows as _)
             .columns(vec![self.default_column; self.num_columns])
             .num_sticky_cols(self.num_sticky_cols)

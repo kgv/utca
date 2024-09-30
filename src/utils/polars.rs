@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use polars::prelude::*;
 
 pub fn r#struct(name: &str) -> StructNameSpace {
@@ -14,6 +16,8 @@ pub trait DataFrameExt {
 
     fn str(&self, name: &str) -> &StringChunked;
 
+    fn string(&self, name: &str, index: usize) -> Cow<'_, str>;
+
     fn u8(&self, name: &str) -> &UInt8Chunked;
 }
 
@@ -28,6 +32,10 @@ impl DataFrameExt for DataFrame {
 
     fn str(&self, name: &str) -> &StringChunked {
         self[name].str().unwrap()
+    }
+
+    fn string(&self, name: &str, index: usize) -> Cow<'_, str> {
+        self[name].str_value(index).unwrap()
     }
 
     fn u8(&self, name: &str) -> &UInt8Chunked {
@@ -96,5 +104,16 @@ impl SeriesExt for Series {
 
     fn field_by_name(&self, name: &str) -> Series {
         self.try_struct().unwrap().field_by_name(name).unwrap()
+    }
+}
+
+/// Extension methods for [`StructChunked`]
+pub trait StructChunkedExt {
+    fn field(&self, name: &str) -> Series;
+}
+
+impl StructChunkedExt for StructChunked {
+    fn field(&self, name: &str) -> Series {
+        self.field_by_name(name).unwrap()
     }
 }
