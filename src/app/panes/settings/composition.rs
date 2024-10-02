@@ -13,51 +13,51 @@ use serde::{Deserialize, Serialize};
 
 pub(in crate::app) const NC: Composition = Composition {
     stereospecificity: None,
-    scope: Scope::Ecn,
+    kind: Kind::Ecn,
 };
 pub(in crate::app) const PNC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Positional),
-    scope: Scope::Ecn,
+    kind: Kind::Ecn,
 };
 pub(in crate::app) const SNC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
-    scope: Scope::Ecn,
+    kind: Kind::Ecn,
 };
 pub(in crate::app) const MC: Composition = Composition {
     stereospecificity: None,
-    scope: Scope::Mass,
+    kind: Kind::Mass,
 };
 pub(in crate::app) const PMC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Positional),
-    scope: Scope::Mass,
+    kind: Kind::Mass,
 };
 pub(in crate::app) const SMC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
-    scope: Scope::Mass,
+    kind: Kind::Mass,
 };
 pub(in crate::app) const SC: Composition = Composition {
     stereospecificity: None,
-    scope: Scope::Species,
+    kind: Kind::Species,
 };
 pub(in crate::app) const PSC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Positional),
-    scope: Scope::Species,
+    kind: Kind::Species,
 };
 pub(in crate::app) const SSC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
-    scope: Scope::Species,
+    kind: Kind::Species,
 };
 pub(in crate::app) const TC: Composition = Composition {
     stereospecificity: None,
-    scope: Scope::Type,
+    kind: Kind::Type,
 };
 pub(in crate::app) const PTC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Positional),
-    scope: Scope::Type,
+    kind: Kind::Type,
 };
 pub(in crate::app) const STC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
-    scope: Scope::Type,
+    kind: Kind::Type,
 };
 
 /// Composition settings
@@ -519,10 +519,10 @@ impl Order {
     }
 }
 
-/// Group
+/// Composition
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub(in crate::app) struct Composition {
-    pub(in crate::app) scope: Scope,
+    pub(in crate::app) kind: Kind,
     pub(in crate::app) stereospecificity: Option<Stereospecificity>,
 }
 
@@ -530,7 +530,7 @@ impl Composition {
     pub(in crate::app) const fn new() -> Self {
         Self {
             stereospecificity: Some(Stereospecificity::Positional),
-            scope: Scope::Species,
+            kind: Kind::Species,
         }
     }
 }
@@ -583,16 +583,16 @@ impl Default for Composition {
     }
 }
 
-/// Scope
+/// Composition kind
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(in crate::app) enum Scope {
+pub(in crate::app) enum Kind {
     Ecn,
     Mass,
     Type,
     Species,
 }
 
-impl Scope {
+impl Kind {
     pub(in crate::app) fn text(&self) -> &'static str {
         match self {
             Self::Ecn => "Equivalent carbon number",

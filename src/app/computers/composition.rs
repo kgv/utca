@@ -3,7 +3,7 @@ use crate::{
     acylglycerol::Stereospecificity,
     app::{
         data::{Data, Entry, FattyAcids},
-        panes::settings::composition::{Method, Order, Scope, Settings, Sort},
+        panes::settings::composition::{Method, Order, Kind, Settings, Sort},
     },
     utils::{indexed_cols, r#struct, ExprExt as _, SeriesExt},
 };
@@ -195,6 +195,9 @@ impl LazyFrameExt for LazyFrame {
         }
         // Temp Species and Value
         self = self.with_columns([species().alias("Species"), value().alias("Value")]);
+
+        println!("self0: {}", self.clone().collect().unwrap());
+
         let mut compositions = Vec::new();
         let mut values = Vec::new();
         for (index, composition) in settings.compositions.iter().enumerate() {
@@ -205,11 +208,11 @@ impl LazyFrameExt for LazyFrame {
                 col("TAG").r#struct().field_by_name("SN3"),
             ]);
             // Stereospecificity permutation
-            let sort = match composition.scope {
-                Scope::Ecn => sort_by_ecn(),
-                Scope::Mass => sort_by_mass(),
-                Scope::Type => sort_by_type(),
-                Scope::Species => sort_by_species(),
+            let sort = match composition.kind {
+                Kind::Ecn => sort_by_ecn(),
+                Kind::Mass => sort_by_mass(),
+                Kind::Type => sort_by_type(),
+                Kind::Species => sort_by_species(),
             };
             self = match composition.stereospecificity {
                 None => self.permutation(["SN1", "SN2", "SN3"], sort)?,
@@ -219,8 +222,8 @@ impl LazyFrameExt for LazyFrame {
             // Composition
             let name = format!("Composition{index}");
             self = self.with_column(
-                match composition.scope {
-                    Scope::Ecn => match composition.stereospecificity {
+                match composition.kind {
+                    Kind::Ecn => match composition.stereospecificity {
                         None => col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn(),
                         // _ => concat_list([col("SN1").ecn(), col("SN2").ecn(), col("SN3").ecn()])?,
                         _ => concat_str(
@@ -237,7 +240,7 @@ impl LazyFrameExt for LazyFrame {
                             false,
                         ),
                     },
-                    Scope::Mass => {
+                    Kind::Mass => {
                         fn rounded(expr: Expr) -> Expr {
                             expr.round(0).cast(DataType::UInt64)
                         }
@@ -269,7 +272,7 @@ impl LazyFrameExt for LazyFrame {
                             ),
                         }
                     }
-                    Scope::Type => concat_str(
+                    Kind::Type => concat_str(
                         [
                             col("SN1").r#type(),
                             col("SN2").r#type(),
@@ -278,7 +281,7 @@ impl LazyFrameExt for LazyFrame {
                         "",
                         false,
                     ),
-                    Scope::Species => concat_str(
+                    Kind::Species => concat_str(
                         [
                             col("SN1").species(),
                             col("SN2").species(),
@@ -301,6 +304,9 @@ impl LazyFrameExt for LazyFrame {
         }
         // Drop stereospecific numbers
         self = self.drop([col("SN1"), col("SN2"), col("SN3")]);
+
+        println!("self1: {}", self.clone().collect().unwrap());
+
         // Group leaves
         self = self
             .drop(["TAG"])
@@ -317,7 +323,7 @@ impl LazyFrameExt for LazyFrame {
     }
 
     fn permutation<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self> {
-        const NAME: &str = "KEY";
+        const NAME: &str = "_KEY";
 
         let mut lazy_frame = self.with_column(
             concat_list(names.map(col))?
