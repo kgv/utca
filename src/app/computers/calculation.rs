@@ -1,6 +1,9 @@
 use super::fatty_acid::ExprExt as _;
 use crate::{
-    app::panes::calculation::settings::{Fraction, From, Settings, Sign},
+    app::{
+        data::FattyAcids,
+        panes::settings::calculation::{Fraction, From, Settings, Sign},
+    },
     utils::ExprExt as _,
 };
 use egui::util::cache::{ComputerMut, FrameCache};
@@ -36,7 +39,7 @@ impl ComputerMut<Key<'_>, Value> for Computer {
             Sign::Unsigned => expr.clip_min(lit(0)),
         };
 
-        let mut lazy_frame = key.data_frame.clone().lazy();
+        let mut lazy_frame = key.fatty_acids.0.clone().lazy();
         // Experimental
         lazy_frame = match key.settings.fraction {
             Fraction::AsIs => lazy_frame.with_columns([
@@ -100,22 +103,22 @@ impl ComputerMut<Key<'_>, Value> for Computer {
 /// Calculation key
 #[derive(Clone, Copy, Debug)]
 pub(in crate::app) struct Key<'a> {
-    pub(in crate::app) data_frame: &'a DataFrame,
+    pub(in crate::app) fatty_acids: &'a FattyAcids,
     pub(in crate::app) settings: &'a Settings,
 }
 
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for fatty_acid in self.data_frame["FA"].iter() {
+        for fatty_acid in self.fatty_acids["FA"].phys_iter() {
             fatty_acid.hash(state);
         }
-        for tag in self.data_frame["TAG"].iter() {
+        for tag in self.fatty_acids["TAG"].phys_iter() {
             tag.hash(state);
         }
-        for dag1223 in self.data_frame["DAG1223"].iter() {
+        for dag1223 in self.fatty_acids["DAG1223"].phys_iter() {
             dag1223.hash(state);
         }
-        for mag2 in self.data_frame["MAG2"].iter() {
+        for mag2 in self.fatty_acids["MAG2"].phys_iter() {
             mag2.hash(state);
         }
         self.settings.hash(state);

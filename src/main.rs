@@ -17,7 +17,7 @@
 #![feature(float_next_up_down)]
 #![feature(hash_extract_if)]
 #![feature(impl_trait_in_assoc_type)]
-#![feature(option_get_or_insert_default)]
+#![feature(step_trait)]
 #![feature(vec_into_raw_parts)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 

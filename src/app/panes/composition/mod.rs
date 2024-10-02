@@ -1,8 +1,8 @@
-use self::settings::Settings;
-use super::Behavior;
+use self::widgets::Cell;
+use super::{settings::Settings, Behavior};
 use crate::{
     app::{
-        computers::{CompositionComputed, CompositionKey},
+        computers::{CalculationComputed, CalculationKey, CompositionComputed, CompositionKey},
         data::Data,
         MARGIN,
     },
@@ -30,26 +30,39 @@ use tracing::error;
 
 /// Central composition pane
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(in crate::app) struct Pane {
-    /// Composition special settings
-    pub(in crate::app) settings: Settings,
-}
+pub(in crate::app) struct Pane;
 
 impl Pane {
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
-        let Some(entry) = behavior.data.entries.iter_mut().find(|entry| entry.checked) else {
+        if behavior.data.entries.is_empty() {
             return;
-        };
+        }
+        let mut entries = Vec::new();
+        for entry in &mut behavior.data.entries {
+            if entry.checked {
+                entry.fatty_acids.0 = ui.memory_mut(|memory| {
+                    memory
+                        .caches
+                        .cache::<CalculationComputed>()
+                        .get(CalculationKey {
+                            fatty_acids: &entry.fatty_acids,
+                            settings: &behavior.settings.calculation,
+                        })
+                });
+                entries.push(&*entry);
+            }
+        }
         let data_frame = ui.memory_mut(|memory| {
             memory
                 .caches
                 .cache::<CompositionComputed>()
                 .get(CompositionKey {
-                    fatty_acids: &entry.fatty_acids,
-                    settings: &self.settings,
+                    entries: &entries,
+                    settings: &behavior.settings.composition,
                 })
         });
-        TableDemo::new(behavior.data, data_frame, &self.settings).ui(ui);
+        // TableDemo::new(data_frame, &behavior.settings.composition);
+        TableDemo::new(data_frame, &behavior.settings).ui(ui);
         // if let Err(error) = || -> Result<()> {
         //     if self.settings.compositions.is_empty() {
         //         return Ok(());
@@ -224,7 +237,6 @@ impl Pane {
 }
 
 struct TableDemo<'a> {
-    data: &'a mut Data,
     settings: &'a Settings,
     data_frame: DataFrame,
     // is_row_expanded: BTreeMap<u64, bool>,
@@ -232,9 +244,8 @@ struct TableDemo<'a> {
 }
 
 impl<'a> TableDemo<'a> {
-    fn new(data: &'a mut Data, data_frame: DataFrame, settings: &'a Settings) -> Self {
+    fn new(data_frame: DataFrame, settings: &'a Settings) -> Self {
         Self {
-            data,
             settings,
             data_frame,
         }
@@ -243,9 +254,9 @@ impl<'a> TableDemo<'a> {
     fn ui(&mut self, ui: &mut Ui) {
         let id_salt = Id::new("CompositionTable");
         let height = ui.text_style_height(&TextStyle::Heading);
-        let range = self.settings.compositions.len();
+        // let range = self.settings.compositions.len();
         let num_rows = self.data_frame.height() as _;
-        let num_columns = self.settings.compositions.len() + self.data.entries.len() * range;
+        let num_columns = self.data_frame.width();
         // let mut compositions = Vec::new();
         // for (index, composition) in self.settings.compositions.iter().enumerate() {
         //     compositions.push((
@@ -261,25 +272,143 @@ impl<'a> TableDemo<'a> {
         //                                 let mut value =
         //                                     composition.f64("Value").get(row_index).unwrap();
         //                                 let is_leaf = composition_index + 1 == compositions.len();
+
+        let sticky = self.settings.composition.compositions.len() + 1;
+        let unsticky = num_columns - sticky;
+
+        let mut groups = vec![0..1, 1..sticky];
+        for index in sticky..sticky + unsticky {
+            groups.push(index..index + 1);
+        }
         Table::new()
             .id_salt(id_salt)
             .num_rows(num_rows)
-            .columns(vec![Column::default(); num_columns])
-            .num_sticky_cols(self.settings.compositions.len())
+            .columns(vec![
+                Column::default().resizable(self.settings.resizable);
+                num_columns
+            ])
+            .num_sticky_cols(self.settings.composition.sticky_columns)
             .headers([
                 HeaderRow {
                     height,
-                    groups: once(0..self.settings.compositions.len())
-                        .chain((0..self.data.entries.len()).map(|index| {
-                            let start = index * range + self.settings.compositions.len();
-                            start..start + range
-                        }))
-                        .collect(),
+                    groups, // groups: once(0..self.settings.compositions.len())
+                            //     .chain((0..self.data.entries.len()).map(|index| {
+                            //         let start = index * range + self.settings.compositions.len();
+                            //         start..start + range
+                            //     }))
+                            //     .collect(),
                 },
                 HeaderRow::new(height),
             ])
             .auto_size_mode(AutoSizeMode::OnParentResize)
             .show(ui, self);
+    }
+
+    fn header_cell_content_ui(&mut self, ui: &mut Ui, row: usize, column: usize) {
+        match (row, column) {
+            (0, 0) => {}
+            (0, 1) => {
+                ui.heading("Composition");
+            }
+            (0, column) => {
+                let index = column + self.settings.composition.compositions.len() - 1;
+                let name = self.data_frame[index].name();
+                ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
+                ui.heading(name.as_str());
+            }
+            (1, 0) => {
+                ui.heading("Index");
+            }
+            (1, column) if column <= self.settings.composition.compositions.len() => {
+                let text = self.settings.composition.compositions[column - 1].text();
+                ui.heading(text);
+            }
+            // (0, column) => {
+            //     if column > 0 {
+            //         let entry = &self.data.entries[column - 1];
+            //         ui.heading(&entry.name);
+            //     }
+            // }
+            // (1, column) => {
+            //     let index = column % self.settings.composition.compositions.len();
+            //     let text = self.settings.composition.compositions[index].text();
+            //     ui.heading(text);
+            // }
+            (row, column) => {
+                ui.heading(format!("Cell {row}, {column}"));
+            }
+        }
+    }
+
+    fn body_cell_content_ui(&mut self, ui: &mut Ui, row: usize, col: usize) {
+        // let precision = |value| format!("{value:.*}", self.settings.composition.precision);
+        // let column = col % self.settings.composition.compositions.len();
+        // let composition = &self.data_frame.destruct(&format!("Composition{column}"));
+        // match (row, col) {
+        //     (row, column) if column < self.settings.composition.compositions.len() => {
+        //         let composition = &self.data_frame.destruct(&format!("Composition{column}"));
+        //         let key = composition.string("Key", row);
+        //         ui.heading(key);
+        //     }
+        //     (row, column) => {
+        //         let value = composition.f64("Value").get(row).unwrap();
+        //         ui.label(precision(value));
+        //     } // (row, column) => {
+        //       //     let index = column % self.settings.composition.compositions.len();
+        //       //     let text = self.settings.composition.compositions[index].text();
+        //       //     ui.heading(text);
+        //       // }
+        //       // (row, column) => {
+        //       //     ui.heading(format!("Cell {row}, {column}"));
+        //       // }
+        // }
+        // match (row, col) {
+        //     (row, column) if column < self.settings.composition.compositions.len() => {
+        //         let composition = &self.data_frame.destruct(&format!("Composition{column}"));
+        //         let key = composition.string("Key", row);
+        //         ui.heading(key);
+        //     }
+        //     (row, column) => {
+        //         let value = composition.f64("Value").get(row).unwrap();
+        //         ui.label(precision(value));
+        //     } // (row, column) => {
+        //       //     let index = column % self.settings.composition.compositions.len();
+        //       //     let text = self.settings.composition.compositions[index].text();
+        //       //     ui.heading(text);
+        //       // }
+        //       // (row, column) => {
+        //       //     ui.heading(format!("Cell {row}, {column}"));
+        //       // }
+        // }
+        match (row, col) {
+            (row, 0) => {
+                let text = self.data_frame.string("Index", row);
+                ui.label(text);
+            }
+            (row, column) if column <= self.settings.composition.compositions.len() => {
+                let index = column - 1;
+                let text = self.data_frame.string(&format!("Composition{index}"), row);
+                ui.label(text);
+            }
+            (row, column) => {
+                let index = self.settings.composition.compositions.len() - 1;
+                let value = self.data_frame[column]
+                    .struct_()
+                    .unwrap()
+                    .field_by_name("Values")
+                    .unwrap()
+                    .r#struct()
+                    .field(&format!("Value{index}"))
+                    .f64()
+                    .unwrap()
+                    .get(row);
+                ui.add(Cell {
+                    value,
+                    percent: self.settings.composition.percent,
+                    precision: self.settings.composition.precision,
+                });
+            }
+        }
     }
 }
 
@@ -287,79 +416,22 @@ impl TableDelegate for TableDemo<'_> {
     fn header_cell_ui(&mut self, ui: &mut Ui, cell: &HeaderCellInfo) {
         Frame::none()
             .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
-            .show(ui, |ui| match (cell.row_nr, cell.group_index) {
-                (0, column) => {
-                    if column > 0 {
-                        let entry = &self.data.entries[column - 1];
-                        ui.heading(&entry.name);
-                    }
-                }
-                (1, column) => {
-                    let index = column % self.settings.compositions.len();
-                    let text = self.settings.compositions[index].text();
-                    ui.heading(text);
-                }
-                (row, column) => {
-                    ui.heading(format!("Cell {row}, {column}"));
-                }
+            .show(ui, |ui| {
+                self.header_cell_content_ui(ui, cell.row_nr, cell.group_index)
             });
     }
 
     fn cell_ui(&mut self, ui: &mut Ui, cell: &CellInfo) {
-        let precision = |value| format!("{value:.*}", self.settings.precision);
+        if cell.row_nr % 2 == 1 {
+            ui.painter()
+                .rect_filled(ui.max_rect(), 0.0, ui.visuals().faint_bg_color);
+        }
         Frame::none()
             .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
             .show(ui, |ui| {
-                let column = cell.col_nr % self.settings.compositions.len();
-                let composition = &self.data_frame.destruct(&format!("Composition{column}"));
-                match (cell.row_nr, cell.col_nr) {
-                    (row, column) if column < self.settings.compositions.len() => {
-                        let composition =
-                            &self.data_frame.destruct(&format!("Composition{column}"));
-                        let key = composition.string("Key", row as _);
-                        ui.heading(key);
-                    }
-                    (row, column) => {
-                        let value = composition.f64("Value").get(row as _).unwrap();
-                        ui.label(precision(value));
-                    } // (row, column) => {
-                      //     let index = column % self.settings.compositions.len();
-                      //     let text = self.settings.compositions[index].text();
-                      //     ui.heading(text);
-                      // }
-                      // (row, column) => {
-                      //     ui.heading(format!("Cell {row}, {column}"));
-                      // }
-                }
-
-                //     let mut compositions = Vec::new();
-                //     for (index, composition) in self.settings.compositions.iter().enumerate() {
-                //         compositions.push((
-                //             composition,
-                //             data_frame.destruct(&format!("Composition{index}")),
-                //         ));
-                //     }
-
-                // for (index, composition) in self.settings.compositions.iter().enumerate() {
-                //     let composition = self.data_frame.destruct(&format!("Composition{index}"));
-                //     match (cell.row_nr, cell.col_nr) {
-                //         (row, 0) => {
-                //             let keys = composition.str("Key");
-                //             let key = keys.get(row as _).unwrap();
-                //             ui.label(key);
-                //         }
-                //         (row, column) => {
-                //             let i = column / self.settings.compositions.len();
-                //             let j = column % self.settings.compositions.len();
-                //             let composition = self.data_frame.destruct(&format!("Composition{j}"));
-                //             let values = composition.f64("Value");
-                //             let value = values.get(i).unwrap();
-                //             ui.label(precision(value)).on_hover_text(value.to_string());
-                //         }
-                //     }
-                // }
+                self.body_cell_content_ui(ui, cell.row_nr as _, cell.col_nr)
             });
     }
 }
 
-pub(in crate::app) mod settings;
+mod widgets;

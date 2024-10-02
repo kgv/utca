@@ -41,6 +41,7 @@ pub(crate) mod relative_atomic_mass {
 pub const R: f64 = 8.314_462_618_153_24;
 
 // Triglyceride Property Calculator
+// <https://lipidlibrary.shinyapps.io/Triglyceride_Property_Calculator>
 pub mod polymorphism {
     pub mod alpha {
         pub const H: f64 = 2.7;

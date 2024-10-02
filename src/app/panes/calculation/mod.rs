@@ -1,5 +1,4 @@
-use self::settings::{From, Settings};
-use super::Behavior;
+use super::{settings::calculation::From, Behavior};
 use crate::{
     app::computers::{CalculationComputed, CalculationKey},
     fatty_acid::{DisplayWithOptions, FattyAcid, COMMON},
@@ -11,7 +10,6 @@ use crate::{
 };
 use anyhow::Result;
 use egui::{Direction, Layout, Ui};
-use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -21,10 +19,7 @@ use widgets::Cell;
 
 /// Central calculation pane
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(in crate::app) struct Pane {
-    /// Calculation special settings
-    pub(in crate::app) settings: Settings,
-}
+pub(in crate::app) struct Pane;
 
 impl Pane {
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
@@ -37,8 +32,8 @@ impl Pane {
                     .caches
                     .cache::<CalculationComputed>()
                     .get(CalculationKey {
-                        data_frame: &entry.fatty_acids,
-                        settings: &self.settings,
+                        fatty_acids: &entry.fatty_acids,
+                        settings: &behavior.settings.calculation,
                     })
             });
             let height = ui.spacing().interact_size.y;
@@ -104,7 +99,8 @@ impl Pane {
                     });
                 })
                 .body(|body| {
-                    let precision = |value| format!("{value:.*}", self.settings.precision);
+                    let precision =
+                        |value| format!("{value:.*}", behavior.settings.calculation.precision);
                     body.rows(height, total_rows + 1, |mut row| {
                         let index = row.index();
                         if index < total_rows {
@@ -146,8 +142,8 @@ impl Pane {
                                     experimental: tags.0.get(index),
                                     theoretical: tags.1.get(index),
                                     enabled: true,
-                                    percent: self.settings.percent,
-                                    precision: self.settings.precision,
+                                    percent: behavior.settings.calculation.percent,
+                                    precision: behavior.settings.calculation.precision,
                                 });
                             });
                             // DAG1223
@@ -155,9 +151,9 @@ impl Pane {
                                 ui.add(Cell {
                                     experimental: dags1223.0.get(index),
                                     theoretical: dags1223.1.get(index),
-                                    enabled: self.settings.from == From::Dag1223,
-                                    percent: self.settings.percent,
-                                    precision: self.settings.precision,
+                                    enabled: behavior.settings.calculation.from == From::Dag1223,
+                                    percent: behavior.settings.calculation.percent,
+                                    precision: behavior.settings.calculation.precision,
                                 });
                             });
                             // MAG2
@@ -165,9 +161,9 @@ impl Pane {
                                 ui.add(Cell {
                                     experimental: mags2.0.get(index),
                                     theoretical: mags2.1.get(index),
-                                    enabled: self.settings.from == From::Mag2,
-                                    percent: self.settings.percent,
-                                    precision: self.settings.precision,
+                                    enabled: behavior.settings.calculation.from == From::Mag2,
+                                    percent: behavior.settings.calculation.percent,
+                                    precision: behavior.settings.calculation.precision,
                                 });
                             });
                             // DAG13
@@ -199,8 +195,8 @@ impl Pane {
                                     experimental: tags.0.sum(),
                                     theoretical: tags.1.sum(),
                                     enabled: true,
-                                    percent: self.settings.percent,
-                                    precision: self.settings.precision,
+                                    percent: behavior.settings.calculation.percent,
+                                    precision: behavior.settings.calculation.precision,
                                 });
                             });
                             // DAG1223
@@ -208,9 +204,9 @@ impl Pane {
                                 ui.add(Cell {
                                     experimental: dags1223.0.sum(),
                                     theoretical: dags1223.1.sum(),
-                                    enabled: self.settings.from == From::Dag1223,
-                                    percent: self.settings.percent,
-                                    precision: self.settings.precision,
+                                    enabled: behavior.settings.calculation.from == From::Dag1223,
+                                    percent: behavior.settings.calculation.percent,
+                                    precision: behavior.settings.calculation.precision,
                                 });
                             });
                             // MAG2
@@ -218,15 +214,15 @@ impl Pane {
                                 ui.add(Cell {
                                     experimental: mags2.0.sum(),
                                     theoretical: mags2.1.sum(),
-                                    enabled: self.settings.from == From::Mag2,
-                                    percent: self.settings.percent,
-                                    precision: self.settings.precision,
+                                    enabled: behavior.settings.calculation.from == From::Mag2,
+                                    percent: behavior.settings.calculation.percent,
+                                    precision: behavior.settings.calculation.precision,
                                 });
                             });
                             // DAG13
                             row.col(|ui| {
                                 let mut sum = dags13.0.sum().unwrap_or(NAN);
-                                if self.settings.percent {
+                                if behavior.settings.calculation.percent {
                                     sum *= 100.;
                                 }
                                 ui.label(precision(sum)).on_hover_text(sum.to_string());
@@ -240,7 +236,5 @@ impl Pane {
         }
     }
 }
-
-pub(in crate::app) mod settings;
 
 mod widgets;

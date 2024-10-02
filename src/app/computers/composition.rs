@@ -2,10 +2,10 @@ use super::fatty_acid::ExprExt as _;
 use crate::{
     acylglycerol::Stereospecificity,
     app::{
-        data::FattyAcids,
-        panes::composition::settings::{Method, Order, Scope, Settings, Sort},
+        data::{Data, Entry, FattyAcids},
+        panes::settings::composition::{Method, Order, Scope, Settings, Sort},
     },
-    utils::{r#struct, ExprExt as _, SeriesExt},
+    utils::{indexed_cols, r#struct, ExprExt as _, SeriesExt},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use polars::prelude::*;
@@ -17,6 +17,125 @@ pub(in crate::app) type Computed = FrameCache<Value, Computer>;
 /// Composition computer
 #[derive(Default)]
 pub(in crate::app) struct Computer;
+
+impl Computer {
+    // fn gunstone(&mut self, key: Key) -> DataFrame {
+    //     // let gunstone = Gunstone::new(s);
+    //     let lazy_frame = key.fatty_acids.0.clone().lazy();
+    //     // lazy_frame = lazy_frame.select([
+    //     //     col("Label"),
+    //     //     col("Formula"),
+    //     //     col("TAG.Experimental"),
+    //     //     col("DAG1223.Experimental"),
+    //     //     col("MAG2.Experimental"),
+    //     //     col("DAG13.DAG1223.Calculated"),
+    //     //     col("DAG13.MAG2.Calculated"),
+    //     // ]);
+    //     // lazy_frame = lazy_frame.with_columns([s().alias("S"), u().alias("U")]);
+    //     println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
+    //     lazy_frame.collect().unwrap()
+    // }
+
+    // 1,3-sn 2-sn 1,2,3-sn
+    // [abc] = 2*[a13]*[b2]*[c13]
+    // [aab] = 2*[a13]*[a2]*[b13]
+    // [aba] = [a13]^2*[b2]
+    // [abc] = [a13]*[b2]*[c13]
+    // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
+    fn vander_wal(
+        &mut self,
+        fatty_acids: &FattyAcids,
+        settings: &Settings,
+    ) -> PolarsResult<LazyFrame> {
+        let mut lazy_frame = fatty_acids.0.clone().lazy();
+        // Cartesian product (TAG from FA)
+        lazy_frame = lazy_frame.cartesian_product()?;
+        // Compose
+        lazy_frame = lazy_frame.composition(settings)?;
+        // // Filter
+        // lazy_frame = lazy_frame.filter(
+        //     col("Values")
+        //         .r#struct()
+        //         .field_by_index(-1)
+        //         .gt_eq(lit(0.001)),
+        // );
+        // Arrange
+        lazy_frame = lazy_frame.arrange(settings)?;
+        Ok(lazy_frame)
+    }
+}
+
+impl ComputerMut<Key<'_>, Value> for Computer {
+    fn compute(&mut self, key: Key) -> Value {
+        match key.settings.method {
+            Method::Gunstone => unreachable!(),
+            Method::VanderWal => {
+                let mut lazy_frames = key.entries.into_iter().map(|entry| {
+                    self.vander_wal(&entry.fatty_acids, key.settings)
+                        .unwrap()
+                        .select([
+                            // col("Composition"),
+                            col("Composition").r#struct().field_by_names(Some("*")),
+                            as_struct(vec![all().exclude(["Composition"])]).alias(&entry.name),
+                        ])
+                });
+                if let Some(mut lazy_frame) = lazy_frames.next() {
+                    let compositions =
+                        indexed_cols("Composition", 0..key.settings.compositions.len());
+                    for other in lazy_frames {
+                        lazy_frame = lazy_frame.join(
+                            other,
+                            &compositions,
+                            &compositions,
+                            JoinArgs::default(),
+                        );
+                    }
+                    // Index
+                    lazy_frame = lazy_frame.with_row_index("Index", None);
+                    println!("Index: {}", lazy_frame.clone().collect().unwrap());
+                    return lazy_frame.collect().unwrap();
+                }
+            }
+        }
+        let mut schema = Schema::with_capacity(3);
+        schema.insert("Index".into(), DataType::UInt32);
+        for index in 0..key.settings.compositions.len() {
+            schema.insert(format!("Composition{index}").into(), DataType::Null);
+        }
+        DataFrame::empty_with_schema(&schema)
+    }
+}
+
+/// Composition key
+#[derive(Clone, Copy, Debug)]
+pub(in crate::app) struct Key<'a> {
+    pub(in crate::app) entries: &'a Vec<&'a Entry>,
+    pub(in crate::app) settings: &'a Settings,
+}
+
+impl Hash for Key<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for entry in self.entries {
+            for fatty_acid in entry.fatty_acids["FA"].phys_iter() {
+                fatty_acid.hash(state);
+            }
+            for mag2 in entry.fatty_acids["MAG2.Calculated"].phys_iter() {
+                mag2.hash(state);
+            }
+            for dag13 in entry.fatty_acids["DAG13.Calculated"].phys_iter() {
+                dag13.hash(state);
+            }
+        }
+        self.settings.adduct.hash(state);
+        self.settings.compositions.hash(state);
+        self.settings.method.hash(state);
+        self.settings.order.hash(state);
+        self.settings.sort.hash(state);
+    }
+}
+
+/// Composition value
+type Value = DataFrame;
 
 /// Extension methods for [`LazyFrame`]
 trait LazyFrameExt: Sized {
@@ -40,27 +159,13 @@ impl LazyFrameExt for LazyFrame {
         }
         self = match settings.sort {
             Sort::Key => {
-                let mut by_exprs = Vec::new();
-                for index in 0..settings.compositions.len() {
-                    by_exprs.push(
-                        col(&format!("Composition{index}"))
-                            .r#struct()
-                            .field_by_name("Key"),
-                    );
-                }
-                self.sort_by_exprs(&by_exprs, sort_options)
+                self.sort_by_exprs(
+                    // [col("Composition").r#struct().field_by_names(["*"]).r#struct().field_by_name("Value")],
+                    [col("Composition")],
+                    sort_options,
+                )
             }
-            Sort::Value => {
-                let mut by_exprs = Vec::new();
-                for index in 0..settings.compositions.len() {
-                    by_exprs.push(
-                        col(&format!("Composition{index}"))
-                            .r#struct()
-                            .field_by_name("Value"),
-                    );
-                }
-                self.sort_by_exprs(&by_exprs, sort_options)
-            }
+            Sort::Value => self.sort_by_exprs([col("Values")], sort_options),
         };
         Ok(self)
     }
@@ -90,6 +195,8 @@ impl LazyFrameExt for LazyFrame {
         }
         // Temp Species and Value
         self = self.with_columns([species().alias("Species"), value().alias("Value")]);
+        let mut compositions = Vec::new();
+        let mut values = Vec::new();
         for (index, composition) in settings.compositions.iter().enumerate() {
             // Temp stereospecific numbers
             self = self.with_columns([
@@ -109,7 +216,8 @@ impl LazyFrameExt for LazyFrame {
                 Some(Stereospecificity::Positional) => self.permutation(["SN1", "SN3"], sort)?,
                 Some(Stereospecificity::Stereo) => self,
             };
-            // Composition key
+            // Composition
+            let name = format!("Composition{index}");
             self = self.with_column(
                 match composition.scope {
                     Scope::Ecn => match composition.stereospecificity {
@@ -180,44 +288,31 @@ impl LazyFrameExt for LazyFrame {
                         false,
                     ),
                 }
-                .alias(&format!("Key{index}")),
+                .alias(&name),
             );
-            // Composition value
-            let mut key = Vec::new();
-            for index in 0..=index {
-                key.push(format!("Key{index}"));
-            }
-            let value = format!("Value{index}");
+            compositions.push(name);
+            // Value
+            let name = format!("Value{index}");
             self = self
-                .group_by([cols(&key)])
-                .agg([all(), col("Value").sum().alias(&value)])
-                .explode([all().exclude(&key).exclude([&value])]);
+                .group_by([cols(&compositions)])
+                .agg([all(), col("Value").sum().alias(&name)])
+                .explode([all().exclude(&compositions).exclude([&name])]);
+            values.push(name);
         }
         // Drop stereospecific numbers
         self = self.drop([col("SN1"), col("SN2"), col("SN3")]);
-        // Composition
-        let mut compositions = Vec::new();
-        for index in 0..settings.compositions.len() {
-            let key = format!("Key{index}");
-            let value = format!("Value{index}");
-            let composition = format!("Composition{index}");
-            self = self
-                .with_columns([
-                    as_struct(vec![col(&key).alias("Key"), col(&value).alias("Value")])
-                        .alias(&composition),
-                ])
-                .drop([key, value]);
-            compositions.push(composition);
-        }
+        // Group leaves
         self = self
-            .with_column(
-                as_struct(vec![col("Species").alias("Label"), col("Value")]).alias("Species"),
-            )
-            .drop(["Value", "TAG"])
-            .group_by([cols(&compositions)])
+            .drop(["TAG"])
+            .group_by([cols(&compositions), cols(&values)])
             .agg([all()]);
-        // Drop Species and Value
-        // self = self.drop(["Species", "Value"]);
+        // Nest compositions and values
+        self = self.select([
+            as_struct(vec![cols(&compositions)]).alias("Composition"),
+            as_struct(vec![cols(&values)]).alias("Values"),
+            col("Species"),
+            col("Value"),
+        ]);
         Ok(self)
     }
 
@@ -294,96 +389,6 @@ fn value() -> Expr {
         * col("TAG").r#struct().field_by_name("SN3").value()
 }
 
-impl Computer {
-    fn gunstone(&mut self, key: Key) -> DataFrame {
-        // let gunstone = Gunstone::new(s);
-        let lazy_frame = key.fatty_acids.0.clone().lazy();
-        // lazy_frame = lazy_frame.select([
-        //     col("Label"),
-        //     col("Formula"),
-        //     col("TAG.Experimental"),
-        //     col("DAG1223.Experimental"),
-        //     col("MAG2.Experimental"),
-        //     col("DAG13.DAG1223.Calculated"),
-        //     col("DAG13.MAG2.Calculated"),
-        // ]);
-        // lazy_frame = lazy_frame.with_columns([s().alias("S"), u().alias("U")]);
-        println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
-        lazy_frame.collect().unwrap()
-    }
-
-    // 1,3-sn 2-sn 1,2,3-sn
-    // [abc] = 2*[a13]*[b2]*[c13]
-    // [aab] = 2*[a13]*[a2]*[b13]
-    // [aba] = [a13]^2*[b2]
-    // [abc] = [a13]*[b2]*[c13]
-    // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
-    fn vander_wal(&mut self, key: Key) -> PolarsResult<DataFrame> {
-        let mut lazy_frame = key.fatty_acids.0.clone().lazy();
-        // Cartesian product (TAG from FA)
-        lazy_frame = lazy_frame.cartesian_product()?;
-        println!(
-            "before composition data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
-        // Compose
-        lazy_frame = lazy_frame.composition(key.settings)?;
-        println!(
-            "after composition data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
-        // Arrange
-        lazy_frame = lazy_frame.arrange(key.settings)?;
-        // Index
-        lazy_frame = lazy_frame.with_row_index("Index", None);
-        // Filter
-        // lazy_frame = lazy_frame.filter(col("Value").gt_eq(lit(0.001)));
-        println!(
-            "composition data_frame: {}",
-            lazy_frame.clone().collect().unwrap()
-        );
-        lazy_frame.collect()
-    }
-}
-
-impl ComputerMut<Key<'_>, Value> for Computer {
-    fn compute(&mut self, key: Key) -> Value {
-        match key.settings.method {
-            Method::Gunstone => self.gunstone(key),
-            Method::VanderWal => self.vander_wal(key).unwrap(),
-        }
-    }
-}
-
-/// Composition key
-#[derive(Clone, Copy, Debug)]
-pub(in crate::app) struct Key<'a> {
-    pub(in crate::app) fatty_acids: &'a FattyAcids,
-    pub(in crate::app) settings: &'a Settings,
-}
-
-impl Hash for Key<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.settings.adduct.hash(state);
-        self.settings.compositions.hash(state);
-        self.settings.method.hash(state);
-        self.settings.order.hash(state);
-        self.settings.sort.hash(state);
-        for fatty_acid in self.fatty_acids["FA"].iter() {
-            fatty_acid.hash(state);
-        }
-        for mag2 in self.fatty_acids["MAG2.Calculated"].iter() {
-            mag2.hash(state);
-        }
-        for dag13 in self.fatty_acids["DAG13.Calculated"].iter() {
-            dag13.hash(state);
-        }
-    }
-}
-
-/// Composition value
-type Value = DataFrame;
-
 // impl Composer {
 //     fn gunstone(&mut self, key: Key) -> Tree<Meta, Data> {
 //         let Key { context } = key;
@@ -458,17 +463,6 @@ type Value = DataFrame;
 //             .into_grouping_map()
 //             .sum();
 //         Tree::from(ungrouped.group_by_key(key))
-//     }
-// }
-
-// impl ComputerMut<Key<'_>, Arc<Value>> for Composer {
-//     fn compute(&mut self, key: Key) -> Arc<Value> {
-//         let gunstone = self.gunstone(key);
-//         let vander_wal = self.vander_wal(key);
-//         Arc::new(Value {
-//             gunstone,
-//             vander_wal,
-//         })
 //     }
 // }
 

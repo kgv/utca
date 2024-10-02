@@ -12,8 +12,8 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) signedness: Sign,
 }
 
-impl Default for Settings {
-    fn default() -> Self {
+impl Settings {
+    pub(in crate::app) const fn new() -> Self {
         Self {
             percent: true,
             precision: 1,
@@ -21,6 +21,12 @@ impl Default for Settings {
             from: From::Mag2,
             signedness: Sign::Unsigned,
         }
+    }
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

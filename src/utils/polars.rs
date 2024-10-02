@@ -1,9 +1,13 @@
-use std::borrow::Cow;
-
 use polars::prelude::*;
+use std::{borrow::Cow, fmt::Display, iter::Step, ops::Range};
 
 pub fn r#struct(name: &str) -> StructNameSpace {
     col(name).r#struct()
+}
+
+/// Select multiple columns by name and index.
+pub fn indexed_cols<T: Display + Step>(name: &str, range: Range<T>) -> Vec<Expr> {
+    range.map(|index| col(format!("{name}{index}"))).collect()
 }
 
 /// Extension methods for [`DataFrame`]
@@ -35,7 +39,7 @@ impl DataFrameExt for DataFrame {
     }
 
     fn string(&self, name: &str, index: usize) -> Cow<'_, str> {
-        self[name].str_value(index).unwrap()
+        self[name].get(index).unwrap().str_value()
     }
 
     fn u8(&self, name: &str) -> &UInt8Chunked {
@@ -64,12 +68,12 @@ impl ExprExt for Expr {
         self.apply(
             |series| {
                 let chunked_array = series.f64()?;
-                Ok(Some(
+                Ok(Some(Column::Series(
                     chunked_array
                         .into_iter()
                         .map(|option| Some(option? / chunked_array.sum()?))
                         .collect(),
-                ))
+                )))
             },
             GetOutput::same_type(),
         )

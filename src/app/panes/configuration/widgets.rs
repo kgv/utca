@@ -1,5 +1,5 @@
 use crate::fatty_acid::FattyAcid;
-use egui::{style::Widgets, DragValue, Response, Sense, TextEdit, Ui, Widget};
+use egui::{style::Widgets, DragValue, TextEdit, Ui};
 use egui_phosphor::regular::{MINUS, PLUS};
 
 /// Fatty acid widget

@@ -3,10 +3,10 @@ use crate::{
     utils::{ExprExt, VecExt},
 };
 use anyhow::Result;
-use egui::{Id, Label, Response, RichText, Sense, Sides, Ui, Widget};
+use egui::{Label, Response, RichText, Sense, Sides, Ui, Widget};
 use egui_phosphor::regular::{ARROWS_OUT_CARDINAL, TRASH};
 use polars::prelude::*;
-use ron::{de::SpannedError, extensions::Extensions, ser::PrettyConfig};
+use ron::{extensions::Extensions, ser::PrettyConfig};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
@@ -289,10 +289,10 @@ impl Widget for &mut Data {
 /// Entry
 #[derive(Clone, Debug, Default, Deserialize, Hash, Serialize)]
 pub(in crate::app) struct Entry {
-    pub(in crate::app) checked: bool,
     pub(in crate::app) name: String,
     pub(in crate::app) fatty_acids: FattyAcids,
     // pub(in crate::app) triacylglycerols: DataFrame,
+    pub(in crate::app) checked: bool,
 }
 
 impl From<DataFrame> for Entry {
@@ -328,8 +328,6 @@ impl FattyAcids {
                     "FA" => df! {
                         "Label" => &[""],
                         "Carbons" => &[0u8],
-                        // "Doubles" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
-                        // "Triples" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
                         "Doubles" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
                         "Triples" => &[Series::new_empty(PlSmallStr::EMPTY, &DataType::Int8)],
                     }?.into_struct(PlSmallStr::EMPTY),
@@ -448,16 +446,16 @@ impl Display for FattyAcids {
 
 impl Hash for FattyAcids {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for fatty_acid in self["FA"].iter() {
+        for fatty_acid in self["FA"].phys_iter() {
             fatty_acid.hash(state);
         }
-        for tag in self["TAG"].iter() {
+        for tag in self["TAG"].phys_iter() {
             tag.hash(state);
         }
-        for dag1223 in self["DAG1223"].iter() {
+        for dag1223 in self["DAG1223"].phys_iter() {
             dag1223.hash(state);
         }
-        for mag2 in self["MAG2"].iter() {
+        for mag2 in self["MAG2"].phys_iter() {
             mag2.hash(state);
         }
     }

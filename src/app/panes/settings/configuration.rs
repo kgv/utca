@@ -1,6 +1,5 @@
 use crate::{app::MAX_PRECISION, localization::localize};
 use egui::{Grid, RichText, Slider, Ui};
-use egui_tiles::UiResponse;
 use serde::{Deserialize, Serialize};
 
 /// Configuration settings
@@ -13,6 +12,14 @@ pub(in crate::app) struct Settings {
 }
 
 impl Settings {
+    pub(in crate::app) const fn new() -> Self {
+        Self {
+            precision: 0,
+            names: false,
+            properties: false,
+        }
+    }
+
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui) {
         ui.visuals_mut().collapsing_header_frame = true;
         ui.collapsing(RichText::new(localize!("configuration")).heading(), |ui| {
@@ -41,10 +48,6 @@ impl Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self {
-            precision: 0,
-            names: false,
-            properties: false,
-        }
+        Self::new()
     }
 }

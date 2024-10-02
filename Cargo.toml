@@ -6,22 +6,20 @@ version = "0.5.5"
 [dependencies]
 anyhow = "1.0.89"
 base64 = "0.22.1"
-eframe = { version = "0.29.0", default-features = false, features = [
+eframe = { version = "0.29.1", default-features = false, features = [
     "accesskit",     # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
-    "wgpu",          # Use the glow rendering backend. Alternative: "wgpu".
     "persistence",   # Enable restoring app state when restarting the app.
+    "wgpu",          # Use the glow rendering backend. Alternative: "wgpu".
 ] }
-egui = "0.29.0"
-# egui-notify = "0.15.0"
-egui-notify = { git = "https://github.com/ItsEthra/egui-notify" }
-# egui-phosphor = "0.6.0"
-egui-phosphor = { git = "https://github.com/ItsEthra/egui-phosphor" }
+egui = "0.29.1"
+egui-notify = "0.16.0"
+egui-phosphor = "0.7.1"
 egui_ext = { git = "https://github.com/kgv/egui_ext" }
-egui_extras = "0.29.0"
+egui_extras = "0.29.1"
 egui_plot = "0.29.0"
 egui_table = { git = "https://github.com/rerun-io/egui_table", rev = "556d4f080a0259e5f46901733e4c3a02f7f0b06a", default-features = false }
-egui_tiles = "0.10.0"
+egui_tiles = "0.10.1"
 ehttp = { version = "0.5.0", features = ["json", "native-async"] }
 fluent = "0.16.1"
 fluent_content = "0.0.5"
@@ -32,7 +30,7 @@ maplit = "1.0.2"
 molecule = { git = "https://github.com/ippras/molecule" }
 num = "0.4.3"
 ordered-float = { version = "4.2.2", features = ["serde"] }
-polars = { version = "0.43.1", default-features = false, features = [
+polars = { git = "https://github.com/pola-rs/polars", rev = "be5a4b453ca74bb5e0c782c292e9fca6aa60b203", default-features = false, features = [
     "concat_str",
     "cross_join",
     "diagonal_concat",

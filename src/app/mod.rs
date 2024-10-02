@@ -1,6 +1,6 @@
 use self::{
     data::{Data, Entry},
-    panes::{behavior::Behavior, Pane, Settings},
+    panes::{behavior::Behavior, settings::Settings, Pane},
     windows::{About, Github},
 };
 use crate::{
@@ -73,7 +73,6 @@ pub struct App {
     // #[serde(skip)]
     tree: Tree<Pane>,
     // Data
-    #[serde(skip)]
     data: Data,
     // Settings
     settings: Settings,
@@ -120,8 +119,6 @@ impl App {
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
         let app = Self::load(cc).unwrap_or_default();
-        println!("app.settings: {:?}", app.settings);
-        println!("app.tree: {:?}", app.tree);
         app.context(&cc.egui_ctx);
         app
     }
@@ -250,9 +247,6 @@ impl App {
                 toggle(ui, Pane::Composition(Default::default()));
                 // Visualization
                 if ui.button(icon!(CHART_BAR, x32)).clicked() {}
-                // Comparison
-                toggle(ui, Pane::Comparison(Default::default()));
-                ui.separator();
                 // Create
                 if ui.button(icon!(PLUS, x32)).clicked() {
                     self.data.entries.push(Default::default());
@@ -297,7 +291,6 @@ impl App {
                 //     }
                 //     self.tree.root = Some(self.tree.tiles.insert_vertical_tile(children));
                 // }
-
                 //     ui.visuals_mut().button_frame = false;
                 //     global_dark_light_mode_switch(ui);
                 //     ui.separator();
@@ -545,8 +538,8 @@ impl App {
                         error!(%error);
                         self.toasts
                             .error(format!("{}: {error}", dropped.display()))
-                            .set_closable(true)
-                            .set_duration(Some(NOTIFICATIONS_DURATION));
+                            .closable(true)
+                            .duration(Some(NOTIFICATIONS_DURATION));
                         continue;
                     }
                 };

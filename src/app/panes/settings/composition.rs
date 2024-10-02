@@ -5,11 +5,9 @@ use crate::{
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
 };
 use egui::{
-    Color32, ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, RichText, Slider, Stroke,
-    Ui,
+    ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, RichText, Sides, Slider, Ui,
 };
-use egui_ext::WithVisuals;
-use egui_phosphor::regular::{EYE, EYE_SLASH, MINUS, PLUS};
+use egui_phosphor::regular::{ARROWS_HORIZONTAL, EYE, EYE_SLASH, MINUS, PLUS};
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
@@ -67,6 +65,9 @@ pub(in crate::app) const STC: Composition = Composition {
 pub(in crate::app) struct Settings {
     pub(in crate::app) percent: bool,
     pub(in crate::app) precision: usize,
+    // How many columns are sticky
+    // Default is 0.
+    pub(in crate::app) sticky_columns: usize,
 
     pub(in crate::app) adduct: OrderedFloat<f64>,
     pub(in crate::app) method: Method,
@@ -80,6 +81,7 @@ impl Settings {
         Self {
             percent: true,
             precision: 1,
+            sticky_columns: 0,
             adduct: OrderedFloat(0.0),
             method: Method::VanderWal,
             compositions: Vec::new(),
@@ -100,6 +102,13 @@ impl Settings {
 
                 ui.label(localize!("percent"));
                 ui.checkbox(&mut self.percent, "");
+                ui.end_row();
+
+                ui.label(localize!("sticky_columns"));
+                ui.add(Slider::new(
+                    &mut self.sticky_columns,
+                    0..=self.compositions.len() + 1,
+                ));
                 ui.end_row();
 
                 ui.separator();
@@ -169,44 +178,48 @@ impl Settings {
                 ui.end_row();
 
                 // Compose
-                // ui.label(localize!("composition"));
                 ui.label(localize!("compose"));
                 if ui.button(PLUS).clicked() {
                     self.compositions.push(Composition::new());
                 }
                 ui.end_row();
                 self.compositions.retain_mut(|composition| {
-                    ComboBox::from_id_salt(ui.next_auto_id())
-                        .selected_text(composition.text())
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(composition, NC, NC.text())
-                                .on_hover_text(NC.hover_text());
-                            ui.selectable_value(composition, PNC, PNC.text())
-                                .on_hover_text(PNC.hover_text());
-                            ui.selectable_value(composition, SNC, SNC.text())
-                                .on_hover_text(SNC.hover_text());
-                            ui.selectable_value(composition, MC, MC.text())
-                                .on_hover_text(MC.hover_text());
-                            ui.selectable_value(composition, PMC, PMC.text())
-                                .on_hover_text(PMC.hover_text());
-                            ui.selectable_value(composition, SMC, SMC.text())
-                                .on_hover_text(SMC.hover_text());
-                            ui.selectable_value(composition, TC, TC.text())
-                                .on_hover_text(TC.hover_text());
-                            ui.selectable_value(composition, PTC, PTC.text())
-                                .on_hover_text(PTC.hover_text());
-                            ui.selectable_value(composition, STC, STC.text())
-                                .on_hover_text(STC.hover_text());
-                            ui.selectable_value(composition, SC, SC.text())
-                                .on_hover_text(SC.hover_text());
-                            ui.selectable_value(composition, PSC, PSC.text())
-                                .on_hover_text(PSC.hover_text());
-                            ui.selectable_value(composition, SSC, SSC.text())
-                                .on_hover_text(SSC.hover_text());
+                    ui.label("");
+                    let keep = ui
+                        .horizontal(|ui| {
+                            ComboBox::from_id_salt(ui.next_auto_id())
+                                .selected_text(composition.text())
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(composition, NC, NC.text())
+                                        .on_hover_text(NC.hover_text());
+                                    ui.selectable_value(composition, PNC, PNC.text())
+                                        .on_hover_text(PNC.hover_text());
+                                    ui.selectable_value(composition, SNC, SNC.text())
+                                        .on_hover_text(SNC.hover_text());
+                                    ui.selectable_value(composition, MC, MC.text())
+                                        .on_hover_text(MC.hover_text());
+                                    ui.selectable_value(composition, PMC, PMC.text())
+                                        .on_hover_text(PMC.hover_text());
+                                    ui.selectable_value(composition, SMC, SMC.text())
+                                        .on_hover_text(SMC.hover_text());
+                                    ui.selectable_value(composition, TC, TC.text())
+                                        .on_hover_text(TC.hover_text());
+                                    ui.selectable_value(composition, PTC, PTC.text())
+                                        .on_hover_text(PTC.hover_text());
+                                    ui.selectable_value(composition, STC, STC.text())
+                                        .on_hover_text(STC.hover_text());
+                                    ui.selectable_value(composition, SC, SC.text())
+                                        .on_hover_text(SC.hover_text());
+                                    ui.selectable_value(composition, PSC, PSC.text())
+                                        .on_hover_text(PSC.hover_text());
+                                    ui.selectable_value(composition, SSC, SSC.text())
+                                        .on_hover_text(SSC.hover_text());
+                                })
+                                .response
+                                .on_hover_text(composition.hover_text());
+                            !ui.button(MINUS).clicked()
                         })
-                        .response
-                        .on_hover_text(composition.hover_text());
-                    let keep = !ui.button(MINUS).clicked();
+                        .inner;
                     ui.end_row();
                     keep
                 });

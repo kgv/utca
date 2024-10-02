@@ -2,12 +2,11 @@ use self::{
     area::Area,
     names::Names,
     properties::Properties,
-    settings::Settings,
     widgets::{Change, FattyAcidWidget},
 };
 use super::behavior::Behavior;
 use crate::{
-    app::data::{Data, FattyAcids},
+    app::data::FattyAcids,
     fatty_acid::{DisplayWithOptions, FattyAcid, COMMON},
     localization::localize,
     utils::{
@@ -16,10 +15,8 @@ use crate::{
     },
 };
 use egui::{Direction, Layout, RichText, Ui};
-use egui_ext::TableRowExt;
 use egui_extras::{Column, TableBuilder};
 use egui_phosphor::regular::{ARROW_FAT_LINE_UP, MINUS, PLUS};
-use egui_tiles::{Tiles, Tree};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
@@ -27,10 +24,7 @@ use tracing::error;
 
 /// Central configuration pane
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(in crate::app) struct Pane {
-    /// Configuration special settings
-    pub(in crate::app) settings: Settings,
-}
+pub(in crate::app) struct Pane;
 
 impl Pane {
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
@@ -96,7 +90,8 @@ impl Pane {
                 });
             })
             .body(|body| {
-                let precision = |value| format!("{value:.*}", self.settings.precision);
+                let precision =
+                    |value| format!("{value:.*}", behavior.settings.configuration.precision);
                 body.rows(height, total_rows + 1, |mut row| {
                     let index = row.index();
                     if index < total_rows {
@@ -180,12 +175,12 @@ impl Pane {
                                     fatty_acid.h(),
                                 ));
                             });
-                            if self.settings.names {
+                            if behavior.settings.configuration.names {
                                 response = response.on_hover_ui(|ui| {
                                     ui.add(Names::new(fatty_acid));
                                 });
                             }
-                            if self.settings.properties {
+                            if behavior.settings.configuration.properties {
                                 response.on_hover_ui(|ui| {
                                     ui.add(Properties::new(fatty_acid));
                                 });
@@ -198,7 +193,7 @@ impl Pane {
                                 .add(Area::new(
                                     &mut value,
                                     behavior.settings.editable,
-                                    self.settings.precision,
+                                    behavior.settings.configuration.precision,
                                 ))
                                 .changed()
                             {
@@ -216,7 +211,7 @@ impl Pane {
                                 .add(Area::new(
                                     &mut value,
                                     behavior.settings.editable,
-                                    self.settings.precision,
+                                    behavior.settings.configuration.precision,
                                 ))
                                 .changed()
                             {
@@ -234,7 +229,7 @@ impl Pane {
                                 .add(Area::new(
                                     &mut value,
                                     behavior.settings.editable,
-                                    self.settings.precision,
+                                    behavior.settings.configuration.precision,
                                 ))
                                 .changed()
                             {
@@ -324,5 +319,4 @@ impl Event {
 mod area;
 mod names;
 mod properties;
-mod settings;
 mod widgets;

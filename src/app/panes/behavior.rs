@@ -1,8 +1,8 @@
 use super::{Pane, Settings};
-use crate::app::data::{Data, FattyAcids};
-use egui::{vec2, Button, CursorIcon, Frame, Margin, RichText, Sides, Ui, Vec2, WidgetText};
+use crate::app::data::Data;
+use egui::{CursorIcon, RichText, Sides, Ui, WidgetText};
 use egui_phosphor::regular::X;
-use egui_tiles::{TileId, Tiles, Tree, UiResponse};
+use egui_tiles::{TileId, UiResponse};
 
 /// Behavior
 #[derive(Debug)]
