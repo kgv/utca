@@ -3,7 +3,7 @@ use crate::{
     acylglycerol::Stereospecificity,
     app::{
         data::{Data, Entry, FattyAcids},
-        panes::settings::composition::{Method, Order, Kind, Settings, Sort},
+        panes::settings::composition::{Join, Kind, Method, Order, Settings, Sort},
     },
     utils::{indexed_cols, r#struct, ExprExt as _, SeriesExt},
 };
@@ -50,15 +50,10 @@ impl Computer {
         let mut lazy_frame = fatty_acids.0.clone().lazy();
         // Cartesian product (TAG from FA)
         lazy_frame = lazy_frame.cartesian_product()?;
+        // Filter
+        lazy_frame = lazy_frame.filtration(settings);
         // Compose
         lazy_frame = lazy_frame.composition(settings)?;
-        // // Filter
-        // lazy_frame = lazy_frame.filter(
-        //     col("Values")
-        //         .r#struct()
-        //         .field_by_index(-1)
-        //         .gt_eq(lit(0.001)),
-        // );
         // Arrange
         lazy_frame = lazy_frame.arrange(settings)?;
         Ok(lazy_frame)
@@ -76,7 +71,8 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                         .select([
                             // col("Composition"),
                             col("Composition").r#struct().field_by_names(Some("*")),
-                            as_struct(vec![all().exclude(["Composition"])]).alias(&entry.name),
+                            col("Values").alias(&entry.name),
+                            // as_struct(vec![all().exclude(["Composition"])]).alias(&entry.name),
                         ])
                 });
                 if let Some(mut lazy_frame) = lazy_frames.next() {
@@ -87,7 +83,8 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                             other,
                             &compositions,
                             &compositions,
-                            JoinArgs::default(),
+                            JoinArgs::new(key.settings.join.into())
+                                .with_coalesce(JoinCoalesce::CoalesceColumns),
                         );
                     }
                     // Index
@@ -129,8 +126,12 @@ impl Hash for Key<'_> {
         self.settings.adduct.hash(state);
         self.settings.compositions.hash(state);
         self.settings.method.hash(state);
+        self.settings.filter.hash(state);
         self.settings.order.hash(state);
         self.settings.sort.hash(state);
+        if self.entries.len() > 1 {
+            self.settings.join.hash(state);
+        }
     }
 }
 
@@ -142,6 +143,8 @@ trait LazyFrameExt: Sized {
     fn arrange(self, settings: &Settings) -> PolarsResult<Self>;
 
     fn cartesian_product(self) -> PolarsResult<Self>;
+
+    fn filtration(self, settings: &Settings) -> Self;
 
     fn composition(self, settings: &Settings) -> PolarsResult<Self>;
 
@@ -189,17 +192,25 @@ impl LazyFrameExt for LazyFrame {
             .select([as_struct(vec![col("SN1"), col("SN2"), col("SN3")]).alias("TAG")]))
     }
 
+    fn filtration(mut self, settings: &Settings) -> Self {
+        // Triacylglycerol value
+        self = self.with_column(
+            col("TAG").r#struct().field_by_name("SN1").value()
+                * col("TAG").r#struct().field_by_name("SN2").value()
+                * col("TAG").r#struct().field_by_name("SN3").value(),
+        );
+        self.filter(col("Value").gt_eq(lit(settings.filter.value)))
+    }
+
     fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
         if settings.compositions.is_empty() {
             return Ok(self);
         }
-        // Temp Species and Value
-        self = self.with_columns([species().alias("Species"), value().alias("Value")]);
+        // self = self.with_column([species().alias("Species"), value().alias("Value")]);
 
         println!("self0: {}", self.clone().collect().unwrap());
-
-        let mut compositions = Vec::new();
-        let mut values = Vec::new();
+        let mut indices = Vec::new();
+        // Composition
         for (index, composition) in settings.compositions.iter().enumerate() {
             // Temp stereospecific numbers
             self = self.with_columns([
@@ -219,8 +230,6 @@ impl LazyFrameExt for LazyFrame {
                 Some(Stereospecificity::Positional) => self.permutation(["SN1", "SN3"], sort)?,
                 Some(Stereospecificity::Stereo) => self,
             };
-            // Composition
-            let name = format!("Composition{index}");
             self = self.with_column(
                 match composition.kind {
                     Kind::Ecn => match composition.stereospecificity {
@@ -291,34 +300,37 @@ impl LazyFrameExt for LazyFrame {
                         false,
                     ),
                 }
-                .alias(&name),
+                .alias(format!("Composition{index}")),
             );
-            compositions.push(name);
-            // Value
+            indices.push(index);
+        }
+        println!("self1: {}", self.clone().collect().unwrap());
+        // Drop stereospecific numbers
+        self = self.drop(["TAG", "SN1", "SN2", "SN3"]);
+        // Values
+        for index in (0..indices.len()).rev() {
             let name = format!("Value{index}");
+            let compositions = indices[0..=index].compositions();
             self = self
                 .group_by([cols(&compositions)])
                 .agg([all(), col("Value").sum().alias(&name)])
+                // .filter(col(&name).gt_eq(lit(settings.filter.value)))
                 .explode([all().exclude(&compositions).exclude([&name])]);
-            values.push(name);
         }
-        // Drop stereospecific numbers
-        self = self.drop([col("SN1"), col("SN2"), col("SN3")]);
 
-        println!("self1: {}", self.clone().collect().unwrap());
-
+        println!("self2: {}", self.clone().collect().unwrap());
         // Group leaves
         self = self
-            .drop(["TAG"])
-            .group_by([cols(&compositions), cols(&values)])
+            .group_by([cols(indices.compositions()), cols(indices.values())])
             .agg([all()]);
         // Nest compositions and values
         self = self.select([
-            as_struct(vec![cols(&compositions)]).alias("Composition"),
-            as_struct(vec![cols(&values)]).alias("Values"),
-            col("Species"),
-            col("Value"),
+            as_struct(vec![cols(indices.compositions())]).alias("Composition"),
+            as_struct(vec![cols(indices.values()), col("Value")]).alias("Values"),
+            // species().alias("Species"),
+            // col("Value"),
         ]);
+        println!("self3: {}", self.clone().collect().unwrap());
         Ok(self)
     }
 
@@ -340,6 +352,25 @@ impl LazyFrameExt for LazyFrame {
             );
         }
         Ok(lazy_frame.drop([NAME]))
+    }
+}
+
+/// Extension methods for [`slice`]
+trait SliceExt {
+    fn compositions(&self) -> Vec<String>;
+
+    fn values(&self) -> Vec<String>;
+}
+
+impl SliceExt for [usize] {
+    fn compositions(&self) -> Vec<String> {
+        self.iter()
+            .map(|index| format!("Composition{index}"))
+            .collect()
+    }
+
+    fn values(&self) -> Vec<String> {
+        self.iter().map(|index| format!("Value{index}")).collect()
     }
 }
 

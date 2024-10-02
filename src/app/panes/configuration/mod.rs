@@ -98,7 +98,7 @@ impl Pane {
                         // Move row
                         if behavior.settings.editable {
                             row.col(|ui| {
-                                if ui.button(RichText::new(ARROW_FAT_LINE_UP)).clicked() {
+                                if ui.button(ARROW_FAT_LINE_UP).clicked() {
                                     event = Some(Event::Up { row: index });
                                 }
                             });
@@ -243,7 +243,7 @@ impl Pane {
                         // Delete row
                         if behavior.settings.editable {
                             row.col(|ui| {
-                                if ui.button(RichText::new(MINUS)).clicked() {
+                                if ui.button(MINUS).clicked() {
                                     event = Some(Event::Delete { row: index });
                                 }
                             });
@@ -271,7 +271,7 @@ impl Pane {
                         // Add row
                         if behavior.settings.editable {
                             row.col(|ui| {
-                                if ui.button(RichText::new(PLUS)).clicked() {
+                                if ui.button(PLUS).clicked() {
                                     event = Some(Event::Add);
                                 }
                             });

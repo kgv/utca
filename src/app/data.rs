@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::Result;
 use egui::{Label, Response, RichText, Sense, Sides, Ui, Widget};
-use egui_phosphor::regular::{ARROWS_OUT_CARDINAL, TRASH};
+use egui_phosphor::regular::{ARROWS_OUT_CARDINAL, ARROW_FAT_LINE_UP, TRASH};
 use polars::prelude::*;
 use ron::{extensions::Extensions, ser::PrettyConfig};
 use serde::{Deserialize, Serialize};
@@ -217,6 +217,7 @@ impl Widget for &mut Data {
         ui.visuals_mut().collapsing_header_frame = true;
         ui.collapsing(RichText::new(localize!("entries")).heading(), |ui| {
             let mut remove = None;
+            let mut up = None;
 
             // dnd(ui, "entries").show_vec(&mut self.entries, |ui, entry, handle, state| {
             //     ui.horizontal(|ui| {
@@ -235,11 +236,15 @@ impl Widget for &mut Data {
             //         }
             //     });
             // });
+            let mut checked = Vec::new();
             for (index, entry) in self.entries.iter_mut().enumerate() {
                 ui.vertical(|ui| {
                     Sides::new().show(
                         ui,
                         |ui| {
+                            if ui.button(ARROW_FAT_LINE_UP).clicked() {
+                                up = Some(index);
+                            }
                             ui.checkbox(&mut entry.checked, "");
                             ui.add(Label::new(&entry.name).truncate())
                                 .on_hover_text(format!("{:?}", entry.fatty_acids.shape()));
@@ -250,11 +255,16 @@ impl Widget for &mut Data {
                             }
                         },
                     );
+                    checked.push(&mut entry.checked);
                 });
             }
 
             if let Some(index) = remove {
                 self.entries.remove(index);
+                ui.ctx().request_repaint();
+            }
+            if let Some(index) = up {
+                self.entries.swap(index, index.saturating_sub(1));
                 ui.ctx().request_repaint();
             }
         });

@@ -395,9 +395,6 @@ impl<'a> TableDemo<'a> {
                 let value = self.data_frame[column]
                     .struct_()
                     .unwrap()
-                    .field_by_name("Values")
-                    .unwrap()
-                    .r#struct()
                     .field(&format!("Value{index}"))
                     .f64()
                     .unwrap()

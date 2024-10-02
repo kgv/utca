@@ -5,11 +5,14 @@ use crate::{
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
 };
 use egui::{
-    ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, RichText, Sides, Slider, Ui,
+    emath::Float, ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, RichText, Sides,
+    Slider, SliderClamping, Ui,
 };
 use egui_phosphor::regular::{ARROWS_HORIZONTAL, EYE, EYE_SLASH, MINUS, PLUS};
 use ordered_float::OrderedFloat;
+use polars::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 
 pub(in crate::app) const NC: Composition = Composition {
     stereospecificity: None,
@@ -72,8 +75,10 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) adduct: OrderedFloat<f64>,
     pub(in crate::app) method: Method,
     pub(in crate::app) compositions: Vec<Composition>,
+    pub(in crate::app) filter: Filter,
     pub(in crate::app) sort: Sort,
     pub(in crate::app) order: Order,
+    pub(in crate::app) join: Join,
 }
 
 impl Settings {
@@ -85,8 +90,10 @@ impl Settings {
             adduct: OrderedFloat(0.0),
             method: Method::VanderWal,
             compositions: Vec::new(),
+            filter: Filter::new(),
             sort: Sort::Value,
             order: Order::Descending,
+            join: Join::Left,
         }
     }
 }
@@ -177,6 +184,28 @@ impl Settings {
                     .on_hover_text(self.method.hover_text());
                 ui.end_row();
 
+                // Filter
+                ui.label(localize!("filter"));
+                ui.add(
+                    Slider::new(&mut self.filter.value, 0.0..=1.0)
+                        .clamping(SliderClamping::Always)
+                        .logarithmic(true)
+                        .custom_formatter(|mut value, _| {
+                            if self.percent {
+                                value *= 100.0;
+                            }
+                            AnyValue::Float64(value).to_string()
+                        })
+                        .custom_parser(|value| {
+                            let mut parsed = value.parse::<f64>().ok()?;
+                            if self.percent {
+                                parsed /= 100.0;
+                            }
+                            Some(parsed)
+                        }),
+                );
+                ui.end_row();
+
                 // Compose
                 ui.label(localize!("compose"));
                 if ui.button(PLUS).clicked() {
@@ -224,6 +253,22 @@ impl Settings {
                     keep
                 });
 
+                // Join
+                ui.label(localize!("join"));
+                ComboBox::from_id_salt("join")
+                    .selected_text(self.join.text())
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut self.join, Join::Left, Join::Left.text())
+                            .on_hover_text(Join::Left.hover_text());
+                        ui.selectable_value(&mut self.join, Join::And, Join::And.text())
+                            .on_hover_text(Join::And.hover_text());
+                        ui.selectable_value(&mut self.join, Join::Or, Join::Or.text())
+                            .on_hover_text(Join::Or.hover_text());
+                    })
+                    .response
+                    .on_hover_text(self.join.hover_text());
+                ui.end_row();
+
                 // Sort
                 ui.label(localize!("sort"));
                 ComboBox::from_id_salt("sort")
@@ -259,6 +304,7 @@ impl Settings {
                     .on_hover_text(self.order.hover_text());
                 ui.end_row();
             });
+
             // ui.horizontal(|ui| {
             //     ui.label(localize!("precision"));
             //     ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
@@ -450,6 +496,42 @@ impl Default for Settings {
     }
 }
 
+/// Join
+#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+pub(in crate::app) enum Join {
+    Left,
+    And,
+    Or,
+}
+
+impl Join {
+    pub(in crate::app) fn text(self) -> String {
+        match self {
+            Self::Left => localize!("left"),
+            Self::And => localize!("and"),
+            Self::Or => localize!("or"),
+        }
+    }
+
+    pub(in crate::app) fn hover_text(self) -> String {
+        match self {
+            Self::Left => localize!("left.description"),
+            Self::And => localize!("and.description"),
+            Self::Or => localize!("or.description"),
+        }
+    }
+}
+
+impl From<Join> for JoinType {
+    fn from(value: Join) -> Self {
+        match value {
+            Join::Left => JoinType::Left,
+            Join::And => JoinType::Inner,
+            Join::Or => JoinType::Full,
+        }
+    }
+}
+
 /// Method
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Method {
@@ -470,6 +552,25 @@ impl Method {
             Self::Gunstone => localize!("gunstone.description"),
             Self::VanderWal => localize!("vander_wal.description"),
         }
+    }
+}
+
+/// Filter
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+pub(in crate::app) struct Filter {
+    pub(in crate::app) value: f64,
+}
+
+impl Filter {
+    pub(in crate::app) const fn new() -> Self {
+        // Self { value: 0.0 }
+        Self { value: 0.005 }
+    }
+}
+
+impl Hash for Filter {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.value.ord().hash(state);
     }
 }
 
