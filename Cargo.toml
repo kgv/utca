@@ -26,6 +26,7 @@ fluent_content = "0.0.5"
 indexmap = { version = "2.5.0", features = ["serde"] }
 intl-memoizer = "0.5.2"
 itertools = "0.13.0"
+lru = "0.12.4"
 maplit = "1.0.2"
 molecule = { git = "https://github.com/ippras/molecule" }
 num = "0.4.3"
@@ -51,6 +52,7 @@ polars = { git = "https://github.com/pola-rs/polars", rev = "be5a4b453ca74bb5e0c
     # "list_count",
     # "regex",
 ] }
+radix_trie = "0.2.1"
 ron = "0.8.1"
 serde = { version = "1.0.210", features = ["derive", "std"] }
 thiserror = "1.0.64"

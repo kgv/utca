@@ -297,7 +297,7 @@ impl Widget for &mut Data {
 }
 
 /// Entry
-#[derive(Clone, Debug, Default, Deserialize, Hash, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(in crate::app) struct Entry {
     pub(in crate::app) name: String,
     pub(in crate::app) fatty_acids: FattyAcids,
@@ -318,6 +318,14 @@ impl From<DataFrame> for Entry {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(transparent)]
 pub(in crate::app) struct FattyAcids(pub(in crate::app) DataFrame);
+
+impl Eq for FattyAcids {}
+
+impl PartialEq for FattyAcids {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.equals(&other.0)
+    }
+}
 
 impl FattyAcids {
     pub(in crate::app) fn save(&self, path: impl AsRef<Path>) -> Result<()> {

@@ -2,7 +2,10 @@ use self::widgets::Cell;
 use super::{settings::Settings, Behavior};
 use crate::{
     app::{
-        computers::{CalculationComputed, CalculationKey, CompositionComputed, CompositionKey},
+        computers::{
+            CalculationComputed, CalculationKey, CompositionComputed, CompositionKey,
+            VisualizationComputed, VisualizationKey,
+        },
         data::Data,
         MARGIN,
     },
@@ -19,24 +22,28 @@ use egui_phosphor::regular::LIST;
 use egui_table::{
     AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, PrefetchInfo, Table, TableDelegate,
 };
+use lru::LruCache;
 use polars::prelude::*;
+use poll_promise::Promise;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     f64::NAN,
     iter::{once, zip},
+    num::NonZeroUsize,
+    thread,
 };
 use tracing::error;
 
 /// Central composition pane
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(in crate::app) struct Pane;
+#[derive(Default, Deserialize, Serialize)]
+pub(in crate::app) struct Pane {
+    #[serde(skip)]
+    promise: Option<Promise<DataFrame>>,
+}
 
 impl Pane {
-    pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
-        if behavior.data.entries.is_empty() {
-            return;
-        }
+    pub(in crate::app) fn prepare(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> DataFrame {
         let mut entries = Vec::new();
         for entry in &mut behavior.data.entries {
             if entry.checked {
@@ -52,17 +59,49 @@ impl Pane {
                 entries.push(&*entry);
             }
         }
-        let data_frame = ui.memory_mut(|memory| {
-            memory
-                .caches
-                .cache::<CompositionComputed>()
-                .get(CompositionKey {
-                    entries: &entries,
-                    settings: &behavior.settings.composition,
-                })
-        });
-        // TableDemo::new(data_frame, &behavior.settings.composition);
-        TableDemo::new(data_frame, &behavior.settings).ui(ui);
+        let key = CompositionKey {
+            entries: &entries,
+            settings: &behavior.settings.composition,
+        };
+        ui.memory_mut(|memory| memory.caches.cache::<CompositionComputed>().get(key))
+        // ui.data_mut(|data| {
+        //     // data.get_temp_mut_or(
+        //     //     Id::new(&key),
+        //     //     ui.memory_mut(|memory| memory.caches.cache::<CompositionComputed>().get(key)),
+        //     // )
+        //     // .clone()
+        // })
+    }
+
+    pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
+        let data_frame = self.prepare(ui, behavior);
+        TableDemo::new(&data_frame, &behavior.settings).ui(ui);
+
+        // let mut entries = Vec::new();
+        // for entry in &mut behavior.data.entries {
+        //     if entry.checked {
+        //         entry.fatty_acids.0 = ui.memory_mut(|memory| {
+        //             memory
+        //                 .caches
+        //                 .cache::<CalculationComputed>()
+        //                 .get(CalculationKey {
+        //                     fatty_acids: &entry.fatty_acids,
+        //                     settings: &behavior.settings.calculation,
+        //                 })
+        //         });
+        //         entries.push(&*entry);
+        //     }
+        // }
+        // let data_frame = ui.memory_mut(|memory| {
+        //     memory
+        //         .caches
+        //         .cache::<CompositionComputed>()
+        //         .get(CompositionKey {
+        //             entries: &entries,
+        //             settings: &behavior.settings.composition,
+        //         })
+        // });
+
         // if let Err(error) = || -> Result<()> {
         //     if self.settings.compositions.is_empty() {
         //         return Ok(());
@@ -237,17 +276,17 @@ impl Pane {
 }
 
 struct TableDemo<'a> {
+    data_frame: &'a DataFrame,
     settings: &'a Settings,
-    data_frame: DataFrame,
     // is_row_expanded: BTreeMap<u64, bool>,
     // prefetched: Vec<PrefetchInfo>,
 }
 
 impl<'a> TableDemo<'a> {
-    fn new(data_frame: DataFrame, settings: &'a Settings) -> Self {
+    fn new(data_frame: &'a DataFrame, settings: &'a Settings) -> Self {
         Self {
-            settings,
             data_frame,
+            settings,
         }
     }
 
@@ -391,16 +430,20 @@ impl<'a> TableDemo<'a> {
                 ui.label(text);
             }
             (row, column) => {
+                let r#struct = self.data_frame[column].struct_().unwrap();
                 let index = self.settings.composition.compositions.len() - 1;
-                let value = self.data_frame[column]
-                    .struct_()
-                    .unwrap()
+                let value = r#struct
                     .field(&format!("Value{index}"))
                     .f64()
                     .unwrap()
                     .get(row);
+                // let species = r#struct.field("Species").fmt_list();
+                let species = r#struct.field("Species");
+                let species = species.list().unwrap().get_as_series(row);
+                let species = species.as_ref().map(|series| series.str().unwrap());
                 ui.add(Cell {
                     value,
+                    species,
                     percent: self.settings.composition.percent,
                     precision: self.settings.composition.precision,
                 });

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 const SIZE: f32 = 16.0;
 
 /// Central pane
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub(in crate::app) enum Pane {
     Configuration(configuration::Pane),
     Calculation(calculation::Pane),

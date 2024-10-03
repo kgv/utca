@@ -5,17 +5,10 @@ use egui::{
 };
 use egui_phosphor::regular::CLOUD_ARROW_DOWN;
 use ehttp::{fetch, fetch_async, Headers, Request, Response};
-use itertools::{Either, Itertools};
+use itertools::Itertools;
 use poll_promise::Promise;
-use radix_trie::{iter::Children, SubTrie, Trie, TrieCommon};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{
-    env::var,
-    fmt::Debug,
-    future::Future,
-    path::{Components, Path},
-    sync::mpsc::Sender,
-};
+use std::{env::var, fmt::Debug, future::Future, sync::mpsc::Sender};
 use tracing::{error, info, trace};
 use url::Url;
 
@@ -89,14 +82,35 @@ impl Github {
                 ui.visuals_mut().collapsing_header_frame = true;
                 ScrollArea::vertical().show(ui, |ui| {
                     if let Some(Some(tree)) = self.promise.ready() {
-                        let mut trie = Trie::new();
-                        for node in &tree.tree {
-                            // if node.r#type == "blob" {
-                            if let Some(path) = node.path.strip_prefix("configs/") {
-                                trie.insert(path, &*node.url);
+                        let chunks = tree
+                            .tree
+                            .iter()
+                            .filter(|node| node.r#type == "blob")
+                            .filter_map(|node| {
+                                Some((node.path.strip_prefix("configs/")?, &node.url))
+                            })
+                            .chunk_by(|(path, _)| path.split_once('/').map(|(prefix, _)| prefix));
+                        for (key, group) in &chunks {
+                            // let heading = key.unwrap_or("Root");
+                            if let Some(key) = key {
+                                ui.collapsing(RichText::new(key).heading(), |ui| {
+                                    for (path, url) in group {
+                                        let path =
+                                            path.strip_prefix(&format!("{key}/")).unwrap_or(path);
+                                        ui.horizontal(|ui| {
+                                            if ui
+                                                .button(CLOUD_ARROW_DOWN)
+                                                .on_hover_text(url)
+                                                .clicked()
+                                            {
+                                                load_blob(ctx, path, url);
+                                            }
+                                            ui.label(path);
+                                        });
+                                    }
+                                });
                             }
                         }
-                        temp(ui, trie.children());
                     } else {
                         ui.spinner();
                     }
@@ -105,76 +119,8 @@ impl Github {
     }
 }
 
-fn temp(ui: &mut Ui, children: Children<'_, &str, &str>) {
-    for trie in children.sorted_by_key(|trie| trie.is_leaf()) {
-        if let Some(&path) = trie.key() {
-            let name = path.rsplit_once('/').map_or(path, |(_, suffix)| suffix);
-            if trie.is_leaf() {
-                if let Some(&url) = trie.value() {
-                    ui.horizontal(|ui| {
-                        if ui.button(CLOUD_ARROW_DOWN).on_hover_text(url).clicked() {
-                            load_blob(ui.ctx(), name, url);
-                        }
-                        ui.label(name);
-                    });
-                }
-            } else {
-                // println!("HERE!!!!!!!!!!!");
-                ui.collapsing(RichText::new(name).heading(), |ui| {
-                    temp(ui, trie.children());
-                });
-            }
-        } else {
-            temp(ui, trie.children());
-        }
-    }
-    //     for (key, group) in groups {
-    //         if let Some(name) = key {
-    //             // println!("group: {:?}", group.collect::<Vec<_>>());
-    //             let t = temp(group);
-    //             children.push(Entry::Branch {
-    //                 name: name.to_owned(),
-    //                 children: Vec::new(),
-    //                 // children: temp(group),
-    //             });
-    //         } else {
-    //             for (name, url) in group {
-    //                 children.push(Entry::Leaf {
-    //                     name: name.to_owned(),
-    //                     url: url.to_owned(),
-    //                 });
-    //             }
-    //         }
-    //     }
-    //     children
-}
-
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum Entry {
-    Branch { name: String, children: Vec<Entry> },
-    Leaf { name: String, url: String },
-}
-
-impl Entry {
-    fn ui(self, ui: &mut Ui) {
-        match self {
-            Self::Branch { name, children } => {
-                ui.collapsing(RichText::new(name).heading(), |ui| {
-                    for child in children {
-                        child.ui(ui);
-                    }
-                });
-            }
-            Self::Leaf { name, url } => {
-                ui.horizontal(|ui| {
-                    if ui.button(CLOUD_ARROW_DOWN).on_hover_text(&url).clicked() {
-                        load_blob(ui.ctx(), &name, url);
-                    }
-                    ui.label(name);
-                });
-            }
-        }
-    }
+struct PathUrl {
+    
 }
 
 // impl Widget for &mut GithubTree {

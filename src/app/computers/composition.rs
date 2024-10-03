@@ -50,8 +50,10 @@ impl Computer {
         let mut lazy_frame = fatty_acids.0.clone().lazy();
         // Cartesian product (TAG from FA)
         lazy_frame = lazy_frame.cartesian_product()?;
-        // Filter
-        lazy_frame = lazy_frame.filtration(settings);
+        // Value filter zero
+        lazy_frame = lazy_frame
+            .with_column(value())
+            .filter(col("Value").neq(lit(0)));
         // Compose
         lazy_frame = lazy_frame.composition(settings)?;
         // Arrange
@@ -104,7 +106,7 @@ impl ComputerMut<Key<'_>, Value> for Computer {
 }
 
 /// Composition key
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::app) struct Key<'a> {
     pub(in crate::app) entries: &'a Vec<&'a Entry>,
     pub(in crate::app) settings: &'a Settings,
@@ -143,8 +145,6 @@ trait LazyFrameExt: Sized {
     fn arrange(self, settings: &Settings) -> PolarsResult<Self>;
 
     fn cartesian_product(self) -> PolarsResult<Self>;
-
-    fn filtration(self, settings: &Settings) -> Self;
 
     fn composition(self, settings: &Settings) -> PolarsResult<Self>;
 
@@ -190,16 +190,6 @@ impl LazyFrameExt for LazyFrame {
                 None,
             )
             .select([as_struct(vec![col("SN1"), col("SN2"), col("SN3")]).alias("TAG")]))
-    }
-
-    fn filtration(mut self, settings: &Settings) -> Self {
-        // Triacylglycerol value
-        self = self.with_column(
-            col("TAG").r#struct().field_by_name("SN1").value()
-                * col("TAG").r#struct().field_by_name("SN2").value()
-                * col("TAG").r#struct().field_by_name("SN3").value(),
-        );
-        self.filter(col("Value").gt_eq(lit(settings.filter.value)))
     }
 
     fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
@@ -326,8 +316,8 @@ impl LazyFrameExt for LazyFrame {
             .agg([all()]);
         // Nest compositions and values
         self = self.select([
-            as_struct(vec![cols(indices.compositions()), col("Species")]).alias("Composition"),
-            as_struct(vec![cols(indices.values()), col("Value")]).alias("Values"),
+            as_struct(vec![cols(indices.compositions())]).alias("Composition"),
+            as_struct(vec![cols(indices.values()), col("Value"), col("Species")]).alias("Values"),
             // species().alias("Species"),
             // col("Value"),
         ]);

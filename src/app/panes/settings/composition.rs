@@ -8,7 +8,7 @@ use egui::{
     emath::Float, ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, RichText, Sides,
     Slider, SliderClamping, Ui,
 };
-use egui_phosphor::regular::{ARROWS_HORIZONTAL, EYE, EYE_SLASH, MINUS, PLUS};
+use egui_phosphor::regular::{ARROWS_HORIZONTAL, EYE, EYE_SLASH, FUNNEL, MINUS, PLUS};
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -64,7 +64,7 @@ pub(in crate::app) const STC: Composition = Composition {
 };
 
 /// Composition settings
-#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(in crate::app) struct Settings {
     pub(in crate::app) percent: bool,
     pub(in crate::app) precision: usize,
@@ -103,19 +103,19 @@ impl Settings {
         ui.visuals_mut().collapsing_header_frame = true;
         ui.collapsing(RichText::new(localize!("composition")).heading(), |ui| {
             Grid::new("composition").show(ui, |ui| {
+                ui.label(localize!("sticky_columns"));
+                ui.add(Slider::new(
+                    &mut self.sticky_columns,
+                    0..=self.compositions.len() + 1,
+                ));
+                ui.end_row();
+
                 ui.label(localize!("precision"));
                 ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
                 ui.end_row();
 
                 ui.label(localize!("percent"));
                 ui.checkbox(&mut self.percent, "");
-                ui.end_row();
-
-                ui.label(localize!("sticky_columns"));
-                ui.add(Slider::new(
-                    &mut self.sticky_columns,
-                    0..=self.compositions.len() + 1,
-                ));
                 ui.end_row();
 
                 ui.separator();
@@ -213,48 +213,71 @@ impl Settings {
                 }
                 ui.end_row();
                 self.compositions.retain_mut(|composition| {
+                    let mut keep = true;
                     ui.label("");
-                    let keep = ui
-                        .horizontal(|ui| {
-                            ComboBox::from_id_salt(ui.next_auto_id())
-                                .selected_text(composition.text())
-                                .show_ui(ui, |ui| {
-                                    ui.selectable_value(composition, NC, NC.text())
-                                        .on_hover_text(NC.hover_text());
-                                    ui.selectable_value(composition, PNC, PNC.text())
-                                        .on_hover_text(PNC.hover_text());
-                                    ui.selectable_value(composition, SNC, SNC.text())
-                                        .on_hover_text(SNC.hover_text());
-                                    ui.separator();
-                                    ui.selectable_value(composition, MC, MC.text())
-                                        .on_hover_text(MC.hover_text());
-                                    ui.selectable_value(composition, PMC, PMC.text())
-                                        .on_hover_text(PMC.hover_text());
-                                    ui.selectable_value(composition, SMC, SMC.text())
-                                        .on_hover_text(SMC.hover_text());
-                                    ui.separator();
-                                    ui.selectable_value(composition, TC, TC.text())
-                                        .on_hover_text(TC.hover_text());
-                                    ui.selectable_value(composition, PTC, PTC.text())
-                                        .on_hover_text(PTC.hover_text());
-                                    ui.selectable_value(composition, STC, STC.text())
-                                        .on_hover_text(STC.hover_text());
-                                    ui.separator();
-                                    ui.selectable_value(composition, SC, SC.text())
-                                        .on_hover_text(SC.hover_text());
-                                    ui.selectable_value(composition, PSC, PSC.text())
-                                        .on_hover_text(PSC.hover_text());
-                                    ui.selectable_value(composition, SSC, SSC.text())
-                                        .on_hover_text(SSC.hover_text());
-                                })
-                                .response
-                                .on_hover_text(composition.hover_text());
-                            !ui.button(MINUS).clicked()
-                        })
-                        .inner;
+                    ui.horizontal(|ui| {
+                        ComboBox::from_id_salt(ui.next_auto_id())
+                            .selected_text(composition.text())
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(composition, NC, NC.text())
+                                    .on_hover_text(NC.hover_text());
+                                ui.selectable_value(composition, PNC, PNC.text())
+                                    .on_hover_text(PNC.hover_text());
+                                ui.selectable_value(composition, SNC, SNC.text())
+                                    .on_hover_text(SNC.hover_text());
+                                ui.separator();
+                                ui.selectable_value(composition, MC, MC.text())
+                                    .on_hover_text(MC.hover_text());
+                                ui.selectable_value(composition, PMC, PMC.text())
+                                    .on_hover_text(PMC.hover_text());
+                                ui.selectable_value(composition, SMC, SMC.text())
+                                    .on_hover_text(SMC.hover_text());
+                                ui.separator();
+                                ui.selectable_value(composition, TC, TC.text())
+                                    .on_hover_text(TC.hover_text());
+                                ui.selectable_value(composition, PTC, PTC.text())
+                                    .on_hover_text(PTC.hover_text());
+                                ui.selectable_value(composition, STC, STC.text())
+                                    .on_hover_text(STC.hover_text());
+                                ui.separator();
+                                ui.selectable_value(composition, SC, SC.text())
+                                    .on_hover_text(SC.hover_text());
+                                ui.selectable_value(composition, PSC, PSC.text())
+                                    .on_hover_text(PSC.hover_text());
+                                ui.selectable_value(composition, SSC, SSC.text())
+                                    .on_hover_text(SSC.hover_text());
+                            })
+                            .response
+                            .on_hover_text(composition.hover_text());
+                        keep = !ui.button(MINUS).clicked();
+                        ui.menu_button(FUNNEL, |ui| {
+                            ui.label(format!("{} {}", composition.text(), localize!("filter")));
+                            ui.add(
+                                Slider::new(&mut self.filter.value, 0.0..=1.0)
+                                    .clamping(SliderClamping::Always)
+                                    .logarithmic(true)
+                                    .custom_formatter(|mut value, _| {
+                                        if self.percent {
+                                            value *= 100.0;
+                                        }
+                                        AnyValue::Float64(value).to_string()
+                                    })
+                                    .custom_parser(|value| {
+                                        let mut parsed = value.parse::<f64>().ok()?;
+                                        if self.percent {
+                                            parsed /= 100.0;
+                                        }
+                                        Some(parsed)
+                                    }),
+                            );
+                        });
+                    });
                     ui.end_row();
                     keep
                 });
+                ui.label("");
+                ui.label("SSC");
+                ui.end_row();
 
                 // Join
                 ui.label(localize!("join"));
@@ -500,7 +523,7 @@ impl Default for Settings {
 }
 
 /// Join
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Join {
     Left,
     And,
@@ -536,7 +559,7 @@ impl From<Join> for JoinType {
 }
 
 /// Method
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Method {
     Gunstone,
     VanderWal,
@@ -559,7 +582,7 @@ impl Method {
 }
 
 /// Filter
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub(in crate::app) struct Filter {
     pub(in crate::app) value: f64,
 }
@@ -571,14 +594,22 @@ impl Filter {
     }
 }
 
+impl Eq for Filter {}
+
 impl Hash for Filter {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.value.ord().hash(state);
     }
 }
 
+impl PartialEq for Filter {
+    fn eq(&self, other: &Self) -> bool {
+        self.value.ord() == other.value.ord()
+    }
+}
+
 /// Sort
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Sort {
     Key,
     Value,
@@ -601,7 +632,7 @@ impl Sort {
 }
 
 /// Order
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(in crate::app) enum Order {
     Ascending,
     Descending,
