@@ -225,18 +225,21 @@ impl Settings {
                                         .on_hover_text(PNC.hover_text());
                                     ui.selectable_value(composition, SNC, SNC.text())
                                         .on_hover_text(SNC.hover_text());
+                                    ui.separator();
                                     ui.selectable_value(composition, MC, MC.text())
                                         .on_hover_text(MC.hover_text());
                                     ui.selectable_value(composition, PMC, PMC.text())
                                         .on_hover_text(PMC.hover_text());
                                     ui.selectable_value(composition, SMC, SMC.text())
                                         .on_hover_text(SMC.hover_text());
+                                    ui.separator();
                                     ui.selectable_value(composition, TC, TC.text())
                                         .on_hover_text(TC.hover_text());
                                     ui.selectable_value(composition, PTC, PTC.text())
                                         .on_hover_text(PTC.hover_text());
                                     ui.selectable_value(composition, STC, STC.text())
                                         .on_hover_text(STC.hover_text());
+                                    ui.separator();
                                     ui.selectable_value(composition, SC, SC.text())
                                         .on_hover_text(SC.hover_text());
                                     ui.selectable_value(composition, PSC, PSC.text())

@@ -305,6 +305,7 @@ impl LazyFrameExt for LazyFrame {
             indices.push(index);
         }
         println!("self1: {}", self.clone().collect().unwrap());
+        self = self.with_column(species().alias("Species"));
         // Drop stereospecific numbers
         self = self.drop(["TAG", "SN1", "SN2", "SN3"]);
         // Values
@@ -325,7 +326,7 @@ impl LazyFrameExt for LazyFrame {
             .agg([all()]);
         // Nest compositions and values
         self = self.select([
-            as_struct(vec![cols(indices.compositions())]).alias("Composition"),
+            as_struct(vec![cols(indices.compositions()), col("Species")]).alias("Composition"),
             as_struct(vec![cols(indices.values()), col("Value")]).alias("Values"),
             // species().alias("Species"),
             // col("Value"),
