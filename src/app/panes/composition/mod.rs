@@ -312,7 +312,7 @@ impl<'a> TableDemo<'a> {
         //                                     composition.f64("Value").get(row_index).unwrap();
         //                                 let is_leaf = composition_index + 1 == compositions.len();
 
-        let sticky = self.settings.composition.compositions.len() + 1;
+        let sticky = self.settings.composition.groups.len() + 1;
         let unsticky = num_columns - sticky;
 
         let mut groups = vec![0..1, 1..sticky];
@@ -350,7 +350,7 @@ impl<'a> TableDemo<'a> {
                 ui.heading("Composition");
             }
             (0, column) => {
-                let index = column + self.settings.composition.compositions.len() - 1;
+                let index = column + self.settings.composition.groups.len() - 1;
                 let name = self.data_frame[index].name();
                 ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
                 ui.heading(name.as_str());
@@ -358,8 +358,10 @@ impl<'a> TableDemo<'a> {
             (1, 0) => {
                 ui.heading("Index");
             }
-            (1, column) if column <= self.settings.composition.compositions.len() => {
-                let text = self.settings.composition.compositions[column - 1].text();
+            (1, column) if column <= self.settings.composition.groups.len() => {
+                let text = self.settings.composition.groups[column - 1]
+                    .composition
+                    .text();
                 ui.heading(text);
             }
             // (0, column) => {
@@ -424,14 +426,14 @@ impl<'a> TableDemo<'a> {
                 let text = self.data_frame.string("Index", row);
                 ui.label(text);
             }
-            (row, column) if column <= self.settings.composition.compositions.len() => {
+            (row, column) if column <= self.settings.composition.groups.len() => {
                 let index = column - 1;
                 let text = self.data_frame.string(&format!("Composition{index}"), row);
                 ui.label(text);
             }
             (row, column) => {
                 let r#struct = self.data_frame[column].struct_().unwrap();
-                let index = self.settings.composition.compositions.len() - 1;
+                let index = self.settings.composition.groups.len() - 1;
                 let value = r#struct
                     .field(&format!("Value{index}"))
                     .f64()

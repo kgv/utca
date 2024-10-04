@@ -78,8 +78,7 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                         ])
                 });
                 if let Some(mut lazy_frame) = lazy_frames.next() {
-                    let compositions =
-                        indexed_cols("Composition", 0..key.settings.compositions.len());
+                    let compositions = indexed_cols("Composition", 0..key.settings.groups.len());
                     for other in lazy_frames {
                         lazy_frame = lazy_frame.join(
                             other,
@@ -98,7 +97,7 @@ impl ComputerMut<Key<'_>, Value> for Computer {
         }
         let mut schema = Schema::with_capacity(3);
         schema.insert("Index".into(), DataType::UInt32);
-        for index in 0..key.settings.compositions.len() {
+        for index in 0..key.settings.groups.len() {
             schema.insert(format!("Composition{index}").into(), DataType::Null);
         }
         DataFrame::empty_with_schema(&schema)
@@ -126,7 +125,7 @@ impl Hash for Key<'_> {
             }
         }
         self.settings.adduct.hash(state);
-        self.settings.compositions.hash(state);
+        self.settings.groups.hash(state);
         self.settings.method.hash(state);
         self.settings.filter.hash(state);
         self.settings.order.hash(state);
@@ -153,7 +152,7 @@ trait LazyFrameExt: Sized {
 
 impl LazyFrameExt for LazyFrame {
     fn arrange(mut self, settings: &Settings) -> PolarsResult<Self> {
-        if settings.compositions.is_empty() {
+        if settings.groups.is_empty() {
             return Ok(self);
         }
         let mut sort_options = SortMultipleOptions::default();
@@ -193,7 +192,7 @@ impl LazyFrameExt for LazyFrame {
     }
 
     fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
-        if settings.compositions.is_empty() {
+        if settings.groups.is_empty() {
             return Ok(self);
         }
         // self = self.with_column([species().alias("Species"), value().alias("Value")]);
@@ -201,7 +200,7 @@ impl LazyFrameExt for LazyFrame {
         println!("self0: {}", self.clone().collect().unwrap());
         let mut indices = Vec::new();
         // Composition
-        for (index, composition) in settings.compositions.iter().enumerate() {
+        for (index, group) in settings.groups.iter().enumerate() {
             // Temp stereospecific numbers
             self = self.with_columns([
                 col("TAG").r#struct().field_by_name("SN1"),
@@ -209,20 +208,20 @@ impl LazyFrameExt for LazyFrame {
                 col("TAG").r#struct().field_by_name("SN3"),
             ]);
             // Stereospecificity permutation
-            let sort = match composition.kind {
+            let sort = match group.composition.kind {
                 Kind::Ecn => sort_by_ecn(),
                 Kind::Mass => sort_by_mass(),
                 Kind::Type => sort_by_type(),
                 Kind::Species => sort_by_species(),
             };
-            self = match composition.stereospecificity {
+            self = match group.composition.stereospecificity {
                 None => self.permutation(["SN1", "SN2", "SN3"], sort)?,
                 Some(Stereospecificity::Positional) => self.permutation(["SN1", "SN3"], sort)?,
                 Some(Stereospecificity::Stereo) => self,
             };
             self = self.with_column(
-                match composition.kind {
-                    Kind::Ecn => match composition.stereospecificity {
+                match group.composition.kind {
+                    Kind::Ecn => match group.composition.stereospecificity {
                         None => col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn(),
                         // _ => concat_list([col("SN1").ecn(), col("SN2").ecn(), col("SN3").ecn()])?,
                         _ => concat_str(
@@ -243,7 +242,7 @@ impl LazyFrameExt for LazyFrame {
                         fn rounded(expr: Expr) -> Expr {
                             expr.round(0).cast(DataType::UInt64)
                         }
-                        match composition.stereospecificity {
+                        match group.composition.stereospecificity {
                             None => rounded(
                                 col("SN1").mass()
                                     + col("SN2").mass()

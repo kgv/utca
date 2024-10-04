@@ -106,7 +106,7 @@ impl Github {
 }
 
 fn temp(ui: &mut Ui, children: Children<'_, &str, &str>) {
-    for trie in children.sorted_by_key(|trie| trie.is_leaf()) {
+    for trie in children.sorted_by_cached_key(|trie| trie.is_leaf()) {
         if let Some(&path) = trie.key() {
             let name = path.rsplit_once('/').map_or(path, |(_, suffix)| suffix);
             if trie.is_leaf() {

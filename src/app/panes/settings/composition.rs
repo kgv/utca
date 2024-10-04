@@ -8,7 +8,7 @@ use egui::{
     emath::Float, ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, RichText, Sides,
     Slider, SliderClamping, Ui,
 };
-use egui_phosphor::regular::{ARROWS_HORIZONTAL, EYE, EYE_SLASH, FUNNEL, MINUS, PLUS};
+use egui_phosphor::regular::{ARROWS_HORIZONTAL, EYE, EYE_SLASH, FUNNEL, FUNNEL_X, MINUS, PLUS};
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -74,7 +74,7 @@ pub(in crate::app) struct Settings {
 
     pub(in crate::app) adduct: OrderedFloat<f64>,
     pub(in crate::app) method: Method,
-    pub(in crate::app) compositions: Vec<Composition>,
+    pub(in crate::app) groups: Vec<Group>,
     pub(in crate::app) filter: Filter,
     pub(in crate::app) sort: Sort,
     pub(in crate::app) order: Order,
@@ -89,7 +89,7 @@ impl Settings {
             sticky_columns: 0,
             adduct: OrderedFloat(0.0),
             method: Method::VanderWal,
-            compositions: Vec::new(),
+            groups: Vec::new(),
             filter: Filter::new(),
             sort: Sort::Value,
             order: Order::Descending,
@@ -106,7 +106,7 @@ impl Settings {
                 ui.label(localize!("sticky_columns"));
                 ui.add(Slider::new(
                     &mut self.sticky_columns,
-                    0..=self.compositions.len() + 1,
+                    0..=self.groups.len() + 1,
                 ));
                 ui.end_row();
 
@@ -209,51 +209,61 @@ impl Settings {
                 // Compose
                 ui.label(localize!("compose"));
                 if ui.button(PLUS).clicked() {
-                    self.compositions.push(Composition::new());
+                    self.groups.push(Group::new());
                 }
                 ui.end_row();
-                self.compositions.retain_mut(|composition| {
+                self.groups.retain_mut(|group| {
                     let mut keep = true;
                     ui.label("");
                     ui.horizontal(|ui| {
                         ComboBox::from_id_salt(ui.next_auto_id())
-                            .selected_text(composition.text())
+                            .selected_text(group.composition.text())
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(composition, NC, NC.text())
+                                ui.selectable_value(&mut group.composition, NC, NC.text())
                                     .on_hover_text(NC.hover_text());
-                                ui.selectable_value(composition, PNC, PNC.text())
+                                ui.selectable_value(&mut group.composition, PNC, PNC.text())
                                     .on_hover_text(PNC.hover_text());
-                                ui.selectable_value(composition, SNC, SNC.text())
+                                ui.selectable_value(&mut group.composition, SNC, SNC.text())
                                     .on_hover_text(SNC.hover_text());
                                 ui.separator();
-                                ui.selectable_value(composition, MC, MC.text())
+                                ui.selectable_value(&mut group.composition, MC, MC.text())
                                     .on_hover_text(MC.hover_text());
-                                ui.selectable_value(composition, PMC, PMC.text())
+                                ui.selectable_value(&mut group.composition, PMC, PMC.text())
                                     .on_hover_text(PMC.hover_text());
-                                ui.selectable_value(composition, SMC, SMC.text())
+                                ui.selectable_value(&mut group.composition, SMC, SMC.text())
                                     .on_hover_text(SMC.hover_text());
                                 ui.separator();
-                                ui.selectable_value(composition, TC, TC.text())
+                                ui.selectable_value(&mut group.composition, TC, TC.text())
                                     .on_hover_text(TC.hover_text());
-                                ui.selectable_value(composition, PTC, PTC.text())
+                                ui.selectable_value(&mut group.composition, PTC, PTC.text())
                                     .on_hover_text(PTC.hover_text());
-                                ui.selectable_value(composition, STC, STC.text())
+                                ui.selectable_value(&mut group.composition, STC, STC.text())
                                     .on_hover_text(STC.hover_text());
                                 ui.separator();
-                                ui.selectable_value(composition, SC, SC.text())
+                                ui.selectable_value(&mut group.composition, SC, SC.text())
                                     .on_hover_text(SC.hover_text());
-                                ui.selectable_value(composition, PSC, PSC.text())
+                                ui.selectable_value(&mut group.composition, PSC, PSC.text())
                                     .on_hover_text(PSC.hover_text());
-                                ui.selectable_value(composition, SSC, SSC.text())
+                                ui.selectable_value(&mut group.composition, SSC, SSC.text())
                                     .on_hover_text(SSC.hover_text());
                             })
                             .response
-                            .on_hover_text(composition.hover_text());
+                            .on_hover_text(group.composition.hover_text());
                         keep = !ui.button(MINUS).clicked();
-                        ui.menu_button(FUNNEL, |ui| {
-                            ui.label(format!("{} {}", composition.text(), localize!("filter")));
+                        let title = if group.filter == Default::default() {
+                            FUNNEL
+                        } else {
+                            ui.visuals_mut().widgets.inactive = ui.visuals().widgets.active;
+                            FUNNEL_X
+                        };
+                        ui.menu_button(title, |ui| {
+                            ui.label(format!(
+                                "{} {}",
+                                group.composition.text(),
+                                localize!("filter")
+                            ));
                             ui.add(
-                                Slider::new(&mut self.filter.value, 0.0..=1.0)
+                                Slider::new(&mut group.filter.value, 0.0..=1.0)
                                     .clamping(SliderClamping::Always)
                                     .logarithmic(true)
                                     .custom_formatter(|mut value, _| {
@@ -582,15 +592,15 @@ impl Method {
 }
 
 /// Filter
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
 pub(in crate::app) struct Filter {
     pub(in crate::app) value: f64,
 }
 
 impl Filter {
     pub(in crate::app) const fn new() -> Self {
-        // Self { value: 0.0 }
-        Self { value: 0.005 }
+        Self { value: 0.0 }
+        // Self { value: 0.005 }
     }
 }
 
@@ -650,6 +660,22 @@ impl Order {
         match self {
             Self::Ascending => localize!("ascending.description"),
             Self::Descending => localize!("descending.description"),
+        }
+    }
+}
+
+/// Group
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub(in crate::app) struct Group {
+    pub(in crate::app) composition: Composition,
+    pub(in crate::app) filter: Filter,
+}
+
+impl Group {
+    pub(in crate::app) const fn new() -> Self {
+        Self {
+            composition: Composition::new(),
+            filter: Filter::new(),
         }
     }
 }
