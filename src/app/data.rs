@@ -300,9 +300,9 @@ impl Widget for &mut Data {
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(in crate::app) struct Entry {
     pub(in crate::app) name: String,
+    pub(in crate::app) checked: bool,
     pub(in crate::app) fatty_acids: FattyAcids,
     // pub(in crate::app) triacylglycerols: DataFrame,
-    pub(in crate::app) checked: bool,
 }
 
 impl From<DataFrame> for Entry {

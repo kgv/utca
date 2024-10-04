@@ -1,14 +1,3 @@
-"Myr" = "H28C14" 2*14-28=0
-"Pam" = "H32C16" 2*16-32=0
-"H7x" = "H30C16" 2*16-30=(1)
-"H9x" = "H30C16" 2*16-30=(1)
-"Pld" = "H28C16" 2*16-28=(2)
-"Ste" = "H36C18" 2*18-36=0
-"Plt" = "H26C16" 2*16-26=6
-"Ole" = "H34C18" 2*18-34=(1)
-"Vac" = "H34C18" 2*18-34=(1)
-"Lin" = "H32C18" 2*18-32=(2)
-"Ara" = "H40C20" 2*20-40=0
-"Lnn" = "H30C18" 2*18-30=6
-"Gad" = "H38C20" 2*20-38=(1)
-"Beh" = "H44C22" 2*22-44=0
+response: Response { ctx: Context { .. }, layer_id: LayerId { order: Foreground, id: A1E0 }, id: 6FF4, rect: [[273.0 352.0] - [421.0 370.0]], interact_rect: [[273.0 352.0] - [421.0 370.0]], sense: Sense { click drag focusable }, enabled: true, contains_pointer: true, hovered: true, highlighted: false, clicked: false, fake_primary_click: false, long_touched: false, drag_started: false, dragged: true, drag_stopped: false, is_pointer_button_down_on: true, interact_pointer_pos: Some([313.0 359.0]), changed: false, intrinsic_size: None }
+response: Response { ctx: Context { .. }, layer_id: LayerId { order: Foreground, id: A1E0 }, id: 6FF4, rect: [[273.0 352.0] - [421.0 370.0]], interact_rect: [[273.0 352.0] - [421.0 370.0]], sense: Sense { click drag focusable }, enabled: true, contains_pointer: true, hovered: true, highlighted: false, clicked: false, fake_primary_click: false, long_touched: false, drag_started: false, dragged: true, drag_stopped: false, is_pointer_button_down_on: true, interact_pointer_pos: Some([313.0 359.0]), changed: false, intrinsic_size: None }
+response: Response { ctx: Context { .. }, layer_id: LayerId { order: Foreground, id: A1E0 }, id: 6FF4, rect: [[273.0 352.0] - [421.0 370.0]], interact_rect: [[273.0 352.0] - [421.0 370.0]], sense: Sense { click drag focusable }, enabled: true, contains_pointer: true, hovered: true, highlighted: false, clicked: false, fake_primary_click: false, long_touched: false, drag_started: false, dragged: true, drag_stopped: false, is_pointer_button_down_on: true, interact_pointer_pos: Some([313.0 359.0]), changed: false, intrinsic_size: None }

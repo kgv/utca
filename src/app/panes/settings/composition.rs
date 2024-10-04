@@ -12,7 +12,10 @@ use egui_phosphor::regular::{ARROWS_HORIZONTAL, EYE, EYE_SLASH, FUNNEL, FUNNEL_X
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::{
+    convert::identity,
+    hash::{Hash, Hasher},
+};
 
 pub(in crate::app) const NC: Composition = Composition {
     stereospecificity: None,
@@ -256,14 +259,17 @@ impl Settings {
                             ui.visuals_mut().widgets.inactive = ui.visuals().widgets.active;
                             FUNNEL_X
                         };
+                        let id = ui.id().with("filter");
+                        let mut value =
+                            ui.data_mut(|data| *data.get_temp_mut_or(id, group.filter.value));
                         ui.menu_button(title, |ui| {
                             ui.label(format!(
                                 "{} {}",
                                 group.composition.text(),
                                 localize!("filter")
                             ));
-                            ui.add(
-                                Slider::new(&mut group.filter.value, 0.0..=1.0)
+                            let response = ui.add(
+                                Slider::new(&mut value, 0.0..=1.0)
                                     .clamping(SliderClamping::Always)
                                     .logarithmic(true)
                                     .custom_formatter(|mut value, _| {
@@ -280,7 +286,19 @@ impl Settings {
                                         Some(parsed)
                                     }),
                             );
+                            if response.changed() {
+                                ui.data_mut(|data| data.insert_temp(id, value));
+                            }
+                            if response.drag_stopped() || response.lost_focus() {
+                                group.filter.value = value;
+                            }
+                            if response.clicked_elsewhere() {
+                                ui.data_mut(|data| data.insert_temp(id, group.filter.value));
+                            }
                         });
+                        if ui.input(|input| input.key_pressed(Key::Escape)) {
+                            ui.data_mut(|data| data.insert_temp(id, group.filter.value));
+                        }
                     });
                     ui.end_row();
                     keep

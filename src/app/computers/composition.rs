@@ -304,7 +304,7 @@ impl LazyFrameExt for LazyFrame {
             self = self
                 .group_by([cols(&compositions)])
                 .agg([all(), col("Value").sum().alias(&name)])
-                // .filter(col(&name).gt_eq(lit(settings.filter.value)))
+                .filter(col(&name).gt_eq(lit(settings.groups[index].filter.value)))
                 .explode([all().exclude(&compositions).exclude([&name])]);
         }
 
