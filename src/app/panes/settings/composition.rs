@@ -106,7 +106,7 @@ impl Settings {
         ui.visuals_mut().collapsing_header_frame = true;
         ui.collapsing(RichText::new(localize!("composition")).heading(), |ui| {
             Grid::new("composition").show(ui, |ui| {
-                ui.label(localize!("sticky_columns"));
+                ui.label(localize!("sticky"));
                 ui.add(Slider::new(
                     &mut self.sticky_columns,
                     0..=self.groups.len() + 1,
@@ -219,6 +219,8 @@ impl Settings {
                     let mut keep = true;
                     ui.label("");
                     ui.horizontal(|ui| {
+                        // Delete
+                        keep = !ui.button(MINUS).clicked();
                         ComboBox::from_id_salt(ui.next_auto_id())
                             .selected_text(group.composition.text())
                             .show_ui(ui, |ui| {
@@ -252,7 +254,7 @@ impl Settings {
                             })
                             .response
                             .on_hover_text(group.composition.hover_text());
-                        keep = !ui.button(MINUS).clicked();
+                        // Filter
                         let title = if group.filter == Default::default() {
                             FUNNEL
                         } else {

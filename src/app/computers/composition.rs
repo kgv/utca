@@ -57,7 +57,7 @@ impl Computer {
         // Compose
         lazy_frame = lazy_frame.composition(settings)?;
         // Arrange
-        lazy_frame = lazy_frame.arrange(settings)?;
+        // lazy_frame = lazy_frame.arrange(settings)?;
         Ok(lazy_frame)
     }
 }
@@ -88,6 +88,25 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                                 .with_coalesce(JoinCoalesce::CoalesceColumns),
                         );
                     }
+                    // Sort
+                    let mut sort_options = SortMultipleOptions::default();
+                    if let Order::Descending = key.settings.order {
+                        sort_options = sort_options
+                            .with_order_descending(true)
+                            .with_nulls_last(true);
+                    }
+                    lazy_frame = match key.settings.sort {
+                        Sort::Key => {
+                            lazy_frame.sort_by_exprs([col(r#"^Composition\d$"#)], sort_options)
+                        }
+                        Sort::Value => lazy_frame.sort_by_exprs(
+                            [all()
+                                .exclude([r#"^Composition\d$"#])
+                                .r#struct()
+                                .field_by_names([r#"^Value\d$"#])],
+                            sort_options,
+                        ),
+                    };
                     // Index
                     lazy_frame = lazy_frame.with_row_index("Index", None);
                     println!("Index: {}", lazy_frame.clone().collect().unwrap());
@@ -222,8 +241,8 @@ impl LazyFrameExt for LazyFrame {
             self = self.with_column(
                 match group.composition.kind {
                     Kind::Ecn => match group.composition.stereospecificity {
+                        // None => concat_list([col("^SN[1-3]$").ecn()]).unwrap().list().sum(),
                         None => col("SN1").ecn() + col("SN2").ecn() + col("SN3").ecn(),
-                        // _ => concat_list([col("SN1").ecn(), col("SN2").ecn(), col("SN3").ecn()])?,
                         _ => concat_str(
                             [
                                 lit("["),
@@ -270,24 +289,8 @@ impl LazyFrameExt for LazyFrame {
                             ),
                         }
                     }
-                    Kind::Type => concat_str(
-                        [
-                            col("SN1").r#type(),
-                            col("SN2").r#type(),
-                            col("SN3").r#type(),
-                        ],
-                        "",
-                        false,
-                    ),
-                    Kind::Species => concat_str(
-                        [
-                            col("SN1").species(),
-                            col("SN2").species(),
-                            col("SN3").species(),
-                        ],
-                        "",
-                        false,
-                    ),
+                    Kind::Type => concat_str([col("^SN[1-3]$").r#type()], "", false),
+                    Kind::Species => concat_str([col("^SN[1-3]$").species()], "", false),
                 }
                 .alias(format!("Composition{index}")),
             );
@@ -299,26 +302,27 @@ impl LazyFrameExt for LazyFrame {
         self = self.drop(["TAG", "SN1", "SN2", "SN3"]);
         // Values
         for index in (0..indices.len()).rev() {
-            let name = format!("Value{index}");
-            let compositions = indices[0..=index].compositions();
+            let value = format!("Value{index}");
+            let compositions = format!(r#"^Composition[0-{index}]$"#);
             self = self
-                .group_by([cols(&compositions)])
-                .agg([all(), col("Value").sum().alias(&name)])
-                .filter(col(&name).gt_eq(lit(settings.groups[index].filter.value)))
-                .explode([all().exclude(&compositions).exclude([&name])]);
+                .group_by([col(&compositions)])
+                .agg([all(), col("Value").sum().alias(&value)])
+                .filter(col(&value).gt_eq(lit(settings.groups[index].filter.value)))
+                .explode([all().exclude([&compositions]).exclude([&value])]);
         }
 
         println!("self2: {}", self.clone().collect().unwrap());
-        // Group leaves
+        // Group leaves (species)
         self = self
-            .group_by([cols(indices.compositions()), cols(indices.values())])
+            .with_column(as_struct(vec![col("Species"), col("Value")]))
+            .drop(["Value"])
+            .group_by([col(r#"^Composition\d$"#), col(r#"^Value\d$"#)])
             .agg([all()]);
+        println!("selfx: {}", self.clone().collect().unwrap());
         // Nest compositions and values
         self = self.select([
-            as_struct(vec![cols(indices.compositions())]).alias("Composition"),
-            as_struct(vec![cols(indices.values()), col("Value"), col("Species")]).alias("Values"),
-            // species().alias("Species"),
-            // col("Value"),
+            as_struct(vec![col(r#"^Composition\d$"#)]).alias("Composition"),
+            as_struct(vec![col(r#"^Value\d$"#), col("Species")]).alias("Values"),
         ]);
         println!("self3: {}", self.clone().collect().unwrap());
         Ok(self)
@@ -342,25 +346,6 @@ impl LazyFrameExt for LazyFrame {
             );
         }
         Ok(lazy_frame.drop([NAME]))
-    }
-}
-
-/// Extension methods for [`slice`]
-trait SliceExt {
-    fn compositions(&self) -> Vec<String>;
-
-    fn values(&self) -> Vec<String>;
-}
-
-impl SliceExt for [usize] {
-    fn compositions(&self) -> Vec<String> {
-        self.iter()
-            .map(|index| format!("Composition{index}"))
-            .collect()
-    }
-
-    fn values(&self) -> Vec<String> {
-        self.iter().map(|index| format!("Value{index}")).collect()
     }
 }
 
@@ -399,11 +384,10 @@ fn sort_by_species() -> Expr {
 // Triacylglycerol species
 fn species() -> Expr {
     concat_str(
-        [
-            col("TAG").r#struct().field_by_name("SN1").species(),
-            col("TAG").r#struct().field_by_name("SN2").species(),
-            col("TAG").r#struct().field_by_name("SN3").species(),
-        ],
+        [col("TAG")
+            .r#struct()
+            .field_by_names([r#"^SN[1-3]$"#])
+            .species()],
         "",
         true,
     )

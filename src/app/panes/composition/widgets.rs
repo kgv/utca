@@ -1,11 +1,12 @@
 use crate::localization::localize;
 use egui::{Color32, Grid, Response, RichText, Ui, Widget};
 use polars::prelude::*;
+use std::{f64::NAN, iter::zip};
 
 /// Cell widget
 pub(in crate::app) struct Cell<'a> {
     pub(in crate::app) value: Option<f64>,
-    pub(in crate::app) species: Option<&'a StringChunked>,
+    pub(in crate::app) species: Option<&'a StructChunked>,
     pub(in crate::app) percent: bool,
     pub(in crate::app) precision: usize,
 }
@@ -28,7 +29,11 @@ impl Widget for Cell<'_> {
                 ui.end_row();
 
                 if let Some(species) = self.species {
-                    for (index, species) in species.into_iter().enumerate() {
+                    let value = species.field_by_name("Value").unwrap();
+                    let value = value.f64().unwrap();
+                    let species = species.field_by_name("Species").unwrap();
+                    let species = species.str().unwrap();
+                    for (index, (species, value)) in zip(species, value).enumerate() {
                         if index == 0 {
                             ui.label(localize!("species"));
                         } else {
@@ -40,6 +45,7 @@ impl Widget for Cell<'_> {
                             RichText::new("None").color(Color32::RED)
                         };
                         ui.label(text);
+                        ui.label(value.unwrap_or(NAN).to_string());
                         ui.end_row();
                     }
                 }

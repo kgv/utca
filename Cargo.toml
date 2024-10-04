@@ -42,6 +42,7 @@ polars = { git = "https://github.com/pola-rs/polars", rev = "be5a4b453ca74bb5e0c
     "fmt",             # temp
     "lazy",
     "list_eval",
+    "regex",
     "round_series",
     "serde-lazy",
     "strings",
@@ -50,7 +51,6 @@ polars = { git = "https://github.com/pola-rs/polars", rev = "be5a4b453ca74bb5e0c
     # "is_in",
     # "list_any_all",
     # "list_count",
-    # "regex",
 ] }
 radix_trie = "0.2.1"
 ron = "0.8.1"

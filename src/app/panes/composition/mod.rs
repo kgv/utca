@@ -442,7 +442,7 @@ impl<'a> TableDemo<'a> {
                 // let species = r#struct.field("Species").fmt_list();
                 let species = r#struct.field("Species");
                 let species = species.list().unwrap().get_as_series(row);
-                let species = species.as_ref().map(|series| series.str().unwrap());
+                let species = species.as_ref().map(|series| series.r#struct());
                 ui.add(Cell {
                     value,
                     species,
