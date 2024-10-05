@@ -10,7 +10,7 @@ use crate::{
         MARGIN,
     },
     localization::localize,
-    utils::{DataFrameExt, SeriesExt, StructChunkedExt},
+    utils::{ColumnExt, DataFrameExt, ExprExt, SeriesExt, StructChunkedExt},
 };
 use anyhow::Result;
 use egui::{
@@ -432,20 +432,9 @@ impl<'a> TableDemo<'a> {
                 ui.label(text);
             }
             (row, column) => {
-                let r#struct = self.data_frame[column].struct_().unwrap();
-                let index = self.settings.composition.groups.len() - 1;
-                let value = r#struct
-                    .field(&format!("Value{index}"))
-                    .f64()
-                    .unwrap()
-                    .get(row);
-                // let species = r#struct.field("Species").fmt_list();
-                let species = r#struct.field("Species");
-                let species = species.list().unwrap().get_as_series(row);
-                let species = species.as_ref().map(|series| series.r#struct());
                 ui.add(Cell {
-                    value,
-                    species,
+                    column: &self.data_frame[column],
+                    row,
                     percent: self.settings.composition.percent,
                     precision: self.settings.composition.precision,
                 });

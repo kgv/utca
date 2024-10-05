@@ -54,6 +54,23 @@ impl DataFrameExt for DataFrame {
     }
 }
 
+/// Extension methods for [`Column`]
+pub trait ColumnExt {
+    fn r#struct(&self) -> &StructChunked;
+
+    fn try_struct(&self) -> PolarsResult<&StructChunked>;
+}
+
+impl ColumnExt for Column {
+    fn r#struct(&self) -> &StructChunked {
+        self.try_struct().unwrap()
+    }
+
+    fn try_struct(&self) -> PolarsResult<&StructChunked> {
+        self.struct_()
+    }
+}
+
 /// Extension methods for [`Expr`]
 pub trait ExprExt {
     fn normalize(self) -> Expr;
@@ -114,10 +131,16 @@ impl SeriesExt for Series {
 /// Extension methods for [`StructChunked`]
 pub trait StructChunkedExt {
     fn field(&self, name: &str) -> Series;
+
+    fn try_field(&self, name: &str) -> PolarsResult<Series>;
 }
 
 impl StructChunkedExt for StructChunked {
     fn field(&self, name: &str) -> Series {
-        self.field_by_name(name).unwrap()
+        self.try_field(name).unwrap()
+    }
+
+    fn try_field(&self, name: &str) -> PolarsResult<Series> {
+        self.field_by_name(name)
     }
 }

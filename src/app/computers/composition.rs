@@ -2,10 +2,10 @@ use super::fatty_acid::ExprExt as _;
 use crate::{
     acylglycerol::Stereospecificity,
     app::{
-        data::{Data, Entry, FattyAcids},
-        panes::settings::composition::{Join, Kind, Method, Order, Settings, Sort},
+        data::{Entry, FattyAcids},
+        panes::settings::composition::{Kind, Method, Order, Settings, Sort},
     },
-    utils::{indexed_cols, r#struct, ExprExt as _, SeriesExt},
+    utils::{indexed_cols, ExprExt as _},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use polars::prelude::*;
@@ -42,23 +42,13 @@ impl Computer {
     // [aba] = [a13]^2*[b2]
     // [abc] = [a13]*[b2]*[c13]
     // `2*[a13]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
-    fn vander_wal(
-        &mut self,
-        fatty_acids: &FattyAcids,
-        settings: &Settings,
-    ) -> PolarsResult<LazyFrame> {
-        let mut lazy_frame = fatty_acids.0.clone().lazy();
+    fn vander_wal(&mut self, fatty_acids: &FattyAcids, settings: &Settings) -> PolarsResult<Tags> {
         // Cartesian product (TAG from FA)
-        lazy_frame = lazy_frame.cartesian_product()?;
-        // Value filter zero
-        lazy_frame = lazy_frame
-            .with_column(value())
-            .filter(col("Value").neq(lit(0)));
+        let mut tags = fatty_acids.cartesian_product()?;
+        // Filter
+        tags = tags.filter(settings);
         // Compose
-        lazy_frame = lazy_frame.composition(settings)?;
-        // Arrange
-        // lazy_frame = lazy_frame.arrange(settings)?;
-        Ok(lazy_frame)
+        tags.composition(settings)
     }
 }
 
@@ -70,11 +60,11 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                 let mut lazy_frames = key.entries.into_iter().map(|entry| {
                     self.vander_wal(&entry.fatty_acids, key.settings)
                         .unwrap()
+                        .0
                         .select([
                             // col("Composition"),
                             col("Composition").r#struct().field_by_names(Some("*")),
                             col("Values").alias(&entry.name),
-                            // as_struct(vec![all().exclude(["Composition"])]).alias(&entry.name),
                         ])
                 });
                 if let Some(mut lazy_frame) = lazy_frames.next() {
@@ -89,24 +79,7 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                         );
                     }
                     // Sort
-                    let mut sort_options = SortMultipleOptions::default();
-                    if let Order::Descending = key.settings.order {
-                        sort_options = sort_options
-                            .with_order_descending(true)
-                            .with_nulls_last(true);
-                    }
-                    lazy_frame = match key.settings.sort {
-                        Sort::Key => {
-                            lazy_frame.sort_by_exprs([col(r#"^Composition\d$"#)], sort_options)
-                        }
-                        Sort::Value => lazy_frame.sort_by_exprs(
-                            [all()
-                                .exclude([r#"^Composition\d$"#])
-                                .r#struct()
-                                .field_by_names([r#"^Value\d$"#])],
-                            sort_options,
-                        ),
-                    };
+                    lazy_frame = lazy_frame.compositions().sort(key.settings);
                     // Index
                     lazy_frame = lazy_frame.with_row_index("Index", None);
                     println!("Index: {}", lazy_frame.clone().collect().unwrap());
@@ -158,70 +131,49 @@ impl Hash for Key<'_> {
 /// Composition value
 type Value = DataFrame;
 
-/// Extension methods for [`LazyFrame`]
-trait LazyFrameExt: Sized {
-    fn arrange(self, settings: &Settings) -> PolarsResult<Self>;
-
-    fn cartesian_product(self) -> PolarsResult<Self>;
-
-    fn composition(self, settings: &Settings) -> PolarsResult<Self>;
-
-    fn permutation<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self>;
+impl FattyAcids {
+    // TODO https://github.com/pola-rs/polars/issues/18587
+    fn cartesian_product(&self) -> PolarsResult<Tags> {
+        let lazy_frame = self.0.clone().lazy().with_row_index("Index", None);
+        Ok(Tags(
+            lazy_frame
+                .clone()
+                .select([fatty_acid("DAG13.Calculated")?.alias("SN1")])
+                .cross_join(
+                    lazy_frame
+                        .clone()
+                        .select([fatty_acid("MAG2.Calculated")?.alias("SN2")]),
+                    None,
+                )
+                .cross_join(
+                    lazy_frame.select([fatty_acid("DAG13.Calculated")?.alias("SN3")]),
+                    None,
+                )
+                .select([as_struct(vec![col("SN1"), col("SN2"), col("SN3")]).alias("TAG")]),
+        ))
+    }
 }
 
-impl LazyFrameExt for LazyFrame {
-    fn arrange(mut self, settings: &Settings) -> PolarsResult<Self> {
+/// Tags
+struct Tags(LazyFrame);
+
+impl Tags {
+    fn filter(self, settings: &Settings) -> Self {
+        Self(self.0.with_column(value()).filter(col("Value").neq(lit(0))))
+    }
+
+    fn composition(self, settings: &Settings) -> PolarsResult<Self> {
         if settings.groups.is_empty() {
             return Ok(self);
         }
-        let mut sort_options = SortMultipleOptions::default();
-        if let Order::Descending = settings.order {
-            sort_options = sort_options.with_order_descending(true);
-        }
-        self = match settings.sort {
-            Sort::Key => {
-                self.sort_by_exprs(
-                    // [col("Composition").r#struct().field_by_names(["*"]).r#struct().field_by_name("Value")],
-                    [col("Composition")],
-                    sort_options,
-                )
-            }
-            Sort::Value => self.sort_by_exprs([col("Values")], sort_options),
-        };
-        Ok(self)
-    }
 
-    fn cartesian_product(self) -> PolarsResult<Self> {
-        let lazy_frame = self.with_row_index("Index", None);
-        // TODO https://github.com/pola-rs/polars/issues/18587
-        Ok(lazy_frame
-            .clone()
-            .select([fatty_acid("DAG13.Calculated")?.alias("SN1")])
-            .cross_join(
-                lazy_frame
-                    .clone()
-                    .select([fatty_acid("MAG2.Calculated")?.alias("SN2")]),
-                None,
-            )
-            .cross_join(
-                lazy_frame.select([fatty_acid("DAG13.Calculated")?.alias("SN3")]),
-                None,
-            )
-            .select([as_struct(vec![col("SN1"), col("SN2"), col("SN3")]).alias("TAG")]))
-    }
-
-    fn composition(mut self, settings: &Settings) -> PolarsResult<Self> {
-        if settings.groups.is_empty() {
-            return Ok(self);
-        }
-        // self = self.with_column([species().alias("Species"), value().alias("Value")]);
-
-        println!("self0: {}", self.clone().collect().unwrap());
+        let mut lazy_frame = self.0;
+        println!("self0: {}", lazy_frame.clone().collect().unwrap());
         let mut indices = Vec::new();
         // Composition
         for (index, group) in settings.groups.iter().enumerate() {
             // Temp stereospecific numbers
-            self = self.with_columns([
+            lazy_frame = lazy_frame.with_columns([
                 col("TAG").r#struct().field_by_name("SN1"),
                 col("TAG").r#struct().field_by_name("SN2"),
                 col("TAG").r#struct().field_by_name("SN3"),
@@ -233,12 +185,14 @@ impl LazyFrameExt for LazyFrame {
                 Kind::Type => sort_by_type(),
                 Kind::Species => sort_by_species(),
             };
-            self = match group.composition.stereospecificity {
-                None => self.permutation(["SN1", "SN2", "SN3"], sort)?,
-                Some(Stereospecificity::Positional) => self.permutation(["SN1", "SN3"], sort)?,
-                Some(Stereospecificity::Stereo) => self,
+            lazy_frame = match group.composition.stereospecificity {
+                None => lazy_frame.permutation(["SN1", "SN2", "SN3"], sort)?,
+                Some(Stereospecificity::Positional) => {
+                    lazy_frame.permutation(["SN1", "SN3"], sort)?
+                }
+                Some(Stereospecificity::Stereo) => lazy_frame,
             };
-            self = self.with_column(
+            lazy_frame = lazy_frame.with_column(
                 match group.composition.kind {
                     Kind::Ecn => match group.composition.stereospecificity {
                         // None => concat_list([col("^SN[1-3]$").ecn()]).unwrap().list().sum(),
@@ -296,36 +250,79 @@ impl LazyFrameExt for LazyFrame {
             );
             indices.push(index);
         }
-        println!("self1: {}", self.clone().collect().unwrap());
-        self = self.with_column(species().alias("Species"));
-        // Drop stereospecific numbers
-        self = self.drop(["TAG", "SN1", "SN2", "SN3"]);
+        println!("lazy_frame1: {}", lazy_frame.clone().collect().unwrap());
+        // Species
+        lazy_frame = lazy_frame
+            .with_column(species().alias("Species"))
+            .drop(["TAG", "SN1", "SN2", "SN3"]);
         // Values
-        for index in (0..indices.len()).rev() {
+        for index in 0..indices.len() {
             let value = format!("Value{index}");
             let compositions = format!(r#"^Composition[0-{index}]$"#);
-            self = self
+            lazy_frame = lazy_frame
                 .group_by([col(&compositions)])
                 .agg([all(), col("Value").sum().alias(&value)])
                 .filter(col(&value).gt_eq(lit(settings.groups[index].filter.value)))
                 .explode([all().exclude([&compositions]).exclude([&value])]);
         }
 
-        println!("self2: {}", self.clone().collect().unwrap());
-        // Group leaves (species)
-        self = self
+        println!("lazy_frame2: {}", lazy_frame.clone().collect().unwrap());
+        // Nest species
+        lazy_frame = lazy_frame
             .with_column(as_struct(vec![col("Species"), col("Value")]))
-            .drop(["Value"])
+            .drop(["Value"]);
+        // Group leaves (species)
+        lazy_frame = lazy_frame
             .group_by([col(r#"^Composition\d$"#), col(r#"^Value\d$"#)])
             .agg([all()]);
-        println!("selfx: {}", self.clone().collect().unwrap());
+        println!("lazy_framex: {}", lazy_frame.clone().collect().unwrap());
         // Nest compositions and values
-        self = self.select([
+        lazy_frame = lazy_frame.select([
             as_struct(vec![col(r#"^Composition\d$"#)]).alias("Composition"),
             as_struct(vec![col(r#"^Value\d$"#), col("Species")]).alias("Values"),
         ]);
-        println!("self3: {}", self.clone().collect().unwrap());
-        Ok(self)
+        println!("lazy_frame3: {}", lazy_frame.clone().collect().unwrap());
+        Ok(Self(lazy_frame))
+    }
+}
+
+/// Compositions
+struct Compositions(LazyFrame);
+
+impl Compositions {
+    fn sort(mut self, settings: &Settings) -> LazyFrame {
+        let mut sort_options = SortMultipleOptions::default();
+        if let Order::Descending = settings.order {
+            sort_options = sort_options
+                .with_order_descending(true)
+                .with_nulls_last(true);
+        }
+        self.0 = match settings.sort {
+            Sort::Key => self
+                .0
+                .sort_by_exprs([col(r#"^Composition\d$"#)], sort_options),
+            Sort::Value => {
+                let value = all()
+                    .exclude([r#"^Composition\d$"#])
+                    .r#struct()
+                    .field_by_names([r#"^Value\d$"#]);
+                self.0.sort_by_exprs([value], sort_options)
+            }
+        };
+        self.0
+    }
+}
+
+/// Extension methods for [`LazyFrame`]
+trait LazyFrameExt: Sized {
+    fn compositions(self) -> Compositions;
+
+    fn permutation<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self>;
+}
+
+impl LazyFrameExt for LazyFrame {
+    fn compositions(self) -> Compositions {
+        Compositions(self)
     }
 
     fn permutation<const N: usize>(self, names: [&str; N], sort: Expr) -> PolarsResult<Self> {

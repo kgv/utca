@@ -1,5 +1,7 @@
 = Polars
 
+<https://stackoverflow.com/questions/tagged/rust-polars>
+
 == Create DataFrames
 
 [source, rust]
@@ -9,6 +11,16 @@ let data_frame = df! {
     "EMPTY_LIST" => &[Series::from_iter(empty::<u8>())],
     "LIST" => &[Series::from_iter([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])],
 }?;
+
+== Create list of structs
+
+<https://stackoverflow.com/questions/73807745/list-of-structs-in-rust-polars-column>
+
+[source, rust]
+let foo = StructChunked::new("foo", &[
+    Series::new("f1", ["a", "c", "e"]),
+    Series::new("f2", ["b", "d", "f"]),
+]).unwrap();
 
 == Delete row
 
