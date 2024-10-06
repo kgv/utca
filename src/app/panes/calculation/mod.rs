@@ -16,7 +16,6 @@ use egui::{Direction, Grid, Layout, Ui};
 use egui_extras::{Column, TableBuilder};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::f64::NAN;
 use tracing::error;
 use widgets::Cell;
 

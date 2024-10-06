@@ -7,6 +7,7 @@ use crate::{
             VisualizationComputed, VisualizationKey,
         },
         data::Data,
+        widgets::FloatValue,
         MARGIN,
     },
     localization::localize,
@@ -428,17 +429,18 @@ impl<'a> TableDemo<'a> {
                 ui.label(text).on_hover_ui(|ui| {
                     Grid::new(ui.next_auto_id()).show(ui, |ui| {
                         ui.label(localize!("mean"));
-                        let text = meta.string("Mean", row);
-                        ui.label(text);
+                        let mean = meta.f64("Mean").get(row);
+                        ui.add(FloatValue::new(mean).percent(self.settings.composition.percent));
                         ui.end_row();
                         ui.label(localize!("std"));
-                        let text = meta.string("Std", row);
-                        ui.label(text);
+                        let std = meta.f64("Std").get(row);
+                        ui.add(FloatValue::new(std).percent(self.settings.composition.percent));
+                        let std = mean.zip(std).map(|(mean, std)| std / mean * 100.0);
+                        ui.add(FloatValue::new(std));
                         ui.end_row();
                         ui.label(localize!("var"));
-                        let text = meta.string("Var", row);
-                        ui.label(text);
-                        ui.end_row();
+                        let var = meta.f64("Var").get(row);
+                        ui.add(FloatValue::new(var).percent(self.settings.composition.percent));
                     });
                 });
             }

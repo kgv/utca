@@ -78,31 +78,13 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                                 .with_coalesce(JoinCoalesce::CoalesceColumns),
                         );
                     }
+                    // println!("Data: {}", lazy_frame.clone().collect().unwrap());
                     // Sort
                     lazy_frame = lazy_frame.compositions().sort(key.settings);
-                    // Index
-                    lazy_frame = lazy_frame.with_row_index("Index", None);
-                    println!("Index: {}", lazy_frame.clone().collect().unwrap());
-                    let ddof = 1;
-                    let expr = concat_list([all()
-                        .exclude(["Index", r#"^Composition\d$"#])
-                        .r#struct()
-                        .field_by_names([r#"^Value\d$"#])])
-                    .unwrap();
-                    lazy_frame = lazy_frame.with_columns([
-                        expr.clone().list().mean().alias("Mean"),
-                        expr.clone().list().std(ddof).alias("Std"),
-                        expr.clone().list().var(ddof).alias("Var"),
-                    ]);
-                    println!("Index: {}", lazy_frame.clone().collect().unwrap());
-                    return lazy_frame
-                        .select([
-                            as_struct(vec![col("Index"), col("Mean"), col("Std"), col("Var")])
-                                .alias("Meta"),
-                            all().exclude(["Index", "Mean", "Std", "Var"]),
-                        ])
-                        .collect()
-                        .unwrap();
+                    // Meta
+                    lazy_frame = lazy_frame.compositions().meta(key.settings).unwrap();
+                    // println!("Meta: {}", lazy_frame.clone().collect().unwrap());
+                    return lazy_frame.collect().unwrap();
                 }
             }
         }
@@ -311,6 +293,24 @@ impl Tags {
 struct Compositions(LazyFrame);
 
 impl Compositions {
+    fn meta(self, settings: &Settings) -> PolarsResult<LazyFrame> {
+        let lazy_frame = self.0.with_row_index("Index", None);
+        let expr = concat_list([all()
+            .exclude(["Index", r#"^Composition\d$"#])
+            .r#struct()
+            .field_by_name(&format!("Value{}", settings.groups.len().saturating_sub(1)))])?;
+        Ok(lazy_frame
+            .with_columns([
+                expr.clone().list().mean().alias("Mean"),
+                expr.clone().list().std(settings.meta.ddof).alias("Std"),
+                expr.clone().list().var(settings.meta.ddof).alias("Var"),
+            ])
+            .select([
+                as_struct(vec![col("Index"), col("Mean"), col("Std"), col("Var")]).alias("Meta"),
+                all().exclude(["Index", "Mean", "Std", "Var"]),
+            ]))
+    }
+
     fn sort(mut self, settings: &Settings) -> LazyFrame {
         let mut sort_options = SortMultipleOptions::default();
         if let Order::Descending = settings.order {
@@ -400,7 +400,7 @@ fn sort_by_species() -> Expr {
 }
 
 fn sort_by_unsaturation() -> Expr {
-    col("").sort_by([col("").saturated()], Default::default())
+    col("").sort_by([col("").unsaturation()], Default::default())
 }
 
 // Triacylglycerol species

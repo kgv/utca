@@ -92,6 +92,8 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) sort: Sort,
     pub(in crate::app) order: Order,
     pub(in crate::app) join: Join,
+
+    pub(in crate::app) meta: Meta,
 }
 
 impl Settings {
@@ -107,6 +109,7 @@ impl Settings {
             sort: Sort::Value,
             order: Order::Descending,
             join: Join::Left,
+            meta: Meta::new(),
         }
     }
 }
@@ -818,5 +821,27 @@ impl Kind {
             Self::Type => "T",
             Self::Unsaturation => "U",
         }
+    }
+}
+
+/// Meta
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub(in crate::app) struct Meta {
+    pub(in crate::app) index: bool,
+    pub(in crate::app) ddof: u8,
+}
+
+impl Meta {
+    pub(in crate::app) const fn new() -> Self {
+        Self {
+            index: true,
+            ddof: 1,
+        }
+    }
+}
+
+impl Default for Meta {
+    fn default() -> Self {
+        Self::new()
     }
 }
