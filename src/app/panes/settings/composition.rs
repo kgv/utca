@@ -12,9 +12,19 @@ use egui_phosphor::regular::{ARROWS_HORIZONTAL, EYE, EYE_SLASH, FUNNEL, FUNNEL_X
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    convert::identity,
-    hash::{Hash, Hasher},
+use std::hash::{Hash, Hasher};
+
+pub(in crate::app) const UC: Composition = Composition {
+    stereospecificity: None,
+    kind: Kind::Unsaturation,
+};
+pub(in crate::app) const PUC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Positional),
+    kind: Kind::Unsaturation,
+};
+pub(in crate::app) const SUC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Stereo),
+    kind: Kind::Unsaturation,
 };
 
 pub(in crate::app) const NC: Composition = Composition {
@@ -237,6 +247,13 @@ impl Settings {
                                     .on_hover_text(PMC.hover_text());
                                 ui.selectable_value(&mut group.composition, SMC, SMC.text())
                                     .on_hover_text(SMC.hover_text());
+                                ui.separator();
+                                ui.selectable_value(&mut group.composition, UC, UC.text())
+                                    .on_hover_text(UC.hover_text());
+                                ui.selectable_value(&mut group.composition, PUC, PUC.text())
+                                    .on_hover_text(PUC.hover_text());
+                                ui.selectable_value(&mut group.composition, SUC, SUC.text())
+                                    .on_hover_text(SUC.hover_text());
                                 ui.separator();
                                 ui.selectable_value(&mut group.composition, TC, TC.text())
                                     .on_hover_text(TC.hover_text());
@@ -727,6 +744,10 @@ impl Composition {
             PMC => "PMC",
             SMC => "SMC",
 
+            UC => "UC",
+            PUC => "PUC",
+            SUC => "SUC",
+
             TC => "TC",
             PTC => "PTC",
             STC => "STC",
@@ -746,6 +767,10 @@ impl Composition {
             MC => "Mass composition",
             PMC => "Positional mass composition",
             SMC => "Stereo mass composition",
+
+            UC => "Unsaturation composition",
+            PUC => "Positional unsaturation composition",
+            SUC => "Stereo unsaturation composition",
 
             TC => "Type composition",
             PTC => "Positional type composition",
@@ -769,8 +794,9 @@ impl Default for Composition {
 pub(in crate::app) enum Kind {
     Ecn,
     Mass,
-    Type,
     Species,
+    Type,
+    Unsaturation,
 }
 
 impl Kind {
@@ -780,6 +806,7 @@ impl Kind {
             Self::Mass => "Mass",
             Self::Species => "Species",
             Self::Type => "Type",
+            Self::Unsaturation => "Unsaturation",
         }
     }
 
@@ -789,6 +816,7 @@ impl Kind {
             Self::Mass => "M",
             Self::Species => "S",
             Self::Type => "T",
+            Self::Unsaturation => "U",
         }
     }
 }

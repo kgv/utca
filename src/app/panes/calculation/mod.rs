@@ -1,6 +1,9 @@
 use super::{settings::calculation::From, Behavior};
 use crate::{
-    app::computers::{CalculationComputed, CalculationKey},
+    app::{
+        computers::{CalculationComputed, CalculationKey},
+        widgets::FloatValue,
+    },
     fatty_acid::{DisplayWithOptions, FattyAcid, COMMON},
     localization::localize,
     utils::{
@@ -9,7 +12,7 @@ use crate::{
     },
 };
 use anyhow::Result;
-use egui::{Direction, Layout, Ui};
+use egui::{Direction, Grid, Layout, Ui};
 use egui_extras::{Column, TableBuilder};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -99,8 +102,6 @@ impl Pane {
                     });
                 })
                 .body(|body| {
-                    let precision =
-                        |value| format!("{value:.*}", behavior.settings.calculation.precision);
                     body.rows(height, total_rows + 1, |mut row| {
                         let index = row.index();
                         if index < total_rows {
@@ -168,23 +169,27 @@ impl Pane {
                             });
                             // DAG13
                             row.col(|ui| {
-                                let value = dags13.0.get(index).unwrap_or(NAN);
-                                let response = ui.label(precision(value));
-                                if true {
-                                    response.on_hover_ui(|ui| {
-                                        ui.heading(localize!("properties"));
+                                ui.add(
+                                    FloatValue::new(dags13.0.get(index))
+                                        .percent(behavior.settings.calculation.percent)
+                                        .precision(behavior.settings.calculation.precision),
+                                )
+                                .on_hover_ui(|ui| {
+                                    ui.heading(localize!("properties"));
+                                    Grid::new(ui.next_auto_id()).show(ui, |ui| {
+                                        ui.label(localize!("selectivity_factor"));
                                         let selectivity_factor = mags2
                                             .0
                                             .get(index)
                                             .zip(tags.0.get(index))
-                                            .map(|(mag2, tag)| mag2 / tag)
-                                            .unwrap_or(NAN);
-                                        ui.label(format!(
-                                            "{}: {selectivity_factor}",
-                                            localize!("selectivity_factor"),
-                                        ));
+                                            .map(|(mag2, tag)| mag2 / tag);
+                                        ui.add(
+                                            FloatValue::new(selectivity_factor)
+                                                .precision(behavior.settings.calculation.precision),
+                                        );
+                                        ui.end_row();
                                     });
-                                }
+                                });
                             });
                         } else {
                             // FA
@@ -221,11 +226,11 @@ impl Pane {
                             });
                             // DAG13
                             row.col(|ui| {
-                                let mut sum = dags13.0.sum().unwrap_or(NAN);
-                                if behavior.settings.calculation.percent {
-                                    sum *= 100.;
-                                }
-                                ui.label(precision(sum)).on_hover_text(sum.to_string());
+                                ui.add(
+                                    FloatValue::new(dags13.0.sum())
+                                        .percent(behavior.settings.calculation.percent)
+                                        .precision(behavior.settings.calculation.precision),
+                                );
                             });
                         }
                     });

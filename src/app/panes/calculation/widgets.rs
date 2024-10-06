@@ -1,5 +1,5 @@
-use crate::localization::localize;
-use egui::{Response, Ui, Widget};
+use crate::{app::widgets::FloatValue, localization::localize};
+use egui::{Grid, Response, Ui, Widget};
 
 /// Cell widget
 pub(in crate::app) struct Cell {
@@ -12,20 +12,34 @@ pub(in crate::app) struct Cell {
 
 impl Widget for Cell {
     fn ui(self, ui: &mut Ui) -> Response {
-        let mut experimental = self.experimental.unwrap_or(f64::NAN);
-        let mut theoretical = self.theoretical.unwrap_or(f64::NAN);
-        if self.percent {
-            experimental *= 100.0;
-            theoretical *= 100.0;
-        }
-        ui.add_enabled_ui(self.enabled, |ui| {
-            ui.label(format!("{experimental:.*}", self.precision))
-        })
-        .response
-        .on_hover_ui(|ui| {
-            ui.heading(localize!("properties"));
-            ui.label(format!("{}: {experimental}", localize!("experimental")));
-            ui.label(format!("{}: {theoretical}", localize!("theoretical")));
-        })
+        let response = ui.add_enabled_ui(self.enabled, |ui| {
+            ui.add(
+                FloatValue::new(self.experimental)
+                    .percent(self.percent)
+                    .precision(self.precision)
+                    .color(true),
+            )
+        });
+        let hover_ui = |ui: &mut Ui| {
+            ui.heading(localize!("values"));
+            Grid::new(ui.next_auto_id()).show(ui, |ui| {
+                ui.label(localize!("experimental"));
+                ui.add(
+                    FloatValue::new(self.experimental)
+                        .percent(self.percent)
+                        .precision(self.precision)
+                        .color(true),
+                );
+                ui.end_row();
+                ui.label(localize!("theoretical"));
+                ui.add(
+                    FloatValue::new(self.theoretical)
+                        .percent(self.percent)
+                        .precision(self.precision)
+                        .color(true),
+                );
+            });
+        };
+        response.inner.on_hover_ui(hover_ui) | response.response.on_disabled_hover_ui(hover_ui)
     }
 }

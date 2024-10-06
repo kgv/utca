@@ -423,8 +423,24 @@ impl<'a> TableDemo<'a> {
         // }
         match (row, col) {
             (row, 0) => {
-                let text = self.data_frame.string("Index", row);
-                ui.label(text);
+                let meta = self.data_frame.destruct("Meta");
+                let text = meta.string("Index", row);
+                ui.label(text).on_hover_ui(|ui| {
+                    Grid::new(ui.next_auto_id()).show(ui, |ui| {
+                        ui.label(localize!("mean"));
+                        let text = meta.string("Mean", row);
+                        ui.label(text);
+                        ui.end_row();
+                        ui.label(localize!("std"));
+                        let text = meta.string("Std", row);
+                        ui.label(text);
+                        ui.end_row();
+                        ui.label(localize!("var"));
+                        let text = meta.string("Var", row);
+                        ui.label(text);
+                        ui.end_row();
+                    });
+                });
             }
             (row, column) if column <= self.settings.composition.groups.len() => {
                 let index = column - 1;
@@ -432,6 +448,7 @@ impl<'a> TableDemo<'a> {
                 ui.label(text);
             }
             (row, column) => {
+                // std
                 ui.add(Cell {
                     column: &self.data_frame[column],
                     row,

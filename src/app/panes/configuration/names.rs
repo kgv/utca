@@ -1,6 +1,6 @@
 use crate::{
     fatty_acid::FattyAcid,
-    localization::{lowercase, localize},
+    localization::{localize, lowercase},
 };
 use egui::{Response, Ui, Widget};
 use egui_extras::{Column, TableBuilder};

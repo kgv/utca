@@ -23,6 +23,9 @@ pub(super) trait ExprExt {
     /// Fatty acid type
     fn r#type(self) -> Expr;
 
+    /// Fatty acid unsaturation
+    fn unsaturation(self) -> Expr;
+
     /// Fatty acid value
     fn value(self) -> Expr;
 }
@@ -41,7 +44,7 @@ impl ExprExt for Expr {
     }
 
     fn saturated(self) -> Expr {
-        (d(&self) + t(&self)).eq(lit(0))
+        self.unsaturation().eq(lit(0))
     }
 
     fn species(self) -> Expr {
@@ -50,6 +53,10 @@ impl ExprExt for Expr {
 
     fn r#type(self) -> Expr {
         ternary_expr(self.saturated(), lit("S"), lit("U"))
+    }
+
+    fn unsaturation(self) -> Expr {
+        d(&self) + lit(2) * t(&self)
     }
 
     fn value(self) -> Expr {

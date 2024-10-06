@@ -83,7 +83,26 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                     // Index
                     lazy_frame = lazy_frame.with_row_index("Index", None);
                     println!("Index: {}", lazy_frame.clone().collect().unwrap());
-                    return lazy_frame.collect().unwrap();
+                    let ddof = 1;
+                    let expr = concat_list([all()
+                        .exclude(["Index", r#"^Composition\d$"#])
+                        .r#struct()
+                        .field_by_names([r#"^Value\d$"#])])
+                    .unwrap();
+                    lazy_frame = lazy_frame.with_columns([
+                        expr.clone().list().mean().alias("Mean"),
+                        expr.clone().list().std(ddof).alias("Std"),
+                        expr.clone().list().var(ddof).alias("Var"),
+                    ]);
+                    println!("Index: {}", lazy_frame.clone().collect().unwrap());
+                    return lazy_frame
+                        .select([
+                            as_struct(vec![col("Index"), col("Mean"), col("Std"), col("Var")])
+                                .alias("Meta"),
+                            all().exclude(["Index", "Mean", "Std", "Var"]),
+                        ])
+                        .collect()
+                        .unwrap();
                 }
             }
         }
@@ -184,6 +203,7 @@ impl Tags {
                 Kind::Mass => sort_by_mass(),
                 Kind::Type => sort_by_type(),
                 Kind::Species => sort_by_species(),
+                Kind::Unsaturation => sort_by_unsaturation(),
             };
             lazy_frame = match group.composition.stereospecificity {
                 None => lazy_frame.permutation(["SN1", "SN2", "SN3"], sort)?,
@@ -245,6 +265,7 @@ impl Tags {
                     }
                     Kind::Type => concat_str([col("^SN[1-3]$").r#type()], "", false),
                     Kind::Species => concat_str([col("^SN[1-3]$").species()], "", false),
+                    Kind::Unsaturation => concat_str([col("^SN[1-3]$").unsaturation()], "", false),
                 }
                 .alias(format!("Composition{index}")),
             );
@@ -376,6 +397,10 @@ fn sort_by_species() -> Expr {
         ],
         Default::default(),
     )
+}
+
+fn sort_by_unsaturation() -> Expr {
+    col("").sort_by([col("").saturated()], Default::default())
 }
 
 // Triacylglycerol species

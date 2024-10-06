@@ -674,4 +674,5 @@ impl eframe::App for App {
 mod computers;
 mod data;
 mod panes;
+mod widgets;
 mod windows;

@@ -1,11 +1,12 @@
 use crate::{
+    app::widgets::FloatValue,
     localization::localize,
     utils::{ColumnExt, SeriesExt},
 };
 use egui::{Color32, Grid, Response, RichText, ScrollArea, Sides, Ui, Widget};
 use egui_phosphor::regular::LIST;
 use polars::prelude::*;
-use std::{f64::NAN, iter::zip};
+use std::iter::zip;
 
 /// Cell widget
 pub(in crate::app) struct Cell<'a> {
@@ -23,30 +24,24 @@ impl Widget for Cell<'_> {
             .into_iter()
             .map(|field| (field.name(), field.f64().unwrap().get(self.row)))
             .collect();
-
-        let mut value = values.last().and_then(|&(_, value)| value).unwrap_or(NAN);
-        if self.percent {
-            value *= 100.0;
-        }
-        let mut text = RichText::from(format!("{value:.*}", self.precision));
-        if value.is_nan() {
-            text = text.color(Color32::RED);
-        }
         Sides::new()
             .show(
                 ui,
                 |ui| {
-                    ui.label(text).on_hover_ui(|ui| {
+                    let value = values.last().and_then(|&(_, value)| value);
+                    ui.add(
+                        FloatValue::new(value)
+                            .percent(self.percent)
+                            .precision(self.precision)
+                            .color(true),
+                    )
+                    .on_hover_ui(|ui| {
                         ui.heading(localize!("values"));
                         Grid::new(ui.next_auto_id()).show(ui, |ui| {
                             // Values
                             for (name, value) in values {
                                 ui.label(name.to_string());
-                                let mut value = value.unwrap_or(NAN);
-                                if self.percent {
-                                    value *= 100.0;
-                                }
-                                ui.label(AnyValue::from(value).to_string());
+                                ui.add(FloatValue::new(value).percent(self.percent));
                                 ui.end_row();
                             }
                         });
@@ -87,11 +82,7 @@ impl Widget for Species {
                                 RichText::new("None").color(Color32::RED)
                             };
                             ui.label(text);
-                            let mut value = value.unwrap_or(NAN);
-                            if self.percent {
-                                value *= 100.0;
-                            }
-                            ui.label(AnyValue::from(value).to_string());
+                            ui.add(FloatValue::new(value).percent(self.percent));
                             ui.end_row();
                         }
                     }
