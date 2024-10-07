@@ -1,5 +1,4 @@
 use crate::r#const::relative_atomic_mass::{C, H, O};
-use indexmap::IndexMap;
 use num::BigUint;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -69,8 +68,8 @@ impl FattyAcid {
         }
     }
 
-    pub fn id(&self) -> String {
-        self.to_string()
+    pub fn id(&self) -> Display<&Self> {
+        self.display(ID)
     }
 
     /// Carbon

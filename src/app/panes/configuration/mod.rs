@@ -175,14 +175,14 @@ impl Pane {
                                     fatty_acid.h(),
                                 ));
                             });
-                            if behavior.settings.configuration.names {
+                            if behavior.settings.configuration.properties {
                                 response = response.on_hover_ui(|ui| {
-                                    ui.add(Names::new(fatty_acid));
+                                    ui.add(Properties::new(fatty_acid));
                                 });
                             }
-                            if behavior.settings.configuration.properties {
+                            if behavior.settings.configuration.names {
                                 response.on_hover_ui(|ui| {
-                                    ui.add(Properties::new(fatty_acid));
+                                    ui.add(Names::new(fatty_acid));
                                 });
                             }
                         });

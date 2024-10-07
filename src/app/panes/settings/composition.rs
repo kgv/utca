@@ -325,9 +325,6 @@ impl Settings {
                     ui.end_row();
                     keep
                 });
-                ui.label("");
-                ui.label("SSC");
-                ui.end_row();
 
                 // Join
                 ui.label(localize!("join"));
@@ -358,7 +355,7 @@ impl Settings {
                     .response
                     .on_hover_text(self.sort.hover_text());
                 ui.end_row();
-
+                // Order
                 ui.label(localize!("order"));
                 ComboBox::from_id_salt("order")
                     .selected_text(self.order.text())
@@ -379,6 +376,19 @@ impl Settings {
                     .response
                     .on_hover_text(self.order.hover_text());
                 ui.end_row();
+
+                ui.separator();
+                ui.separator();
+                ui.end_row();
+
+                // Meta
+                ui.heading(localize!("meta"));
+                ui.end_row();
+                ui.label(localize!("index"));
+                ui.checkbox(&mut self.meta.index, "");
+                ui.end_row();
+                ui.label(localize!("ddof"));
+                ui.add(Slider::new(&mut self.meta.ddof, 0..=2).integer());
             });
 
             // ui.horizontal(|ui| {

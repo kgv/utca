@@ -126,6 +126,7 @@ impl Hash for Key<'_> {
         if self.entries.len() > 1 {
             self.settings.join.hash(state);
         }
+        self.settings.meta.ddof.hash(state);
     }
 }
 
@@ -375,15 +376,24 @@ fn fatty_acid(value: &str) -> PolarsResult<Expr> {
 }
 
 fn sort_by_ecn() -> Expr {
-    col("").sort_by([col("").ecn()], Default::default())
+    col("").sort_by(
+        [col("").ecn()],
+        SortMultipleOptions::default().with_order_reversed(),
+    )
 }
 
 fn sort_by_mass() -> Expr {
-    col("").sort_by([col("").mass()], Default::default())
+    col("").sort_by(
+        [col("").mass()],
+        SortMultipleOptions::default().with_order_reversed(),
+    )
 }
 
 fn sort_by_type() -> Expr {
-    col("").sort_by([col("").saturated()], Default::default())
+    col("").sort_by(
+        [col("").saturated()],
+        SortMultipleOptions::default().with_order_reversed(),
+    )
 }
 
 fn sort_by_species() -> Expr {
@@ -395,12 +405,15 @@ fn sort_by_species() -> Expr {
             col("").r#struct().field_by_name("Triples").list().len(),
             col("").r#struct().field_by_name("Index"),
         ],
-        Default::default(),
+        SortMultipleOptions::default().with_order_reversed(),
     )
 }
 
 fn sort_by_unsaturation() -> Expr {
-    col("").sort_by([col("").unsaturation()], Default::default())
+    col("").sort_by(
+        [col("").unsaturation()],
+        SortMultipleOptions::default().with_order_reversed(),
+    )
 }
 
 // Triacylglycerol species

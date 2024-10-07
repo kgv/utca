@@ -23,7 +23,6 @@ use egui_phosphor::regular::LIST;
 use egui_table::{
     AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, PrefetchInfo, Table, TableDelegate,
 };
-use lru::LruCache;
 use polars::prelude::*;
 use poll_promise::Promise;
 use serde::{Deserialize, Serialize};
@@ -383,45 +382,6 @@ impl<'a> TableDemo<'a> {
     }
 
     fn body_cell_content_ui(&mut self, ui: &mut Ui, row: usize, col: usize) {
-        // let precision = |value| format!("{value:.*}", self.settings.composition.precision);
-        // let column = col % self.settings.composition.compositions.len();
-        // let composition = &self.data_frame.destruct(&format!("Composition{column}"));
-        // match (row, col) {
-        //     (row, column) if column < self.settings.composition.compositions.len() => {
-        //         let composition = &self.data_frame.destruct(&format!("Composition{column}"));
-        //         let key = composition.string("Key", row);
-        //         ui.heading(key);
-        //     }
-        //     (row, column) => {
-        //         let value = composition.f64("Value").get(row).unwrap();
-        //         ui.label(precision(value));
-        //     } // (row, column) => {
-        //       //     let index = column % self.settings.composition.compositions.len();
-        //       //     let text = self.settings.composition.compositions[index].text();
-        //       //     ui.heading(text);
-        //       // }
-        //       // (row, column) => {
-        //       //     ui.heading(format!("Cell {row}, {column}"));
-        //       // }
-        // }
-        // match (row, col) {
-        //     (row, column) if column < self.settings.composition.compositions.len() => {
-        //         let composition = &self.data_frame.destruct(&format!("Composition{column}"));
-        //         let key = composition.string("Key", row);
-        //         ui.heading(key);
-        //     }
-        //     (row, column) => {
-        //         let value = composition.f64("Value").get(row).unwrap();
-        //         ui.label(precision(value));
-        //     } // (row, column) => {
-        //       //     let index = column % self.settings.composition.compositions.len();
-        //       //     let text = self.settings.composition.compositions[index].text();
-        //       //     ui.heading(text);
-        //       // }
-        //       // (row, column) => {
-        //       //     ui.heading(format!("Cell {row}, {column}"));
-        //       // }
-        // }
         match (row, col) {
             (row, 0) => {
                 let meta = self.data_frame.destruct("Meta");

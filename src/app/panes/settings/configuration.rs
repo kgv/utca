@@ -15,8 +15,8 @@ impl Settings {
     pub(in crate::app) const fn new() -> Self {
         Self {
             precision: 0,
-            names: false,
-            properties: false,
+            names: true,
+            properties: true,
         }
     }
 
@@ -32,15 +32,14 @@ impl Settings {
                 ui.separator();
                 ui.end_row();
 
-                ui.label(localize!("names"));
-                ui.checkbox(&mut self.names, "")
-                    .on_hover_text(localize!("names_description"));
-                ui.end_row();
-
                 ui.label(localize!("properties"));
                 ui.checkbox(&mut self.properties, "")
                     .on_hover_text(localize!("properties_description"));
                 ui.end_row();
+
+                ui.label(localize!("names"));
+                ui.checkbox(&mut self.names, "")
+                    .on_hover_text(localize!("names_description"));
             });
         });
     }
