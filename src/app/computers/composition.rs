@@ -9,7 +9,10 @@ use crate::{
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use polars::prelude::*;
-use std::hash::{Hash, Hasher};
+use std::{
+    hash::{Hash, Hasher},
+    process::exit,
+};
 
 /// Composition computed
 pub(in crate::app) type Computed = FrameCache<Value, Computer>;
@@ -78,7 +81,17 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                                 .with_coalesce(JoinCoalesce::CoalesceColumns),
                         );
                     }
-                    // println!("Data: {}", lazy_frame.clone().collect().unwrap());
+                    // Filter
+                    if !key.settings.filtered {
+                        lazy_frame = lazy_frame.filter(
+                            all_horizontal([all()
+                                .exclude([r#"^Composition\d$"#])
+                                .r#struct()
+                                .field_by_name("Filter")])
+                            .unwrap()
+                            .not(),
+                        );
+                    }
                     // Sort
                     lazy_frame = lazy_frame.compositions().sort(key.settings);
                     // Meta
@@ -98,7 +111,7 @@ impl ComputerMut<Key<'_>, Value> for Computer {
 }
 
 /// Composition key
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::app) struct Key<'a> {
     pub(in crate::app) entries: &'a Vec<Entry>,
     pub(in crate::app) settings: &'a Settings,
@@ -120,7 +133,9 @@ impl Hash for Key<'_> {
         self.settings.adduct.hash(state);
         self.settings.groups.hash(state);
         self.settings.method.hash(state);
-        self.settings.filter.hash(state);
+        self.settings.filters.hash(state);
+        self.settings.filtered.hash(state);
+        self.settings.nulls.hash(state);
         self.settings.order.hash(state);
         self.settings.sort.hash(state);
         if self.entries.len() > 1 {
@@ -161,7 +176,11 @@ struct Tags(LazyFrame);
 
 impl Tags {
     fn filter(self, settings: &Settings) -> Self {
-        Self(self.0.with_column(value()).filter(col("Value").neq(lit(0))))
+        let mut lazy_frame = self.0.with_column(value());
+        if !settings.nulls {
+            lazy_frame = lazy_frame.filter(col("Value").neq(lit(0)));
+        }
+        Self(lazy_frame)
     }
 
     fn composition(self, settings: &Settings) -> PolarsResult<Self> {
@@ -170,8 +189,6 @@ impl Tags {
         }
 
         let mut lazy_frame = self.0;
-        println!("self0: {}", lazy_frame.clone().collect().unwrap());
-        let mut indices = Vec::new();
         // Composition
         for (index, group) in settings.groups.iter().enumerate() {
             // Temp stereospecific numbers
@@ -252,40 +269,70 @@ impl Tags {
                 }
                 .alias(format!("Composition{index}")),
             );
-            indices.push(index);
+            // Value
+            let value = format!("Value{index}");
+            let compositions = format!(r#"^Composition[0-{index}]$"#);
+            lazy_frame = lazy_frame
+                .group_by([col(&compositions)])
+                .agg([all(), col("Value").sum().alias(&value)])
+                .with_column(col(&value).lt_eq(lit(group.filter.value)).alias("Filter"))
+                .explode([all().exclude([&compositions, &value, "Filter"])]);
+            // Filter by composition
+            // if let Some(&filter) = settings.filters.0.get(&group.composition) {
+            //     let composition = format!("Composition{index}");
+            //     lazy_frame = lazy_frame
+            //         .group_by([col(&composition)])
+            //         .agg([
+            //             all().exclude(["Filter"]),
+            //             col("Filter").or(col("Value").sum().gt(lit(filter)).alias("Filter")),
+            //         ])
+            //         .explode([all().exclude([&composition, "Filter"])]);
+            //     println!("lazy_frame IN: {}", lazy_frame.clone().collect().unwrap());
+            // }
         }
         println!("lazy_frame1: {}", lazy_frame.clone().collect().unwrap());
         // Species
         lazy_frame = lazy_frame
             .with_column(species().alias("Species"))
             .drop(["TAG", "SN1", "SN2", "SN3"]);
-        // Values
-        for index in 0..indices.len() {
-            let value = format!("Value{index}");
-            let compositions = format!(r#"^Composition[0-{index}]$"#);
-            lazy_frame = lazy_frame
-                .group_by([col(&compositions)])
-                .agg([all(), col("Value").sum().alias(&value)])
-                .filter(col(&value).gt_eq(lit(settings.groups[index].filter.value)))
-                .explode([all().exclude([&compositions]).exclude([&value])]);
-        }
-
         println!("lazy_frame2: {}", lazy_frame.clone().collect().unwrap());
+        // for (index, group) in settings.groups.iter().enumerate() {
+        //     lazy_frame =
+        //         lazy_frame.group_by([col(&compositions)]).filter(col("Value").gt_eq(lit(settings.filters.0[&group.composition])));
+        // }
+        // Values
+        // for index in 0..indices.len() {
+        //     let value = format!("Value{index}");
+        //     let compositions = format!(r#"^Composition[0-{index}]$"#);
+        //     lazy_frame = lazy_frame
+        //         .group_by([col(&compositions)])
+        //         .agg([all(), col("Value").sum().alias(&value)])
+        //         .filter(col(&value).gt_eq(lit(settings.groups[index].filter.value)))
+        //         .explode([all().exclude([&compositions]).exclude([&value])]);
+        //     if let Some(value) = settings.filters.0.get(&settings.groups[index].composition) {
+        //         let composition = format!("Composition{index}");
+        //         lazy_frame = lazy_frame
+        //             .group_by([col(composition)])
+        //             .agg([all(), col("Value").sum().alias(&value)]);
+        //     }
+        // }
+
         // Nest species
         lazy_frame = lazy_frame
-            .with_column(as_struct(vec![col("Species"), col("Value")]))
+            .with_column(as_struct(vec![col("Species"), col("Value"), col("Filter")]))
             .drop(["Value"]);
+        println!("lazy_frame2: {}", lazy_frame.clone().collect().unwrap());
         // Group leaves (species)
         lazy_frame = lazy_frame
             .group_by([col(r#"^Composition\d$"#), col(r#"^Value\d$"#)])
-            .agg([all()]);
-        println!("lazy_framex: {}", lazy_frame.clone().collect().unwrap());
+            .agg([all().exclude(["Filter"]), col("Filter").all(true)]);
+        // println!("lazy_framex: {}", lazy_frame.clone().collect().unwrap());
         // Nest compositions and values
         lazy_frame = lazy_frame.select([
             as_struct(vec![col(r#"^Composition\d$"#)]).alias("Composition"),
-            as_struct(vec![col(r#"^Value\d$"#), col("Species")]).alias("Values"),
+            as_struct(vec![col(r#"^Value\d$"#), col("Species"), col("Filter")]).alias("Values"),
         ]);
-        println!("lazy_frame3: {}", lazy_frame.clone().collect().unwrap());
+        // println!("lazy_frame3: {}", lazy_frame.clone().collect().unwrap());
         Ok(Self(lazy_frame))
     }
 }

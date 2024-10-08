@@ -20,7 +20,7 @@ pub(in crate::app) struct Settings {
 }
 
 impl Settings {
-    pub(in crate::app) const fn new() -> Self {
+    pub(in crate::app) fn new() -> Self {
         Self {
             resizable: false,
             editable: false,

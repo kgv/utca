@@ -9,10 +9,14 @@ use egui::{
     Slider, SliderClamping, Ui,
 };
 use egui_phosphor::regular::{ARROWS_HORIZONTAL, EYE, EYE_SLASH, FUNNEL, FUNNEL_X, MINUS, PLUS};
+use maplit::hashmap;
 use ordered_float::OrderedFloat;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::{
+    collections::HashMap,
+    hash::{Hash, Hasher},
+};
 
 pub(in crate::app) const UC: Composition = Composition {
     stereospecificity: None,
@@ -77,7 +81,7 @@ pub(in crate::app) const STC: Composition = Composition {
 };
 
 /// Composition settings
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(in crate::app) struct Settings {
     pub(in crate::app) percent: bool,
     pub(in crate::app) precision: usize,
@@ -88,7 +92,9 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) adduct: OrderedFloat<f64>,
     pub(in crate::app) method: Method,
     pub(in crate::app) groups: Vec<Group>,
-    pub(in crate::app) filter: Filter,
+    pub(in crate::app) filters: Filters,
+    pub(in crate::app) nulls: bool,
+    pub(in crate::app) filtered: bool,
     pub(in crate::app) sort: Sort,
     pub(in crate::app) order: Order,
     pub(in crate::app) join: Join,
@@ -97,7 +103,7 @@ pub(in crate::app) struct Settings {
 }
 
 impl Settings {
-    pub(in crate::app) const fn new() -> Self {
+    pub(in crate::app) fn new() -> Self {
         Self {
             percent: true,
             precision: 1,
@@ -105,7 +111,9 @@ impl Settings {
             adduct: OrderedFloat(0.0),
             method: Method::VanderWal,
             groups: Vec::new(),
-            filter: Filter::new(),
+            filters: Filters::new(),
+            filtered: false,
+            nulls: false,
             sort: Sort::Value,
             order: Order::Descending,
             join: Join::Left,
@@ -172,24 +180,37 @@ impl Settings {
 
                 // Filter
                 ui.label(localize!("filter"));
-                ui.add(
-                    Slider::new(&mut self.filter.value, 0.0..=1.0)
-                        .clamping(SliderClamping::Always)
-                        .logarithmic(true)
-                        .custom_formatter(|mut value, _| {
-                            if self.percent {
-                                value *= 100.0;
-                            }
-                            AnyValue::Float64(value).to_string()
-                        })
-                        .custom_parser(|value| {
-                            let mut parsed = value.parse::<f64>().ok()?;
-                            if self.percent {
-                                parsed /= 100.0;
-                            }
-                            Some(parsed)
-                        }),
-                );
+                ui.end_row();
+                for (key, value) in &mut self.filters.0 {
+                    ui.label(key.text());
+                    ui.add(
+                        Slider::new(value, 0.0..=1.0)
+                            .clamping(SliderClamping::Always)
+                            .logarithmic(true)
+                            .custom_formatter(|mut value, _| {
+                                if self.percent {
+                                    value *= 100.0;
+                                }
+                                AnyValue::Float64(value).to_string()
+                            })
+                            .custom_parser(|value| {
+                                let mut parsed = value.parse::<f64>().ok()?;
+                                if self.percent {
+                                    parsed /= 100.0;
+                                }
+                                Some(parsed)
+                            }),
+                    );
+                    ui.end_row();
+                }
+
+                ui.label(localize!("nulls")).on_hover_text("Show nulls");
+                ui.checkbox(&mut self.nulls, "");
+                ui.end_row();
+
+                ui.label(localize!("filtered"))
+                    .on_hover_text("Show filtered");
+                ui.checkbox(&mut self.filtered, "");
                 ui.end_row();
 
                 // Compose
@@ -622,6 +643,25 @@ impl Method {
         match self {
             Self::Gunstone => localize!("gunstone.description"),
             Self::VanderWal => localize!("vander_wal.description"),
+        }
+    }
+}
+
+/// Filters
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub(in crate::app) struct Filters(pub(in crate::app) HashMap<Composition, f64>);
+
+impl Filters {
+    pub(in crate::app) fn new() -> Self {
+        Self(hashmap! { PSC => 0.005 })
+    }
+}
+
+impl Hash for Filters {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for (key, value) in &self.0 {
+            key.hash(state);
+            value.ord().hash(state);
         }
     }
 }

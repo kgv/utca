@@ -54,7 +54,6 @@ impl Pane {
         });
         if self.hash != hash {
             if let Some(promise) = self.promise.take() {
-                panic!("abort");
                 promise.abort();
             }
             let ctx = ui.ctx().clone();
@@ -425,10 +424,9 @@ impl<'a> TableDemo<'a> {
                 ui.label(text);
             }
             (row, column) => {
-                // std
                 ui.add(Cell {
-                    column: &self.data_frame[column],
                     row,
+                    column: &self.data_frame[column],
                     percent: self.settings.composition.percent,
                     precision: self.settings.composition.precision,
                 });

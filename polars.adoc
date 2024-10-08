@@ -41,6 +41,10 @@ expr.list()
 [source, toml]
 features = ["cum_agg"]
 
+== Filtering by data in another DataFrame
+
+https://stackoverflow.com/questions/72546690/lightweight-syntax-for-filtering-a-polars-dataframe-on-a-multi-column-key
+
 * <https://stackoverflow.com/questions/76523245/how-to-get-current-index-of-element-in-polars-list>
 
 // link:https://stackoverflow.com/questions/73717556/how-to-swap-column-values-on-conditions-in-python-polars[Swap column values on conditions]

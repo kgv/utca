@@ -6,46 +6,55 @@ use crate::{
 use egui::{Color32, Grid, Response, RichText, ScrollArea, Sides, Ui, Widget};
 use egui_phosphor::regular::LIST;
 use polars::prelude::*;
-use std::iter::zip;
+use std::{convert::identity, iter::zip};
 
 /// Cell widget
 pub(in crate::app) struct Cell<'a> {
-    pub(in crate::app) column: &'a Column,
     pub(in crate::app) row: usize,
+    pub(in crate::app) column: &'a Column,
     pub(in crate::app) percent: bool,
     pub(in crate::app) precision: usize,
 }
 
 impl Widget for Cell<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let fields = self.column.r#struct().fields_as_series();
-        let (species, values) = fields.split_last().unwrap();
-        let values: Vec<_> = values
+        let r#struct = self.column.r#struct();
+        let fields = r#struct.fields_as_series();
+        let values = &fields[0..fields.len() - 2];
+        let species = r#struct.field_by_name("Species").unwrap();
+        let filter = r#struct.field_by_name("Filter").unwrap();
+        let values = values
             .into_iter()
-            .map(|field| (field.name(), field.f64().unwrap().get(self.row)))
-            .collect();
+            .map(|field| (field.name(), field.f64().unwrap().get(self.row)));
+        let filter = filter.bool().unwrap().get(self.row).is_some_and(identity);
         Sides::new()
             .show(
                 ui,
                 |ui| {
-                    let value = values.last().and_then(|&(_, value)| value);
-                    ui.add(
+                    let value = values.clone().next_back().and_then(|(_, value)| value);
+                    let mut response = ui.add_enabled(
+                        !filter,
                         FloatValue::new(value)
                             .percent(self.percent)
                             .precision(self.precision)
                             .color(true),
-                    )
-                    .on_hover_ui(|ui| {
-                        ui.heading(localize!("values"));
-                        Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                            // Values
-                            for (name, value) in values {
-                                ui.label(name.to_string());
-                                ui.add(FloatValue::new(value).percent(self.percent));
-                                ui.end_row();
-                            }
-                        });
-                    })
+                    );
+                    if value.is_some() {
+                        response = response
+                            .on_hover_ui(|ui| {
+                                ui.add(Values {
+                                    values: values.clone(),
+                                    percent: self.percent,
+                                });
+                            })
+                            .on_disabled_hover_ui(|ui| {
+                                ui.add(Values {
+                                    values,
+                                    percent: self.percent,
+                                });
+                            });
+                    }
+                    response
                 },
                 |ui| {
                     ui.add(Species {
@@ -55,6 +64,27 @@ impl Widget for Cell<'_> {
                 },
             )
             .0
+    }
+}
+
+/// Values
+struct Values<T> {
+    pub(in crate::app) values: T,
+    pub(in crate::app) percent: bool,
+}
+
+impl<'a, T: Iterator<Item = (&'a PlSmallStr, Option<f64>)>> Widget for Values<T> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.heading(localize!("values"));
+        Grid::new(ui.next_auto_id())
+            .show(ui, |ui| {
+                for (name, value) in self.values {
+                    ui.label(name.to_string());
+                    ui.add(FloatValue::new(value).percent(self.percent));
+                    ui.end_row();
+                }
+            })
+            .response
     }
 }
 

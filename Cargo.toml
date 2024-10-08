@@ -25,6 +25,7 @@ fluent = "0.16.1"
 fluent_content = "0.0.5"
 intl-memoizer = "0.5.2"
 itertools = "0.13.0"
+maplit = "1.0.2"
 molecule = { git = "https://github.com/ippras/molecule" }
 num = "0.4.3"
 ordered-float = { version = "4.2.2", features = ["serde"] }
@@ -38,6 +39,7 @@ polars = { git = "https://github.com/pola-rs/polars", rev = "be5a4b453ca74bb5e0c
     "dtype-u8",
     "fmt",             # temp
     "lazy",
+    "list_any_all",
     "list_eval",
     "regex",
     "round_series",
@@ -46,7 +48,6 @@ polars = { git = "https://github.com/pola-rs/polars", rev = "be5a4b453ca74bb5e0c
     # "abs",
     # "cum_agg",
     # "is_in",
-    # "list_any_all",
     # "list_count",
 ] }
 radix_trie = "0.2.1"
@@ -96,3 +97,6 @@ opt-level = 2 # fast and small wasm
 # Optimize all dependencies even in debug builds:
 [profile.dev.package."*"]
 opt-level = 2
+
+[patch.crates-io]
+# accesskit = { git = "https://github.com/NicolasBircksZR/accesskit", branch = "patch01" }
