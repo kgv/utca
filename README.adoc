@@ -10,6 +10,13 @@ https://xakep.ru/2007/02/07/36659/
 Листы отдельно, последний отображаемый элемент - отдельно
 Иначе фильтр будет применяться к листам, и будет несоответствие
 
+link:https://www.online-convert.com/[SVG to PNG]
+🝐
+🜎
+🝆
+🜁
+🜃🜄
+
 Ultimate TAG Calculation Application
 
 image:https://img.shields.io/crates/v/bevy_fluent.svg[crates.io, link=https://crates.io/crates/bevy_fluent]

@@ -3,8 +3,8 @@ use super::{settings::Settings, Behavior};
 use crate::{
     app::{
         computers::{
-            CalculationComputed, CalculationKey, CompositionComputed, CompositionKey,
-            VisualizationComputed, VisualizationKey,
+            CalculationComputed, CalculationComputer, CalculationKey, CompositionComputed,
+            CompositionComputer, CompositionKey, VisualizationComputed, VisualizationKey,
         },
         data::Data,
         widgets::FloatValue,
@@ -15,8 +15,10 @@ use crate::{
 };
 use anyhow::Result;
 use egui::{
-    collapsing_header::paint_default_icon, Align, Align2, Color32, Frame, Grid, Id, Layout, Margin,
-    Pos2, RichText, ScrollArea, Sense, Sides, TextStyle, TextWrapMode, Ui, Vec2,
+    collapsing_header::paint_default_icon,
+    util::{cache::ComputerMut, hash},
+    Align, Align2, Color32, Frame, Grid, Id, Layout, Margin, Pos2, RichText, ScrollArea, Sense,
+    Sides, TextStyle, TextWrapMode, Ui, Vec2,
 };
 use egui_extras::TableBuilder;
 use egui_phosphor::regular::LIST;
@@ -39,43 +41,56 @@ use tracing::error;
 #[derive(Default, Deserialize, Serialize)]
 pub(in crate::app) struct Pane {
     #[serde(skip)]
+    hash: u64,
+    #[serde(skip)]
     promise: Option<Promise<DataFrame>>,
 }
 
 impl Pane {
-    pub(in crate::app) fn prepare(&mut self, ui: &mut Ui, behavior: &mut Behavior) -> DataFrame {
-        let mut entries = Vec::new();
-        for entry in &mut behavior.data.entries {
-            if entry.checked {
-                entry.fatty_acids.0 = ui.memory_mut(|memory| {
-                    memory
-                        .caches
-                        .cache::<CalculationComputed>()
-                        .get(CalculationKey {
-                            fatty_acids: &entry.fatty_acids,
-                            settings: &behavior.settings.calculation,
-                        })
-                });
-                entries.push(&*entry);
-            }
-        }
-        let key = CompositionKey {
-            entries: &entries,
+    pub(in crate::app) fn prepare(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
+        let hash = hash(CompositionKey {
+            entries: &behavior.data.entries,
             settings: &behavior.settings.composition,
-        };
-        ui.memory_mut(|memory| memory.caches.cache::<CompositionComputed>().get(key))
-        // ui.data_mut(|data| {
-        //     // data.get_temp_mut_or(
-        //     //     Id::new(&key),
-        //     //     ui.memory_mut(|memory| memory.caches.cache::<CompositionComputed>().get(key)),
-        //     // )
-        //     // .clone()
-        // })
+        });
+        if self.hash != hash {
+            if let Some(promise) = self.promise.take() {
+                panic!("abort");
+                promise.abort();
+            }
+            let ctx = ui.ctx().clone();
+            let data = behavior.data.clone();
+            let settings = behavior.settings.clone();
+            let promise = Promise::spawn_async(async move {
+                let data_frame = CompositionComputer.compute(CompositionKey {
+                    entries: &data.entries,
+                    settings: &settings.composition,
+                });
+                ctx.request_repaint();
+                data_frame
+            });
+            // let (sender, promise) = Promise::new();
+            // tokio::spawn(async move {
+            //     let data_frame = CompositionComputer.compute(CompositionKey {
+            //         entries: &data.entries,
+            //         settings: &settings.composition,
+            //     });
+            //     ctx.request_repaint();
+            //     sender.send(data_frame);
+            // });
+            self.hash = hash;
+            self.promise = Some(promise);
+        }
     }
 
     pub(in crate::app) fn ui(&mut self, ui: &mut Ui, behavior: &mut Behavior) {
-        let data_frame = self.prepare(ui, behavior);
-        TableDemo::new(&data_frame, &behavior.settings).ui(ui);
+        self.prepare(ui, behavior);
+        if let Some(promise) = &self.promise {
+            if let Some(data_frame) = promise.ready() {
+                TableDemo::new(data_frame, &behavior.settings).ui(ui);
+            } else {
+                ui.spinner();
+            }
+        }
 
         // let mut entries = Vec::new();
         // for entry in &mut behavior.data.entries {

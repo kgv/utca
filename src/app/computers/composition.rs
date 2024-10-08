@@ -100,7 +100,7 @@ impl ComputerMut<Key<'_>, Value> for Computer {
 /// Composition key
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::app) struct Key<'a> {
-    pub(in crate::app) entries: &'a Vec<&'a Entry>,
+    pub(in crate::app) entries: &'a Vec<Entry>,
     pub(in crate::app) settings: &'a Settings,
 }
 

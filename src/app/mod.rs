@@ -7,6 +7,7 @@ use crate::{
     localization::{localize, UiExt},
     utils::TreeExt,
 };
+use computers::{CalculationComputed, CalculationKey};
 use eframe::{get_value, set_value, CreationContext, Storage};
 use egui::{
     menu::bar, vec2, warn_if_debug_build, Align, Align2, Button, CentralPanel, Color32, Context,
@@ -502,6 +503,20 @@ impl App {
 
 // Copy/Paste, Drag&Drop
 impl App {
+    fn data(&mut self, ctx: &Context) {
+        for entry in &mut self.data.entries {
+            entry.fatty_acids.0 = ctx.memory_mut(|memory| {
+                memory
+                    .caches
+                    .cache::<CalculationComputed>()
+                    .get(CalculationKey {
+                        fatty_acids: &entry.fatty_acids,
+                        settings: &self.settings.calculation,
+                    })
+            });
+        }
+    }
+
     fn drag_and_drop(&mut self, ctx: &Context) {
         // Preview hovering files
         if let Some(text) = ctx.input(|input| {
@@ -662,6 +677,7 @@ impl eframe::App for App {
     /// second.
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         // Pre update
+        self.data(ctx);
         self.panels(ctx);
         self.windows(ctx);
         self.notifications(ctx);

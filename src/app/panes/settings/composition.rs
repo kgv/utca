@@ -138,36 +138,6 @@ impl Settings {
                 ui.separator();
                 ui.end_row();
 
-                ui.label(localize!("adduct"));
-                ui.horizontal(|ui| {
-                    let adduct = &mut self.adduct;
-                    ui.add(
-                        DragValue::new(&mut adduct.0)
-                            .range(0.0..=f64::MAX)
-                            .speed(1.0 / 10f64.powi(self.precision as _)),
-                    )
-                    .on_hover_text(format!("{adduct}"));
-                    ComboBox::from_id_salt("")
-                        .selected_text(match adduct.0 {
-                            adduct if adduct == H => "H",
-                            adduct if adduct == NH4 => "NH4",
-                            adduct if adduct == NA => "Na",
-                            adduct if adduct == LI => "Li",
-                            _ => "",
-                        })
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut adduct.0, H, "H");
-                            ui.selectable_value(&mut adduct.0, NH4, "NH4");
-                            ui.selectable_value(&mut adduct.0, NA, "Na");
-                            ui.selectable_value(&mut adduct.0, LI, "Li");
-                        });
-                });
-                ui.end_row();
-
-                ui.separator();
-                ui.separator();
-                ui.end_row();
-
                 // Method
                 ui.label(localize!("method"));
                 if ui.input_mut(|input| {
@@ -281,17 +251,14 @@ impl Settings {
                             ui.visuals_mut().widgets.inactive = ui.visuals().widgets.active;
                             FUNNEL_X
                         };
-                        let id = ui.id().with("filter");
-                        let mut value =
-                            ui.data_mut(|data| *data.get_temp_mut_or(id, group.filter.value));
                         ui.menu_button(title, |ui| {
                             ui.label(format!(
                                 "{} {}",
                                 group.composition.text(),
                                 localize!("filter")
                             ));
-                            let response = ui.add(
-                                Slider::new(&mut value, 0.0..=1.0)
+                            ui.add(
+                                Slider::new(&mut group.filter.value, 0.0..=1.0)
                                     .clamping(SliderClamping::Always)
                                     .logarithmic(true)
                                     .custom_formatter(|mut value, _| {
@@ -308,19 +275,7 @@ impl Settings {
                                         Some(parsed)
                                     }),
                             );
-                            if response.changed() {
-                                ui.data_mut(|data| data.insert_temp(id, value));
-                            }
-                            if response.drag_stopped() || response.lost_focus() {
-                                group.filter.value = value;
-                            }
-                            if response.clicked_elsewhere() {
-                                ui.data_mut(|data| data.insert_temp(id, group.filter.value));
-                            }
                         });
-                        if ui.input(|input| input.key_pressed(Key::Escape)) {
-                            ui.data_mut(|data| data.insert_temp(id, group.filter.value));
-                        }
                     });
                     ui.end_row();
                     keep
@@ -375,6 +330,36 @@ impl Settings {
                     })
                     .response
                     .on_hover_text(self.order.hover_text());
+                ui.end_row();
+
+                ui.separator();
+                ui.separator();
+                ui.end_row();
+
+                ui.label(localize!("adduct"));
+                ui.horizontal(|ui| {
+                    let adduct = &mut self.adduct;
+                    ui.add(
+                        DragValue::new(&mut adduct.0)
+                            .range(0.0..=f64::MAX)
+                            .speed(1.0 / 10f64.powi(self.precision as _)),
+                    )
+                    .on_hover_text(format!("{adduct}"));
+                    ComboBox::from_id_salt("")
+                        .selected_text(match adduct.0 {
+                            adduct if adduct == H => "H",
+                            adduct if adduct == NH4 => "NH4",
+                            adduct if adduct == NA => "Na",
+                            adduct if adduct == LI => "Li",
+                            _ => "",
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut adduct.0, H, "H");
+                            ui.selectable_value(&mut adduct.0, NH4, "NH4");
+                            ui.selectable_value(&mut adduct.0, NA, "Na");
+                            ui.selectable_value(&mut adduct.0, LI, "Li");
+                        });
+                });
                 ui.end_row();
 
                 ui.separator();

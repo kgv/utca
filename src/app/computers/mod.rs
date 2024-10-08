@@ -1,6 +1,10 @@
 pub(super) use self::{
-    calculation::{Computed as CalculationComputed, Key as CalculationKey},
-    composition::{Computed as CompositionComputed, Key as CompositionKey},
+    calculation::{
+        Computed as CalculationComputed, Computer as CalculationComputer, Key as CalculationKey,
+    },
+    composition::{
+        Computed as CompositionComputed, Computer as CompositionComputer, Key as CompositionKey,
+    },
     visualization::{Computed as VisualizationComputed, Key as VisualizationKey},
 };
 
