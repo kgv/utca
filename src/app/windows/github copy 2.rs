@@ -1,9 +1,8 @@
-use crate::{localization::localize, utils::spawn};
+use crate::utils::spawn;
 use anyhow::{Error, Result};
 use base64::prelude::*;
 use egui::{
-    CollapsingHeader, Context, Grid, Id, Label, RichText, ScrollArea, Sense, TextEdit, Ui, Widget,
-    Window,
+    CollapsingHeader, Context, Grid, Id, Label, RichText, ScrollArea, Sense, Ui, Widget, Window,
 };
 use egui_phosphor::regular::CLOUD_ARROW_DOWN;
 use ehttp::{fetch, fetch_async, Headers, Request, Response};
@@ -13,8 +12,7 @@ use radix_trie::{iter::Children, SubTrie, Trie, TrieCommon};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     env::var,
-    f32::INFINITY,
-    fmt::{Debug, Display},
+    fmt::Debug,
     future::Future,
     path::{Components, Path},
     sync::mpsc::Sender,
@@ -35,23 +33,22 @@ const URL: &str = "https://api.github.com/repos/ippras/utca/git/trees/gh-pages?r
 
 /// `github.com tree` renders a nested list of debugger values.
 pub struct Github {
+    pub url: String,
     pub open: bool,
-    pub token: String,
     promise: Promise<Option<Tree>>,
 }
 
 impl Default for Github {
     fn default() -> Self {
-        Self::new()
+        Self::new(URL)
     }
 }
 
 impl Github {
-    pub fn new() -> Self {
-        let token = var("GITHUB_TOKEN").unwrap_or_default();
+    pub fn new(url: impl ToString) -> Self {
         Self {
+            url: url.to_string(),
             open: false,
-            token,
             promise: Promise::from_ready(None),
         }
     }
@@ -59,7 +56,7 @@ impl Github {
     pub fn toggle(&mut self) {
         self.open ^= true;
         self.promise = if self.open {
-            load_tree(&self.token, URL)
+            load_tree(URL)
         } else {
             Promise::from_ready(None)
         };
@@ -89,15 +86,6 @@ impl Github {
             .open(&mut self.open)
             .show(ctx, |ui| {
                 ui.visuals_mut().collapsing_header_frame = true;
-                ui.collapsing(localize!("settings"), |ui| {
-                    Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                        ui.label(localize!("github token"));
-                        // ui.text_edit_singleline(&mut self.token)
-                        ui.add(TextEdit::singleline(&mut self.token).desired_width(INFINITY));
-                        ctx.request_repaint();
-                    });
-                });
-                ui.separator();
                 ScrollArea::vertical().show(ui, |ui| {
                     if let Some(Some(tree)) = self.promise.ready() {
                         let mut trie = Trie::new();
@@ -159,11 +147,115 @@ fn temp(ui: &mut Ui, children: Children<'_, &str, &str>) {
     //     children
 }
 
-fn load_tree(github_token: impl ToString, url: impl ToString) -> Promise<Option<Tree>> {
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum Entry {
+    Branch { name: String, children: Vec<Entry> },
+    Leaf { name: String, url: String },
+}
+
+impl Entry {
+    fn ui(self, ui: &mut Ui) {
+        match self {
+            Self::Branch { name, children } => {
+                ui.collapsing(RichText::new(name).heading(), |ui| {
+                    for child in children {
+                        child.ui(ui);
+                    }
+                });
+            }
+            Self::Leaf { name, url } => {
+                ui.horizontal(|ui| {
+                    if ui.button(CLOUD_ARROW_DOWN).on_hover_text(&url).clicked() {
+                        load_blob(ui.ctx(), &name, url);
+                    }
+                    ui.label(name);
+                });
+            }
+        }
+    }
+}
+
+// impl Widget for &mut GithubTree {
+//     fn ui(self, ui: &mut Ui) -> Response {
+//         if let Some(entries) = self.promise.ready() {
+//             for entry in entries {
+//                 match entry.r#type {
+//                     Type::Dir => {
+//                         ui.collapsing(&entry.name, |ui| {
+//                             // load(self.url)
+//                         });
+//                     }
+//                     Type::File => {
+//                         ui.horizontal(|ui| {
+//                             ui.label(&entry.name);
+//                             if ui.button("📥").clicked() {
+//                                 if let Some(url) = &entry.download_url {
+//                                     let promise: Promise<String> = load(url);
+//                                 }
+//                             }
+//                         });
+//                     }
+//                 }
+//             }
+//         }
+//         ui.spinner()
+//         // Grid::new(ui.next_auto_id())
+//         //     .num_columns(3)
+//         //     .striped(true)
+//         //     .show(ui, |ui| {
+//         //         for value in self.values {
+//         //             if value.children().count() > 0 {
+//         //                 CollapsingHeader::new(value.name().expect("name should be present"))
+//         //                     .id_source(ui.next_auto_id())
+//         //                     .show(ui, |ui| {
+//         //                         ui.add(VariableList::new(value.children()));
+//         //                     });
+//         //             } else {
+//         //                 ui.label(value.name().unwrap_or_default());
+//         //                 ui.label(value.display_type_name().unwrap_or_default());
+//         //                 ui.label(value.value().unwrap_or_default());
+//         //             }
+//         //             ui.end_row();
+//         //         }
+//         //     })
+//         //     .response
+//     }
+// }
+
+// fn load(url: impl ToString) -> Promise<Vec<Entry>> {
+//     let request = Request {
+//         headers: Headers::new(&[
+//             ("Accept", "application/vnd.github+json"),
+//             ("Authorization", &format!("Bearer {GITHUB_TOKEN}")),
+//             ("X-GitHub-Api-Version", "2022-11-28"),
+//         ]),
+//         ..Request::get(format!("{}?recursive=true", url.to_string()))
+//     };
+//     let (sender, promise) = Promise::new();
+//     fetch(request, move |response| match response {
+//         Ok(response) => match response.json::<Vec<Entry>>() {
+//             Ok(mut entries) => {
+//                 println!("entries: {entries:#?}");
+//                 entries.sort_by_key(|entry| entry.r#type);
+//                 sender.send(entries);
+//             }
+//             Err(error) => {
+//                 error!(%error);
+//                 info!("Status code: {}", response.status);
+//                 sender.send(Default::default());
+//             }
+//         },
+//         Err(error) => {
+//             error!(%error);
+//             sender.send(Default::default());
+//         }
+//     });
+//     promise
+// }
+fn load_tree(url: impl ToString) -> Promise<Option<Tree>> {
     let url = url.to_string();
-    let github_token = github_token.to_string();
     spawn(async {
-        match try_load_tree(github_token, url).await {
+        match try_load_tree(url).await {
             Ok(tree) => Some(tree),
             Err(error) => {
                 error!(%error);
@@ -209,7 +301,8 @@ fn load_blob(ctx: &Context, name: impl ToString, url: impl ToString) {
     });
 }
 
-async fn try_load_tree(github_token: impl Display, url: impl ToString) -> Result<Tree> {
+async fn try_load_tree(url: impl ToString) -> Result<Tree> {
+    let github_token = var("GITHUB_TOKEN").expect("GITHUB_TOKEN not found");
     let request = Request {
         headers: Headers::new(&[
             ("Accept", "application/vnd.github+json"),

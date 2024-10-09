@@ -92,9 +92,7 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) adduct: OrderedFloat<f64>,
     pub(in crate::app) method: Method,
     pub(in crate::app) groups: Vec<Group>,
-    pub(in crate::app) filters: Filters,
-    pub(in crate::app) nulls: bool,
-    pub(in crate::app) filtered: bool,
+    pub(in crate::app) show: Show,
     pub(in crate::app) sort: Sort,
     pub(in crate::app) order: Order,
     pub(in crate::app) join: Join,
@@ -103,7 +101,7 @@ pub(in crate::app) struct Settings {
 }
 
 impl Settings {
-    pub(in crate::app) fn new() -> Self {
+    pub(in crate::app) const fn new() -> Self {
         Self {
             percent: true,
             precision: 1,
@@ -111,9 +109,7 @@ impl Settings {
             adduct: OrderedFloat(0.0),
             method: Method::VanderWal,
             groups: Vec::new(),
-            filters: Filters::new(),
-            filtered: false,
-            nulls: false,
+            show: Show::new(),
             sort: Sort::Value,
             order: Order::Descending,
             join: Join::Left,
@@ -178,39 +174,17 @@ impl Settings {
                     .on_hover_text(self.method.hover_text());
                 ui.end_row();
 
-                // Filter
-                ui.label(localize!("filter"));
+                // Show
+                ui.label(localize!("show"));
                 ui.end_row();
-                for (key, value) in &mut self.filters.0 {
-                    ui.label(key.text());
-                    ui.add(
-                        Slider::new(value, 0.0..=1.0)
-                            .clamping(SliderClamping::Always)
-                            .logarithmic(true)
-                            .custom_formatter(|mut value, _| {
-                                if self.percent {
-                                    value *= 100.0;
-                                }
-                                AnyValue::Float64(value).to_string()
-                            })
-                            .custom_parser(|value| {
-                                let mut parsed = value.parse::<f64>().ok()?;
-                                if self.percent {
-                                    parsed /= 100.0;
-                                }
-                                Some(parsed)
-                            }),
-                    );
-                    ui.end_row();
-                }
 
                 ui.label(localize!("nulls")).on_hover_text("Show nulls");
-                ui.checkbox(&mut self.nulls, "");
+                ui.checkbox(&mut self.show.nulls, "");
                 ui.end_row();
 
                 ui.label(localize!("filtered"))
                     .on_hover_text("Show filtered");
-                ui.checkbox(&mut self.filtered, "");
+                ui.checkbox(&mut self.show.filtered, "");
                 ui.end_row();
 
                 // Compose
@@ -649,20 +623,24 @@ impl Method {
 
 /// Filters
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(in crate::app) struct Filters(pub(in crate::app) HashMap<Composition, f64>);
+pub(in crate::app) struct Show {
+    pub(in crate::app) nulls: bool,
+    pub(in crate::app) filtered: bool,
+}
 
-impl Filters {
-    pub(in crate::app) fn new() -> Self {
-        Self(hashmap! { PSC => 0.005 })
+impl Show {
+    pub(in crate::app) const fn new() -> Self {
+        Self {
+            nulls: false,
+            filtered: false,
+        }
     }
 }
 
-impl Hash for Filters {
+impl Hash for Show {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for (key, value) in &self.0 {
-            key.hash(state);
-            value.ord().hash(state);
-        }
+        self.nulls.hash(state);
+        self.filtered.hash(state);
     }
 }
 

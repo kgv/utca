@@ -11,7 +11,7 @@ use crate::{
         MARGIN,
     },
     localization::localize,
-    utils::{ColumnExt, DataFrameExt, ExprExt, SeriesExt, StructChunkedExt},
+    utils::{spawn, ColumnExt, DataFrameExt, ExprExt, SeriesExt, StructChunkedExt},
 };
 use anyhow::Result;
 use egui::{
@@ -33,11 +33,10 @@ use std::{
     f64::NAN,
     iter::{once, zip},
     num::NonZeroUsize,
-    thread,
 };
 use tracing::error;
 
-/// Central composition pane
+/// Composition pane
 #[derive(Default, Deserialize, Serialize)]
 pub(in crate::app) struct Pane {
     #[serde(skip)]
@@ -53,22 +52,22 @@ impl Pane {
             settings: &behavior.settings.composition,
         });
         if self.hash != hash {
-            if let Some(promise) = self.promise.take() {
-                promise.abort();
-            }
+            // if let Some(promise) = self.promise.take() {
+            //     promise.abort();
+            // }
             let ctx = ui.ctx().clone();
             let data = behavior.data.clone();
             let settings = behavior.settings.clone();
-            let promise = Promise::spawn_async(async move {
-                let data_frame = CompositionComputer.compute(CompositionKey {
-                    entries: &data.entries,
-                    settings: &settings.composition,
-                });
-                ctx.request_repaint();
-                data_frame
-            });
             // let (sender, promise) = Promise::new();
-            // tokio::spawn(async move {
+            // let promise = Promise::spawn_async(async move {
+            //     let data_frame = CompositionComputer.compute(CompositionKey {
+            //         entries: &data.entries,
+            //         settings: &settings.composition,
+            //     });
+            //     ctx.request_repaint();
+            //     data_frame
+            // });
+            // spawn(async move {
             //     let data_frame = CompositionComputer.compute(CompositionKey {
             //         entries: &data.entries,
             //         settings: &settings.composition,
@@ -76,6 +75,14 @@ impl Pane {
             //     ctx.request_repaint();
             //     sender.send(data_frame);
             // });
+            let promise = spawn(async move {
+                let data_frame = CompositionComputer.compute(CompositionKey {
+                    entries: &data.entries,
+                    settings: &settings.composition,
+                });
+                ctx.request_repaint();
+                data_frame
+            });
             self.hash = hash;
             self.promise = Some(promise);
         }

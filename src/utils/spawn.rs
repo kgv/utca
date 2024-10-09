@@ -7,6 +7,6 @@ pub fn spawn<T: Send>(future: impl Future<Output = T> + Send + 'static) -> Promi
 }
 
 #[cfg(target_arch = "wasm32")]
-pub fn spawn<T>(future: impl Future<Output = T> + 'static) -> Promise<T> {
+pub fn spawn<T: Send>(future: impl Future<Output = T> + 'static) -> Promise<T> {
     Promise::spawn_local(future)
 }

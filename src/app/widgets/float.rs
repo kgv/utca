@@ -49,7 +49,7 @@ impl Widget for FloatValue {
                 }
             }
             None => {
-                let mut text = RichText::new(AnyValue::Null.to_string());
+                let mut text = RichText::new(AnyValue::Float64(0.0).to_string());
                 if self.color {
                     text = text.color(Color32::RED);
                 }

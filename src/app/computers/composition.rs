@@ -82,7 +82,7 @@ impl ComputerMut<Key<'_>, Value> for Computer {
                         );
                     }
                     // Filter
-                    if !key.settings.filtered {
+                    if !key.settings.show.filtered {
                         lazy_frame = lazy_frame.filter(
                             all_horizontal([all()
                                 .exclude([r#"^Composition\d$"#])
@@ -133,9 +133,7 @@ impl Hash for Key<'_> {
         self.settings.adduct.hash(state);
         self.settings.groups.hash(state);
         self.settings.method.hash(state);
-        self.settings.filters.hash(state);
-        self.settings.filtered.hash(state);
-        self.settings.nulls.hash(state);
+        self.settings.show.hash(state);
         self.settings.order.hash(state);
         self.settings.sort.hash(state);
         if self.entries.len() > 1 {
@@ -177,7 +175,7 @@ struct Tags(LazyFrame);
 impl Tags {
     fn filter(self, settings: &Settings) -> Self {
         let mut lazy_frame = self.0.with_column(value());
-        if !settings.nulls {
+        if !settings.show.nulls {
             lazy_frame = lazy_frame.filter(col("Value").neq(lit(0)));
         }
         Self(lazy_frame)

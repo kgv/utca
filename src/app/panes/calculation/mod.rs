@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use widgets::Cell;
 
-/// Central calculation pane
+/// Calculation pane
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(in crate::app) struct Pane;
 

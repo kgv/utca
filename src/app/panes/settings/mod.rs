@@ -1,6 +1,7 @@
 pub(in crate::app) use self::{
     calculation::Settings as CalculationSettings, composition::Settings as CompositionSettings,
     configuration::Settings as ConfigurationSettings,
+    visualization::Settings as VisualizationSettings,
 };
 use super::{Kind, Pane, SIZE};
 use crate::localization::localize;
@@ -17,16 +18,18 @@ pub(in crate::app) struct Settings {
     pub(in crate::app) calculation: CalculationSettings,
     pub(in crate::app) composition: CompositionSettings,
     pub(in crate::app) configuration: ConfigurationSettings,
+    pub(in crate::app) visualization: VisualizationSettings,
 }
 
 impl Settings {
-    pub(in crate::app) fn new() -> Self {
+    pub(in crate::app) const fn new() -> Self {
         Self {
             resizable: false,
             editable: false,
             calculation: CalculationSettings::new(),
             composition: CompositionSettings::new(),
             configuration: ConfigurationSettings::new(),
+            visualization: VisualizationSettings::new(),
         }
     }
 }
@@ -49,6 +52,7 @@ impl Settings {
                     Kind::Configuration => self.configuration.ui(ui),
                     Kind::Calculation => self.calculation.ui(ui),
                     Kind::Composition => self.composition.ui(ui),
+                    Kind::Visualization => self.visualization.ui(ui),
                 }
             }
         }
@@ -64,3 +68,4 @@ impl Default for Settings {
 pub(in crate::app) mod calculation;
 pub(in crate::app) mod composition;
 pub(in crate::app) mod configuration;
+pub(in crate::app) mod visualization;

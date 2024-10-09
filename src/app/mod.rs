@@ -8,7 +8,7 @@ use crate::{
     utils::TreeExt,
 };
 use computers::{CalculationComputed, CalculationKey};
-use eframe::{get_value, set_value, CreationContext, Storage};
+use eframe::{get_value, set_value, CreationContext, Storage, APP_KEY};
 use egui::{
     menu::bar, vec2, warn_if_debug_build, Align, Align2, Button, CentralPanel, Color32, Context,
     FontDefinitions, Id, LayerId, Layout, Order, RichText, ScrollArea, SidePanel, Sides, TextStyle,
@@ -34,8 +34,6 @@ use std::{
     time::Duration,
 };
 use tracing::{error, info, trace};
-
-const APP_KEY: &str = "TEMP";
 
 /// IEEE 754-2008
 const MAX_PRECISION: usize = 16;

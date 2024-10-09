@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::f64::NAN;
 use tracing::error;
 
-/// Central configuration pane
+/// Configuration pane
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(in crate::app) struct Pane;
 

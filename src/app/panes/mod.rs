@@ -12,6 +12,7 @@ pub(in crate::app) enum Pane {
     Configuration(configuration::Pane),
     Calculation(calculation::Pane),
     Composition(composition::Pane),
+    Visualization(visualization::Pane),
 }
 
 impl Pane {
@@ -20,6 +21,7 @@ impl Pane {
             Self::Configuration(_) => NOTE_PENCIL,
             Self::Calculation(_) => CALCULATOR,
             Self::Composition(_) => INTERSECT_THREE,
+            Self::Visualization(_) => INTERSECT_THREE,
         }
     }
 
@@ -28,6 +30,7 @@ impl Pane {
             Self::Configuration(_) => Kind::Configuration,
             Self::Calculation(_) => Kind::Calculation,
             Self::Composition(_) => Kind::Composition,
+            Self::Visualization(_) => Kind::Visualization,
         }
     }
 
@@ -36,6 +39,7 @@ impl Pane {
             Self::Configuration(_) => localize!("configuration"),
             Self::Calculation(_) => localize!("calculation"),
             Self::Composition(_) => localize!("composition"),
+            Self::Visualization(_) => localize!("visualization"),
         }
     }
 
@@ -44,6 +48,7 @@ impl Pane {
             Self::Configuration(pane) => pane.ui(ui, behavior),
             Self::Calculation(pane) => pane.ui(ui, behavior),
             Self::Composition(pane) => pane.ui(ui, behavior),
+            Self::Visualization(pane) => pane.ui(ui, behavior),
         }
     }
 }
@@ -66,6 +71,7 @@ pub(in crate::app) enum Kind {
     Configuration,
     Calculation,
     Composition,
+    Visualization,
 }
 
 pub(in crate::app) mod behavior;
@@ -73,3 +79,4 @@ pub(in crate::app) mod calculation;
 pub(in crate::app) mod composition;
 pub(in crate::app) mod configuration;
 pub(in crate::app) mod settings;
+pub(in crate::app) mod visualization;
